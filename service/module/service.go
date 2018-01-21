@@ -2,6 +2,7 @@ package flaki
 
 import (
 	"context"
+
 	flaki "github.com/cloudtrust/flaki"
 )
 

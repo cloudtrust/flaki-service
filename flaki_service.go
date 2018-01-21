@@ -14,14 +14,13 @@ import (
 	flaki_endpoint "github.com/JohanDroz/flaki-service/service/endpoint"
 	module "github.com/JohanDroz/flaki-service/service/module"
 	fb "github.com/JohanDroz/flaki-service/service/transport/flatbuffer/flaki"
-	"github.com/JohanDroz/flaki-service/service/transport/grpc"
+	flaki_grpc "github.com/JohanDroz/flaki-service/service/transport/grpc"
 	flaki_http "github.com/JohanDroz/flaki-service/service/transport/http"
-	"github.com/cloudtrust/flaki"
+	flaki_gen "github.com/cloudtrust/flaki"
 	sentry "github.com/getsentry/raven-go"
-	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	gokit_influx "github.com/go-kit/kit/metrics/influx"
-	"github.com/google/flatbuffers/go"
+	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/gorilla/mux"
 	influx_client "github.com/influxdata/influxdb/client/v2"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -95,11 +94,11 @@ func main() {
 	}()
 
 	// Flaki unique ID generator
-	var flakiGen flaki.Flaki
+	var flaki flaki_gen.Flaki
 	{
 		var logger = log.With(logger, "component", "flaki")
 		var err error
-		flakiGen, err = flaki.NewFlaki(logger, flaki.ComponentID(flakiComponentID), flaki.NodeID(flakiNodeID))
+		flaki, err = flaki_gen.NewFlaki(flaki_gen.ComponentID(flakiComponentID), flaki_gen.NodeID(flakiNodeID))
 		if err != nil {
 			logger.Log("msg", "couldn't create flaki id generator", "error", err)
 			return
@@ -139,7 +138,7 @@ func main() {
 	var gokitInflux *gokit_influx.Influx
 	{
 		gokitInflux = gokit_influx.New(
-			map[string]string{"service": "users"},
+			map[string]string{},
 			influxBatchPointsConfig,
 			log.With(logger, "component", "go-kit influx"),
 		)
@@ -155,51 +154,45 @@ func main() {
 		tracer, closer, err = jaegerConfig.New(componentName)
 		if err != nil {
 			logger.Log("error", err)
+			return
 		}
 		defer closer.Close()
 	}
-	opentracing.InitGlobalTracer(tracer)
 
 	// Backend service
 	var flakiModule module.Service
 	{
-		flakiModule = module.NewBasicService(flakiGen)
+		flakiModule = module.NewBasicService(flaki)
 	}
 
 	var flakiComponent component.Service
 	{
 		flakiComponent = component.NewBasicService(flakiModule)
 		flakiComponent = component.MakeLoggingMiddleware(log.With(logger, "middleware", "component", "name", "flaki"))(flakiComponent)
+		flakiComponent = component.MakeErrorMiddleware(sentryClient)(flakiComponent)
 	}
 
-	var nextIDEndpoint endpoint.Endpoint
-	{
-		nextIDEndpoint = flaki_endpoint.MakeNextIDEndpoint(
-			flakiComponent,
-			flaki_endpoint.MakeMetricMiddleware(gokitInflux.NewHistogram("nextID-endpoint")),
-			flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextID")))
-	}
-	var nextValidIDEndpoint endpoint.Endpoint
-	{
-		nextValidIDEndpoint = flaki_endpoint.MakeNextValidIDEndpoint(
-			flakiComponent,
-			flaki_endpoint.MakeMetricMiddleware(gokitInflux.NewHistogram("nextValidID-endpoint")),
-			flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextValidID")))
-	}
+	var flakiEndpoints = flaki_endpoint.NewEndpoints(flaki_endpoint.MakeCorrelationIDMiddleware(flaki))
 
-	var flakiEndpoints = flaki_endpoint.Endpoints{
-		NextIDEndpoint:      nextIDEndpoint,
-		NextValidIDEndpoint: nextValidIDEndpoint,
-	}
+	flakiEndpoints.MakeNextIDEndpoint(
+		flakiComponent,
+		flaki_endpoint.MakeMetricMiddleware(gokitInflux.NewHistogram("nextID-endpoint")),
+		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextID")),
+		flaki_endpoint.MakeTracingMiddleware(tracer, "nextID"),
+	)
+
+	flakiEndpoints.MakeNextValidIDEndpoint(
+		flakiComponent,
+		flaki_endpoint.MakeMetricMiddleware(gokitInflux.NewHistogram("nextValidID-endpoint")),
+		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextValidID")),
+		flaki_endpoint.MakeTracingMiddleware(tracer, "nextValidID"),
+	)
 
 	// GRPC server
 	go func() {
 		var logger = log.With(logger, "transport", "grpc")
 		logger.Log("addr", grpcAddr)
 
-		var flakiServer = grpc.NewServer(grpc.CustomCodec(flatbuffers.FlatbuffersCodec{}))
-		var flakiGrpcServer = server.NewGrpcServer(flakiEndpoints)
-		fb.RegisterFlakiServer(flakiServer, flakiGrpcServer)
 		var lis net.Listener
 		{
 			var err error
@@ -210,6 +203,11 @@ func main() {
 				return
 			}
 		}
+
+		var grpcServer = flaki_grpc.NewGRPCServer(flakiEndpoints)
+		var flakiServer = grpc.NewServer(grpc.CustomCodec(flatbuffers.FlatbuffersCodec{}))
+		fb.RegisterFlakiServer(flakiServer, grpcServer)
+
 		errc <- flakiServer.Serve(lis)
 	}()
 
@@ -221,10 +219,20 @@ func main() {
 		var route = mux.NewRouter()
 
 		// NextID
-		route.Handle("/nextid", flaki_http.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, log.With(logger, "endpoint", "nextID")))
+		var nextIDHandler http.Handler
+		{
+			nextIDHandler = flaki_http.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, log.With(logger, "endpoint", "nextID"))
+			nextIDHandler = flaki_http.MakeTracingMiddleware(tracer, "nextID")(nextIDHandler)
+		}
+		route.Handle("/nextid", nextIDHandler)
 
 		// NextValidID
-		route.Handle("/nextvalidid", flaki_http.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, log.With(logger, "endpoint", "nextValidID")))
+		var nextValidIDHandler http.Handler
+		{
+			nextValidIDHandler = flaki_http.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, log.With(logger, "endpoint", "nextValidID"))
+			nextValidIDHandler = flaki_http.MakeTracingMiddleware(tracer, "nextValidID")(nextValidIDHandler)
+		}
+		route.Handle("/nextvalidid", nextValidIDHandler)
 
 		// Version
 		route.Handle("/version", http.HandlerFunc(flaki_http.MakeVersion(componentName, Version, Environment, GitCommit)))
@@ -245,34 +253,34 @@ func config(logger log.Logger) map[string]interface{} {
 
 	logger.Log("msg", "Loading configuration & command args")
 
-	var configFile = "./conf/" + Environment + "/flaki_service.yml"
+	var configFile = fmt.Sprintf("./conf/%s/flaki_service.yml", Environment)
 	// Component default
 	viper.SetDefault("config-file", configFile)
 	viper.SetDefault("component-name", "flaki-service")
-	viper.SetDefault("component-http-address", "127.0.0.1:8888")
-	viper.SetDefault("component-grpc-address", "127.0.0.1:5555")
+	viper.SetDefault("component-http-address", "0.0.0.0:8888")
+	viper.SetDefault("component-grpc-address", "0.0.0.0:5555")
 
 	// Flaki generator default
 	viper.SetDefault("flaki-node-id", 0)
 	viper.SetDefault("flaki-component-id", 0)
 
 	// Influx DB client default
-	viper.SetDefault("influx-url", "http://localhost:8086")
-	viper.SetDefault("influx-username", "admin")
-	viper.SetDefault("influx-password", "admin")
-	viper.SetDefault("influx-database", "metrics")
+	viper.SetDefault("influx-url", "http://127.0.0.1:8086")
+	viper.SetDefault("influx-username", "flaki")
+	viper.SetDefault("influx-password", "flaki")
+	viper.SetDefault("influx-database", "flakimetrics")
 	viper.SetDefault("influx-precision", "s")
 	viper.SetDefault("influx-retention-policy", "")
 	viper.SetDefault("influx-write-consistency", "")
-	viper.SetDefault("influx-write-interval-ms", 1000)
+	viper.SetDefault("influx-write-interval-ms", 10000)
 
 	// Sentry client default
-	viper.SetDefault("sentry-dsn", "https://99360b38b8c947baaa222a5367cd74bc:579dc85095114b6198ab0f605d0dc576@sentry-cloudtrust.dev.elca.ch/2")
+	viper.SetDefault("sentry-dsn", "https://b8c9ed32c19d427f9cfef5b147c171eb:0a9b494f8c9940789590d32e603e8515@sentry.io/270124")
 
 	// Jaeger tracing default
 	viper.SetDefault("jaeger-sampler-type", "const")
 	viper.SetDefault("jaeger-sampler-param", 1)
-	viper.SetDefault("jaeger-sampler-url", "http://localhost:5775")
+	viper.SetDefault("jaeger-sampler-url", "http://127.0.0.1:5775/")
 	viper.SetDefault("jaeger-reporter-logspan", false)
 	viper.SetDefault("jaeger-reporter-flushinterval-ms", 1000)
 

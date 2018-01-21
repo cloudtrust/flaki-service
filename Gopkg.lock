@@ -23,7 +23,7 @@
   branch = "master"
   name = "github.com/cloudtrust/flaki"
   packages = ["."]
-  revision = "896f8c293080d5335c4b1f2bbccc831278fe6517"
+  revision = "744a69b0a28662653a1bddb49da3485ed7a5cbb1"
 
 [[projects]]
   branch = "master"
@@ -40,8 +40,8 @@
 [[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
-  revision = "629574ca2a5df945712d3079857300b5e4da0236"
-  version = "v1.4.2"
+  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
+  version = "v1.4.7"
 
 [[projects]]
   branch = "master"
@@ -51,7 +51,7 @@
 
 [[projects]]
   name = "github.com/go-kit/kit"
-  packages = ["endpoint","log","metrics","metrics/generic","metrics/influx","metrics/internal/lv","transport/http"]
+  packages = ["endpoint","log","metrics","metrics/generic","metrics/influx","metrics/internal/lv","transport/grpc","transport/http"]
   revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
   version = "v0.6.0"
 
@@ -119,7 +119,7 @@
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "06020f85339e21b2478f756a78e295255ffa4d6a"
+  revision = "b4575eea38cca1123ec2dc90c26529b5c5acfcff"
 
 [[projects]]
   name = "github.com/opentracing/opentracing-go"
@@ -184,26 +184,26 @@
 [[projects]]
   name = "github.com/uber/jaeger-client-go"
   packages = [".","config","internal/baggage","internal/baggage/remote","internal/spanlog","log","rpcmetrics","thrift-gen/agent","thrift-gen/baggage","thrift-gen/jaeger","thrift-gen/sampling","thrift-gen/zipkincore","utils"]
-  revision = "f54d8ece0a66e3db6a9247e946eb1e2bd79029ea"
-  version = "v2.11.1"
+  revision = "3ac96c6e679cb60a74589b0d0aa7c70a906183f7"
+  version = "v2.11.2"
 
 [[projects]]
   name = "github.com/uber/jaeger-lib"
   packages = ["metrics"]
-  revision = "5519f3beabf28707fca8d3f47f9cff87dad48d96"
-  version = "v1.3.0"
+  revision = "7f95f4f7e80028096410abddaae2556e4c61b59f"
+  version = "v1.3.1"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "434ec0c7fe3742c984919a691b2018a6e9694425"
+  revision = "5ccada7d0a7ba9aeb5d3aca8d3501b4c2a509fec"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "d38bf781f16e180a1b2ad82697d2f81d7b7ecfac"
+  revision = "fff93fa7cd278d84afc205751523809c464168ab"
 
 [[projects]]
   branch = "master"
@@ -232,6 +232,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "da85e6fa17a5ec5ccec0fba5a9f53ba49b0fe4caa7f94461c895f0dec8103631"
+  inputs-digest = "82e0fd34b17ecb10c8af19b2723839ab8a2a9671453c706478d0947b91258b64"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -2,31 +2,18 @@ package flaki
 
 import (
 	"context"
-	"errors"
-	"github.com/stretchr/testify/assert"
+	"fmt"
+	"math/rand"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-type mockFlaki struct {
-	id   uint64
-	fail bool
-}
+func TestNextID(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	var expected = rand.Uint64()
 
-var ErrFail = errors.New("Fail")
-
-func (m *mockFlaki) NextID() (uint64, error) {
-	if m.fail {
-		return 0, ErrFail
-	}
-	return m.id, nil
-}
-
-func (m *mockFlaki) NextValidID() uint64 {
-	return m.id
-}
-
-func TestBasicService_NextID(t *testing.T) {
-	var expected uint64 = 1
 	var flakiService = NewBasicService(&mockFlaki{
 		id:   expected,
 		fail: false,
@@ -37,8 +24,9 @@ func TestBasicService_NextID(t *testing.T) {
 	assert.Equal(t, expected, id)
 }
 
-func TestBasicService_NextIDFail(t *testing.T) {
-	var expected uint64 = 2
+func TestNextIDFail(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	var expected = rand.Uint64()
 
 	var flakiService = NewBasicService(&mockFlaki{
 		id:   expected,
@@ -50,8 +38,9 @@ func TestBasicService_NextIDFail(t *testing.T) {
 	assert.Zero(t, id)
 }
 
-func TestBasicService_NextValidID(t *testing.T) {
-	var expected uint64 = 3
+func TestNextValidID(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	var expected = rand.Uint64()
 
 	var flakiService = NewBasicService(&mockFlaki{
 		id: expected,
@@ -59,4 +48,20 @@ func TestBasicService_NextValidID(t *testing.T) {
 
 	var id = flakiService.NextValidID(context.Background())
 	assert.Equal(t, expected, id)
+}
+
+type mockFlaki struct {
+	id   uint64
+	fail bool
+}
+
+func (m *mockFlaki) NextID() (uint64, error) {
+	if m.fail {
+		return 0, fmt.Errorf("fail")
+	}
+	return m.id, nil
+}
+
+func (m *mockFlaki) NextValidID() uint64 {
+	return m.id
 }

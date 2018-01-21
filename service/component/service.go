@@ -2,6 +2,7 @@ package component
 
 import (
 	"context"
+
 	"github.com/JohanDroz/flaki-service/service/module"
 )
 

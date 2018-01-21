@@ -13,31 +13,34 @@ import (
 	"github.com/google/flatbuffers/go"
 )
 
-/*
-func NewFlakiHandler(logger log.Logger, flaki flaki.Flaki) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/x-protobuf")
-		w.Write([]byte("Test"))
-	}
-}*/
-
 func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeNextIDRequest,
 		encodeNextIDResponse,
 		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
+		http_transport.ServerBefore(fetchCorrelationID),
 	)
+}
+
+// fetchCorrelationID read the correlation id from the http header "X-Correlation-ID".
+// If the id is not zero, we put it in the context.
+func fetchCorrelationID(ctx context.Context, r *http.Request) context.Context {
+	var correlationID = r.Header.Get("X-Correlation-ID")
+	if correlationID != "" {
+		ctx = context.WithValue(ctx, "id", correlationID)
+	}
+	return ctx
 }
 
 func decodeNextIDRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
 	var data []byte
+
 	data, err = ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
-	var empty = fb.GetRootAsEmptyRequest(data, 0)
 
-	return empty, nil
+	return fb.GetRootAsEmptyRequest(data, 0), nil
 }
 
 func encodeNextIDResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
@@ -74,18 +77,20 @@ func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger) *http_transport
 	return http_transport.NewServer(e,
 		decodeNextValidIDRequest,
 		encodeNextValidIDResponse,
+		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
+		http_transport.ServerBefore(fetchCorrelationID),
 	)
 }
 
 func decodeNextValidIDRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
 	var data []byte
+
 	data, err = ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
-	var empty = fb.GetRootAsEmptyRequest(data, 0)
 
-	return empty, nil
+	return fb.GetRootAsEmptyRequest(data, 0), nil
 }
 
 func encodeNextValidIDResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
