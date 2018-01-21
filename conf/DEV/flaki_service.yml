@@ -1,0 +1,28 @@
+# Component configs
+component-name: flaki-service
+component-grpc-address: 127.0.0.1:5555
+component-http-address: 127.0.0.1:8888
+
+# Flaki generator configs
+flaki-node-id: 0
+flaki-component-id: 0
+
+# Influx DB configs
+influx-url: http://localhost:8086
+influx-username: flaki
+influx-password: flaki
+influx-database: flakimetrics
+influx-precision: s
+influx-retention-policy: ""
+influx-write-consistency: ""
+influx-write-interval-ms: 1000
+
+# Sentry configs
+sentry-dsn: https://99360b38b8c947baaa222a5367cd74bc:579dc85095114b6198ab0f605d0dc576@sentry-cloudtrust.dev.elca.ch/2
+
+# Jaeger configs
+jaeger-sampler-type: const
+jaeger-sampler-param: 1
+jaeger-sampler-url: http://localhost:5775
+jaeger-reporter-logspan: false
+jaeger-reporter-flushinterval-ms: 1000
