@@ -3,7 +3,7 @@ package component
 import (
 	"context"
 
-	"github.com/JohanDroz/flaki-service/service/module"
+	"github.com/cloudtrust/flaki-service/service/module"
 )
 
 // Service is the interface that the services implement.

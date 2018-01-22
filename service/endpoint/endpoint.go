@@ -3,7 +3,7 @@ package endpoint
 import (
 	"context"
 
-	"github.com/JohanDroz/flaki-service/service/component"
+	"github.com/cloudtrust/flaki-service/service/component"
 	"github.com/go-kit/kit/endpoint"
 )
 

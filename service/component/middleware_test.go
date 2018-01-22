@@ -93,7 +93,7 @@ type mockSentry struct {
 
 func (client *mockSentry) CaptureErrorAndWait(err error, tags map[string]string, interfaces ...sentry.Interface) string {
 	client.Called = true
-	client.CorrelationID = tags["id"]
+	client.CorrelationID = tags["correlationID"]
 	return ""
 }
 func (client *mockSentry) SetDSN(dsn string) error           { return nil }

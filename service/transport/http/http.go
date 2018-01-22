@@ -6,19 +6,21 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	fb "github.com/JohanDroz/flaki-service/service/transport/flatbuffer/flaki"
+	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/flatbuffers/go"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
-func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger) *http_transport.Server {
+func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeNextIDRequest,
 		encodeNextIDResponse,
 		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
 		http_transport.ServerBefore(fetchCorrelationID),
+		http_transport.ServerBefore(makeTracerHandler(tracer, "nextID")),
 	)
 }
 
@@ -27,9 +29,29 @@ func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger) *http_transport.Serv
 func fetchCorrelationID(ctx context.Context, r *http.Request) context.Context {
 	var correlationID = r.Header.Get("X-Correlation-ID")
 	if correlationID != "" {
-		ctx = context.WithValue(ctx, "id", correlationID)
+		ctx = context.WithValue(ctx, "correlationID", correlationID)
 	}
 	return ctx
+}
+
+func makeTracerHandler(tracer opentracing.Tracer, operationName string) http_transport.RequestFunc {
+	return func(ctx context.Context, r *http.Request) context.Context {
+		var sc, err = tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+
+		var span opentracing.Span
+		if err != nil {
+			span = tracer.StartSpan(operationName)
+		} else {
+			span = tracer.StartSpan(operationName, opentracing.ChildOf(sc))
+		}
+		defer span.Finish()
+		sc.ForeachBaggageItem(func(k, v string) bool {
+			fmt.Printf("key: %s, val: %s\n", k, v)
+			return true
+		})
+
+		return opentracing.ContextWithSpan(r.Context(), span)
+	}
 }
 
 func decodeNextIDRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
@@ -73,12 +95,13 @@ func MakeNextIDErrorHandler(logger log.Logger) http_transport.ErrorEncoder {
 	}
 }
 
-func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger) *http_transport.Server {
+func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeNextValidIDRequest,
 		encodeNextValidIDResponse,
 		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
 		http_transport.ServerBefore(fetchCorrelationID),
+		http_transport.ServerBefore(makeTracerHandler(tracer, "nextValidID")),
 	)
 }
 

@@ -18,18 +18,18 @@ import (
 func MakeCorrelationIDMiddleware(flaki flaki.Flaki) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			var idStr = ctx.Value("id")
+			var idStr = ctx.Value("correlationID")
 
 			if idStr == nil {
 				// If there is no correlation ID in the context, add one.
-				ctx = context.WithValue(ctx, "id", flaki.NextValidID())
+				ctx = context.WithValue(ctx, "correlationID", flaki.NextValidID())
 			} else {
 				// If there is already a correlation ID in the context, use it.
 				var id, err = strconv.ParseUint(idStr.(string), 10, 64)
 				if err != nil {
 					panic("cannot convert to uint64")
 				}
-				ctx = context.WithValue(ctx, "id", id)
+				ctx = context.WithValue(ctx, "correlationID", id)
 			}
 			return next(ctx, req)
 		}
@@ -37,7 +37,7 @@ func MakeCorrelationIDMiddleware(flaki flaki.Flaki) endpoint.Middleware {
 }
 
 func getIDFromContext(ctx context.Context) uint64 {
-	var id = ctx.Value("id")
+	var id = ctx.Value("correlationID")
 	if id == nil {
 		return 0
 	}
@@ -49,7 +49,7 @@ func MakeLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
-				logger.Log("id", getIDFromContext(ctx), "took", time.Since(begin))
+				logger.Log("correlation_id", getIDFromContext(ctx), "took", time.Since(begin))
 			}(time.Now())
 			return next(ctx, req)
 		}
@@ -63,7 +63,7 @@ func MakeMetricMiddleware(h metrics.Histogram) endpoint.Middleware {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			var correlationID = getIDFromContext(ctx)
 			defer func(begin time.Time) {
-				h.With("id", strconv.FormatUint(correlationID, 10)).Observe(time.Since(begin).Seconds())
+				h.With("correlationID", strconv.FormatUint(correlationID, 10)).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 			return next(ctx, req)
 		}

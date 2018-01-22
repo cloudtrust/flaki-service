@@ -5,21 +5,23 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	component "github.com/JohanDroz/flaki-service/service/component"
-	flaki_endpoint "github.com/JohanDroz/flaki-service/service/endpoint"
-	module "github.com/JohanDroz/flaki-service/service/module"
-	fb "github.com/JohanDroz/flaki-service/service/transport/flatbuffer/flaki"
-	flaki_grpc "github.com/JohanDroz/flaki-service/service/transport/grpc"
-	flaki_http "github.com/JohanDroz/flaki-service/service/transport/http"
 	flaki_gen "github.com/cloudtrust/flaki"
+	component "github.com/cloudtrust/flaki-service/service/component"
+	flaki_endpoint "github.com/cloudtrust/flaki-service/service/endpoint"
+	module "github.com/cloudtrust/flaki-service/service/module"
+	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
+	flaki_grpc "github.com/cloudtrust/flaki-service/service/transport/grpc"
+	flaki_http "github.com/cloudtrust/flaki-service/service/transport/http"
 	sentry "github.com/getsentry/raven-go"
 	"github.com/go-kit/kit/log"
 	gokit_influx "github.com/go-kit/kit/metrics/influx"
+	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/gorilla/mux"
 	influx_client "github.com/influxdata/influxdb/client/v2"
@@ -204,7 +206,21 @@ func main() {
 			}
 		}
 
-		var grpcServer = flaki_grpc.NewGRPCServer(flakiEndpoints)
+		// NextID
+		var nextIDHandler grpc_transport.Handler
+		{
+			var logger = log.With(logger, "endpoint", "nextID")
+			nextIDHandler = flaki_grpc.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, logger, tracer)
+		}
+
+		// NextValidID
+		var nextValidIDHandler grpc_transport.Handler
+		{
+			var logger = log.With(logger, "endpoint", "nextValidID")
+			nextValidIDHandler = flaki_grpc.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, logger, tracer)
+		}
+
+		var grpcServer = flaki_grpc.NewGRPCServer(nextIDHandler, nextValidIDHandler)
 		var flakiServer = grpc.NewServer(grpc.CustomCodec(flatbuffers.FlatbuffersCodec{}))
 		fb.RegisterFlakiServer(flakiServer, grpcServer)
 
@@ -221,21 +237,29 @@ func main() {
 		// NextID
 		var nextIDHandler http.Handler
 		{
-			nextIDHandler = flaki_http.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, log.With(logger, "endpoint", "nextID"))
-			nextIDHandler = flaki_http.MakeTracingMiddleware(tracer, "nextID")(nextIDHandler)
+			var logger = log.With(logger, "endpoint", "nextID")
+			nextIDHandler = flaki_http.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, logger, tracer)
 		}
 		route.Handle("/nextid", nextIDHandler)
 
 		// NextValidID
 		var nextValidIDHandler http.Handler
 		{
-			nextValidIDHandler = flaki_http.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, log.With(logger, "endpoint", "nextValidID"))
-			nextValidIDHandler = flaki_http.MakeTracingMiddleware(tracer, "nextValidID")(nextValidIDHandler)
+			var logger = log.With(logger, "endpoint", "nextValidID")
+			nextValidIDHandler = flaki_http.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, logger, tracer)
 		}
 		route.Handle("/nextvalidid", nextValidIDHandler)
 
 		// Version
 		route.Handle("/version", http.HandlerFunc(flaki_http.MakeVersion(componentName, Version, Environment, GitCommit)))
+
+		// Debug
+		var debugSubroute = route.PathPrefix("/debug").Subrouter()
+		debugSubroute.HandleFunc("/pprof/", http.HandlerFunc(pprof.Index))
+		debugSubroute.HandleFunc("/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		debugSubroute.HandleFunc("/pprof/profile", http.HandlerFunc(pprof.Profile))
+		debugSubroute.HandleFunc("/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		debugSubroute.HandleFunc("/pprof/trace", http.HandlerFunc(pprof.Trace))
 
 		errc <- http.ListenAndServe(httpAddr, route)
 	}()

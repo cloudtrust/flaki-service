@@ -11,7 +11,7 @@ import (
 
 	"strconv"
 
-	fb "github.com/JohanDroz/flaki-service/service/transport/flatbuffer/flaki"
+	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"

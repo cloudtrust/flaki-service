@@ -62,7 +62,7 @@ echo "==> Build:"
 
 export CGO_ENABLED="0"
 
-go build -ldflags "$LD_FLAGS" -o bin/flakiService
+go build -ldflags "$LD_FLAGS" -o bin/flaki_service
 echo "Build commit '${GIT_COMMIT}' for '${ENV}' environment."
 ls -hl bin/
 

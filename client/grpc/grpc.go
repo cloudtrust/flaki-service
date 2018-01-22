@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	fb "github.com/JohanDroz/flaki-service/service/transport/flatbuffer/flaki"
+	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -78,6 +78,7 @@ func main() {
 	var span = tracer.StartSpan("fuck")
 	defer span.Finish()
 	span = span.SetBaggageItem("myBaggage", "myBaggageValue")
+	span = span.SetBaggageItem("myBaggage", "myBaggageValue2")
 
 	var m = make(opentracing.TextMapCarrier)
 
@@ -86,11 +87,12 @@ func main() {
 		logger.Log("error", err)
 		return
 	}
-	fmt.Printf("map: %s\n", m)
-	fmt.Printf("span: %s\n", span)
 
-	m.Set("id", "0")
-	var md = metadata.New()
+	m.Set("correlation-id", "1")
+	fmt.Printf("map: %s\n", m)
+
+	var md = metadata.New(m)
+	fmt.Printf("metadata: %s\n", md)
 
 	// gRPC NextID
 	var nextIDReply *fb.NextIDReply

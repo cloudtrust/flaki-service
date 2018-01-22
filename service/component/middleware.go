@@ -21,14 +21,14 @@ type loggingMiddleware struct {
 // loggingMiddleware implements Service
 func (m *loggingMiddleware) NextID(ctx context.Context) (uint64, error) {
 	defer func(begin time.Time) {
-		m.logger.Log("method", "NextID", "id", ctx.Value("id"), "took", time.Since(begin))
+		m.logger.Log("method", "NextID", "correlation_id", ctx.Value("correlationID"), "took", time.Since(begin))
 	}(time.Now())
 	return m.next.NextID(ctx)
 }
 
 func (m *loggingMiddleware) NextValidID(ctx context.Context) uint64 {
 	defer func(begin time.Time) {
-		m.logger.Log("method", "NextValidID", "id", ctx.Value("id"), "took", time.Since(begin))
+		m.logger.Log("method", "NextValidID", "correlation_id", ctx.Value("correlationID"), "took", time.Since(begin))
 	}(time.Now())
 	return m.next.NextValidID(ctx)
 }
@@ -74,17 +74,17 @@ type errorMiddleware struct {
 func (s *errorMiddleware) NextID(ctx context.Context) (uint64, error) {
 	var id, err = s.next.NextID(ctx)
 	if err != nil {
-		s.client.CaptureErrorAndWait(err, map[string]string{"id": getStrIDFromContext(ctx)})
+		s.client.CaptureErrorAndWait(err, map[string]string{"correlationID": getStrIDFromContext(ctx)})
 	}
 	return id, err
 }
 
 func getStrIDFromContext(ctx context.Context) string {
-	var id = ctx.Value("id")
+	var id = ctx.Value("correlationID")
 	if id == nil {
 		return ""
 	}
-	return strconv.FormatUint(ctx.Value("id").(uint64), 10)
+	return strconv.FormatUint(ctx.Value("correlationID").(uint64), 10)
 }
 
 func (s *errorMiddleware) NextValidID(ctx context.Context) uint64 {
