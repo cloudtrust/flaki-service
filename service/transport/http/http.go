@@ -24,6 +24,16 @@ func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.T
 	)
 }
 
+func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
+	return http_transport.NewServer(e,
+		decodeNextValidIDRequest,
+		encodeNextValidIDResponse,
+		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
+		http_transport.ServerBefore(fetchCorrelationID),
+		http_transport.ServerBefore(makeTracerHandler(tracer, "nextValidID")),
+	)
+}
+
 // fetchCorrelationID read the correlation id from the http header "X-Correlation-ID".
 // If the id is not zero, we put it in the context.
 func fetchCorrelationID(ctx context.Context, r *http.Request) context.Context {
@@ -93,16 +103,6 @@ func MakeNextIDErrorHandler(logger log.Logger) http_transport.ErrorEncoder {
 
 		w.Write(b.FinishedBytes())
 	}
-}
-
-func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeNextValidIDRequest,
-		encodeNextValidIDResponse,
-		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
-		http_transport.ServerBefore(fetchCorrelationID),
-		http_transport.ServerBefore(makeTracerHandler(tracer, "nextValidID")),
-	)
 }
 
 func decodeNextValidIDRequest(_ context.Context, r *http.Request) (res interface{}, err error) {

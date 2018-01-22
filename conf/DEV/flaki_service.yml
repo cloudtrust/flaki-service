@@ -23,6 +23,6 @@ sentry-dsn: https://b8c9ed32c19d427f9cfef5b147c171eb:0a9b494f8c9940789590d32e603
 # Jaeger configs
 jaeger-sampler-type: const
 jaeger-sampler-param: 1
-jaeger-sampler-url: http://127.0.0.1:5775/
+jaeger-sampler-url: http://127.0.0.1:5775
 jaeger-reporter-logspan: false
 jaeger-reporter-flushinterval-ms: 1000

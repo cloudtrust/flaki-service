@@ -55,7 +55,7 @@ func TestErrorMiddleware(t *testing.T) {
 
 	mockSentry.Called = false
 	assert.Zero(t, mockSentry.CorrelationID)
-	srv.NextID(context.WithValue(context.Background(), "id", id))
+	srv.NextID(context.WithValue(context.Background(), "correlationID", id))
 	assert.Equal(t, idStr, mockSentry.CorrelationID)
 }
 

@@ -42,3 +42,10 @@ The errors and crashes are sent to a sentry error tracking system. We need the s
 ### http client
 
  
+In influxDB, tags are indexed, so we put the correalationID as tags to speed up queries.
+To query over a tag: DO NOT FORGET TO SIMPLE QUOTE the tag, otherwise it returns always empty results.
+select * from "nextID-endpoint" where "correlationID" = '0';
+
+
+Activation / deactivation of the modules (metrics, tracing, ....)
+

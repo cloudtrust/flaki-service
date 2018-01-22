@@ -95,7 +95,7 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	// Flaki unique ID generator
+	// Flaki unique distributed ID generator
 	var flaki flaki_gen.Flaki
 	{
 		var logger = log.With(logger, "component", "flaki")
@@ -277,7 +277,7 @@ func config(logger log.Logger) map[string]interface{} {
 
 	logger.Log("msg", "Loading configuration & command args")
 
-	var configFile = fmt.Sprintf("./conf/%s/flaki_service.yml", Environment)
+	var configFile = "./conf/DEV/flaki_service.yml"
 	// Component default
 	viper.SetDefault("config-file", configFile)
 	viper.SetDefault("component-name", "flaki-service")
@@ -296,15 +296,15 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("influx-precision", "s")
 	viper.SetDefault("influx-retention-policy", "")
 	viper.SetDefault("influx-write-consistency", "")
-	viper.SetDefault("influx-write-interval-ms", 10000)
+	viper.SetDefault("influx-write-interval-ms", 1000)
 
 	// Sentry client default
-	viper.SetDefault("sentry-dsn", "https://b8c9ed32c19d427f9cfef5b147c171eb:0a9b494f8c9940789590d32e603e8515@sentry.io/270124")
+	viper.SetDefault("sentry-dsn", "")
 
 	// Jaeger tracing default
 	viper.SetDefault("jaeger-sampler-type", "const")
 	viper.SetDefault("jaeger-sampler-param", 1)
-	viper.SetDefault("jaeger-sampler-url", "http://127.0.0.1:5775/")
+	viper.SetDefault("jaeger-sampler-url", "http://127.0.0.1:5775")
 	viper.SetDefault("jaeger-reporter-logspan", false)
 	viper.SetDefault("jaeger-reporter-flushinterval-ms", 1000)
 
