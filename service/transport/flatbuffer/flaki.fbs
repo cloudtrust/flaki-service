@@ -1,23 +1,18 @@
 namespace flaki;
 
 // The response message containing the unique ID or an error
-table NextIDReply {
-    id:ulong;
+table FlakiReply {
+    id:string;
     error:string;
-}
-
-// The response message containing the unique ID
-table NextValidIDReply {
-    id:ulong;
 }
 
 table EmptyRequest {
 }
 
 rpc_service Flaki {
-  NextID(EmptyRequest):NextIDReply;
-  NextValidID(EmptyRequest):NextValidIDReply;
+  NextID(EmptyRequest):FlakiReply;
+  NextValidID(EmptyRequest):FlakiReply;
 }
 
-root_type NextValidIDReply;
+root_type FlakiReply;
 

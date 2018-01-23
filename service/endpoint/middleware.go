@@ -2,7 +2,6 @@ package endpoint
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/cloudtrust/flaki"
@@ -13,35 +12,22 @@ import (
 	tags "github.com/opentracing/opentracing-go/ext"
 )
 
-// MakeCorrelationIDMiddleware makes a middleware that adds a correlation id
+// MakeCorrelationIDMiddleware makes a middleware that adds a correlation ID
 // in the context if there is not already one.
 func MakeCorrelationIDMiddleware(flaki flaki.Flaki) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			var idStr = ctx.Value("correlationID")
+			var id = ctx.Value("correlation-id")
 
-			if idStr == nil {
+			if id == nil {
 				// If there is no correlation ID in the context, add one.
-				ctx = context.WithValue(ctx, "correlationID", flaki.NextValidID())
+				ctx = context.WithValue(ctx, "correlation-id", flaki.NextValidIDString())
 			} else {
-				// If there is already a correlation ID in the context, use it.
-				var id, err = strconv.ParseUint(idStr.(string), 10, 64)
-				if err != nil {
-					panic("cannot convert to uint64")
-				}
-				ctx = context.WithValue(ctx, "correlationID", id)
+				ctx = context.WithValue(ctx, "correlation-id", id)
 			}
 			return next(ctx, req)
 		}
 	}
-}
-
-func getIDFromContext(ctx context.Context) uint64 {
-	var id = ctx.Value("correlationID")
-	if id == nil {
-		return 0
-	}
-	return id.(uint64)
 }
 
 // MakeLoggingMiddleware makes a logging middleware.
@@ -49,7 +35,7 @@ func MakeLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
-				logger.Log("correlation_id", getIDFromContext(ctx), "took", time.Since(begin))
+				logger.Log("correlation_id", ctx.Value("correlation-id"), "took", time.Since(begin))
 			}(time.Now())
 			return next(ctx, req)
 		}
@@ -61,9 +47,8 @@ func MakeLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 func MakeMetricMiddleware(h metrics.Histogram) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			var correlationID = getIDFromContext(ctx)
 			defer func(begin time.Time) {
-				h.With("correlationID", strconv.FormatUint(correlationID, 10)).Observe(time.Since(begin).Seconds())
+				h.With("correlation-id", ctx.Value("correlation-id").(string)).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 			return next(ctx, req)
 		}

@@ -2,14 +2,13 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 
 	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
+	opentracing_tag "github.com/opentracing/opentracing-go/ext"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -18,27 +17,29 @@ type grpcServer struct {
 	nextValidID grpc_transport.Handler
 }
 
-func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *grpc_transport.Server {
+// MakeNextIDHandler makes a GRPC handler for the NextID endpoint.
+func MakeNextIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *grpc_transport.Server {
 	return grpc_transport.NewServer(
 		e,
-		decodeNextIDRequest,
-		encodeNextIDResponse,
+		decodeFlakiRequest,
+		encodeFlakiReply,
 		grpc_transport.ServerBefore(fetchCorrelationID),
 		grpc_transport.ServerBefore(makeTracerHandler(tracer, "nextID")),
 	)
 }
 
-func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *grpc_transport.Server {
+// MakeNextValidIDHandler makes a GRPC handler for the NextValidID endpoint.
+func MakeNextValidIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *grpc_transport.Server {
 	return grpc_transport.NewServer(
 		e,
-		decodeNextValidIDRequest,
-		encodeNextValidIDResponse,
+		decodeFlakiRequest,
+		encodeFlakiReply,
 		grpc_transport.ServerBefore(fetchCorrelationID),
 		grpc_transport.ServerBefore(makeTracerHandler(tracer, "nextValidID")),
 	)
 }
 
-// NewGRPCServer makes a set of endpoints available as a grpc server.
+// NewGRPCServer makes a set of handler available as a FlakiServer.
 func NewGRPCServer(nextIDHandler, nextValidIDHandler grpc_transport.Handler) fb.FlakiServer {
 	return &grpcServer{
 		nextID:      nextIDHandler,
@@ -46,7 +47,8 @@ func NewGRPCServer(nextIDHandler, nextValidIDHandler grpc_transport.Handler) fb.
 	}
 }
 
-// correlationIDToContext put the correlationID to the context.
+// fetchCorrelationID reads the correlation ID from the GRPC metadata.
+// If the id is not zero, we put it in the context.
 func fetchCorrelationID(ctx context.Context, md metadata.MD) context.Context {
 	var val = md["correlation-id"]
 
@@ -57,17 +59,20 @@ func fetchCorrelationID(ctx context.Context, md metadata.MD) context.Context {
 
 	// If there is an id in the metadata, add it to the context.
 	var id = val[0]
-	return context.WithValue(ctx, "correlationID", id)
+	return context.WithValue(ctx, "correlation-id", id)
 }
 
+// makeTracerHandler try to extract an existing span from the GRPC metadata. It it exists, we
+// continue the span, if not we create a new one.
 func makeTracerHandler(tracer opentracing.Tracer, operationName string) grpc_transport.ServerRequestFunc {
 	return func(ctx context.Context, MD metadata.MD) context.Context {
-		var m = make(opentracing.TextMapCarrier)
+		// Extract metadata.
+		var carrier = make(opentracing.TextMapCarrier)
 		for k, v := range MD {
-			m.Set(k, v[0])
+			carrier.Set(k, v[0])
 		}
-		var sc, err = tracer.Extract(opentracing.TextMap, m)
 
+		var sc, err = tracer.Extract(opentracing.TextMap, carrier)
 		var span opentracing.Span
 		if err != nil {
 			span = tracer.StartSpan(operationName)
@@ -76,10 +81,10 @@ func makeTracerHandler(tracer opentracing.Tracer, operationName string) grpc_tra
 		}
 		defer span.Finish()
 
-		sc.ForeachBaggageItem(func(k, v string) bool {
-			fmt.Printf("key: %s, val: %s\n", k, v)
-			return true
-		})
+		// Set tags.
+		opentracing_tag.Component.Set(span, "flaki-service")
+		opentracing_tag.SpanKindRPCServer.Set(span)
+
 		return opentracing.ContextWithSpan(ctx, span)
 	}
 }
@@ -88,7 +93,7 @@ func makeTracerHandler(tracer opentracing.Tracer, operationName string) grpc_tra
 func (s *grpcServer) NextID(ctx context.Context, req *fb.EmptyRequest) (*flatbuffers.Builder, error) {
 	var _, res, err = s.nextID.ServeGRPC(ctx, req)
 	if err != nil {
-		return nil, err
+		return flakiErrorHandler(err), nil
 	}
 
 	var b = res.(*flatbuffers.Builder)
@@ -96,10 +101,11 @@ func (s *grpcServer) NextID(ctx context.Context, req *fb.EmptyRequest) (*flatbuf
 	return b, nil
 }
 
+// Implement the flatbuffer FlakiServer interface.
 func (s *grpcServer) NextValidID(ctx context.Context, req *fb.EmptyRequest) (*flatbuffers.Builder, error) {
 	var _, res, err = s.nextValidID.ServeGRPC(ctx, req)
 	if err != nil {
-		return nil, err
+		return flakiErrorHandler(err), nil
 	}
 
 	var b = res.(*flatbuffers.Builder)
@@ -107,32 +113,33 @@ func (s *grpcServer) NextValidID(ctx context.Context, req *fb.EmptyRequest) (*fl
 	return b, nil
 }
 
-func encodeNextIDResponse(_ context.Context, res interface{}) (interface{}, error) {
-	var id = res.(uint64)
-
+// encodeFlakiReply encodes the flatbuffer flaki reply.
+func encodeFlakiReply(_ context.Context, res interface{}) (interface{}, error) {
 	var b = flatbuffers.NewBuilder(0)
-	fb.NextIDReplyStart(b)
-	fb.NextIDReplyAddId(b, id)
-	b.Finish(fb.NextIDReplyEnd(b))
+	var id = b.CreateString(res.(string))
+
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, id)
+	b.Finish(fb.FlakiReplyEnd(b))
 
 	return b, nil
 }
 
-func encodeNextValidIDResponse(_ context.Context, res interface{}) (interface{}, error) {
-	var id = res.(uint64)
+// decodeFlakiRequest decodes the flatbuffer flaki request.
+func decodeFlakiRequest(_ context.Context, req interface{}) (interface{}, error) {
+	return req, nil
+}
+
+// flakiErrorHandler encodes the flatbuffer flaki reply when there is an error.
+func flakiErrorHandler(err error) *flatbuffers.Builder {
 
 	var b = flatbuffers.NewBuilder(0)
-	fb.NextValidIDReplyStart(b)
-	fb.NextValidIDReplyAddId(b, id)
-	b.Finish(fb.NextValidIDReplyEnd(b))
+	var errStr = b.CreateString(err.Error())
 
-	return b, nil
-}
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, 0)
+	fb.FlakiReplyAddError(b, errStr)
+	b.Finish(fb.FlakiReplyEnd(b))
 
-func decodeNextIDRequest(_ context.Context, req interface{}) (interface{}, error) {
-	return req, nil
-}
-
-func decodeNextValidIDRequest(_ context.Context, req interface{}) (interface{}, error) {
-	return req, nil
+	return b
 }

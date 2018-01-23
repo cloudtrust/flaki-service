@@ -8,8 +8,8 @@ import (
 
 // Service is the interface that the services implement.
 type Service interface {
-	NextID(context.Context) (uint64, error)
-	NextValidID(context.Context) uint64
+	NextID(context.Context) (string, error)
+	NextValidID(context.Context) string
 }
 
 type basicService struct {
@@ -23,10 +23,10 @@ func NewBasicService(flakiModule flaki.Service) Service {
 	}
 }
 
-func (s *basicService) NextID(ctx context.Context) (uint64, error) {
+func (s *basicService) NextID(ctx context.Context) (string, error) {
 	return s.module.NextID(ctx)
 }
 
-func (s *basicService) NextValidID(ctx context.Context) uint64 {
+func (s *basicService) NextValidID(ctx context.Context) string {
 	return s.module.NextValidID(ctx)
 }

@@ -12,38 +12,52 @@ import (
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
+	opentracing_tag "github.com/opentracing/opentracing-go/ext"
 )
 
+// MakeNextIDHandler makes a HTTP handler for the NextID endpoint.
 func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
 	return http_transport.NewServer(e,
-		decodeNextIDRequest,
-		encodeNextIDResponse,
-		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
+		decodeFlakiRequest,
+		encodeFlakiReply,
+		http_transport.ServerErrorEncoder(flakiErrorHandler),
 		http_transport.ServerBefore(fetchCorrelationID),
 		http_transport.ServerBefore(makeTracerHandler(tracer, "nextID")),
 	)
 }
 
+// MakeNextValidIDHandler makes a HTTP handler for the NextValidID endpoint.
 func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
 	return http_transport.NewServer(e,
-		decodeNextValidIDRequest,
-		encodeNextValidIDResponse,
-		http_transport.ServerErrorEncoder(MakeNextIDErrorHandler(log)),
+		decodeFlakiRequest,
+		encodeFlakiReply,
+		http_transport.ServerErrorEncoder(flakiErrorHandler),
 		http_transport.ServerBefore(fetchCorrelationID),
 		http_transport.ServerBefore(makeTracerHandler(tracer, "nextValidID")),
 	)
 }
 
-// fetchCorrelationID read the correlation id from the http header "X-Correlation-ID".
+// MakeVersion makes a HTTP handler that returns information about the version of the service.
+func MakeVersion(componentName, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(fmt.Sprintf("Component name: %s, version: %s, environment: %s, git commit: %s\n", componentName, version, environment, gitCommit)))
+	}
+}
+
+// fetchCorrelationID reads the correlation id from the http header "X-Correlation-ID".
 // If the id is not zero, we put it in the context.
 func fetchCorrelationID(ctx context.Context, r *http.Request) context.Context {
 	var correlationID = r.Header.Get("X-Correlation-ID")
 	if correlationID != "" {
-		ctx = context.WithValue(ctx, "correlationID", correlationID)
+		ctx = context.WithValue(ctx, "correlation-id", correlationID)
 	}
 	return ctx
 }
 
+// makeTracerHandler try to extract an existing span from the HTTP headers. It it exists, we
+// continue the span, if not we create a new one.
 func makeTracerHandler(tracer opentracing.Tracer, operationName string) http_transport.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
 		var sc, err = tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
@@ -55,16 +69,17 @@ func makeTracerHandler(tracer opentracing.Tracer, operationName string) http_tra
 			span = tracer.StartSpan(operationName, opentracing.ChildOf(sc))
 		}
 		defer span.Finish()
-		sc.ForeachBaggageItem(func(k, v string) bool {
-			fmt.Printf("key: %s, val: %s\n", k, v)
-			return true
-		})
 
-		return opentracing.ContextWithSpan(r.Context(), span)
+		// Set tags.
+		opentracing_tag.Component.Set(span, "flaki-service")
+		opentracing_tag.HTTPMethod.Set(span, operationName)
+		var newctx = opentracing.ContextWithSpan(ctx, span)
+		return newctx
 	}
 }
 
-func decodeNextIDRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
+// decodeFlakiRequest decodes the flatbuffer flaki request.
+func decodeFlakiRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
 	var data []byte
 
 	data, err = ioutil.ReadAll(r.Body)
@@ -75,64 +90,34 @@ func decodeNextIDRequest(_ context.Context, r *http.Request) (res interface{}, e
 	return fb.GetRootAsEmptyRequest(data, 0), nil
 }
 
-func encodeNextIDResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
+// encodeFlakiReply encodes the flatbuffer flaki reply.
+func encodeFlakiReply(_ context.Context, w http.ResponseWriter, res interface{}) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(http.StatusOK)
 
 	var b = flatbuffers.NewBuilder(0)
-	fb.NextIDReplyStart(b)
-	fb.NextIDReplyAddId(b, response.(uint64))
-	b.Finish(fb.NextIDReplyEnd(b))
+	var id = b.CreateString(res.(string))
+
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, id)
+	b.Finish(fb.FlakiReplyEnd(b))
 
 	w.Write(b.FinishedBytes())
 	return nil
 }
 
-func MakeNextIDErrorHandler(logger log.Logger) http_transport.ErrorEncoder {
-	return func(ctx context.Context, err error, w http.ResponseWriter) {
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.WriteHeader(http.StatusInternalServerError)
-
-		var b = flatbuffers.NewBuilder(0)
-		var errStr = b.CreateString(err.Error())
-
-		fb.NextIDReplyStart(b)
-		fb.NextIDReplyAddId(b, 0)
-		fb.NextIDReplyAddError(b, errStr)
-		b.Finish(fb.NextValidIDReplyEnd(b))
-
-		w.Write(b.FinishedBytes())
-	}
-}
-
-func decodeNextValidIDRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
-	var data []byte
-
-	data, err = ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return fb.GetRootAsEmptyRequest(data, 0), nil
-}
-
-func encodeNextValidIDResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
+// flakiErrorHandler encodes the flatbuffer flaki reply when there is an error.
+func flakiErrorHandler(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusInternalServerError)
 
 	var b = flatbuffers.NewBuilder(0)
-	fb.NextValidIDReplyStart(b)
-	fb.NextValidIDReplyAddId(b, response.(uint64))
-	b.Finish(fb.NextValidIDReplyEnd(b))
+	var errStr = b.CreateString(err.Error())
+
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, 0)
+	fb.FlakiReplyAddError(b, errStr)
+	b.Finish(fb.FlakiReplyEnd(b))
 
 	w.Write(b.FinishedBytes())
-	return nil
-}
-
-func MakeVersion(componentName, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprintf("Component name: %s, version: %s, environment: %s, git commit: %s\n", componentName, version, environment, gitCommit)))
-	}
 }

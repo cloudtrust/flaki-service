@@ -43,14 +43,14 @@ var (
 
 func main() {
 
-	// Logger
+	// Logger.
 	var logger = log.NewLogfmtLogger(os.Stdout)
 	{
 		logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 		defer logger.Log("msg", "Goodbye")
 	}
 
-	// Configurations
+	// Configurations.
 	var config = config(log.With(logger, "component", "config_loader"))
 	var (
 		componentName    = fmt.Sprintf(config["component-name"].(string))
@@ -84,10 +84,10 @@ func main() {
 		flakiComponentID = uint64(config["flaki-component-id"].(int))
 	)
 
-	// Log component version infos
+	// Log component version infos.
 	logger.Log("component_name", componentName, "version", Version, "environment", Environment, "git_commit", GitCommit)
 
-	// Critical errors channel
+	// Critical errors channel.
 	var errc = make(chan error)
 	go func() {
 		var c = make(chan os.Signal, 1)
@@ -95,7 +95,7 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	// Flaki unique distributed ID generator
+	// Flaki unique distributed ID generator.
 	var flaki flaki_gen.Flaki
 	{
 		var logger = log.With(logger, "component", "flaki")
@@ -107,7 +107,7 @@ func main() {
 		}
 	}
 
-	// Sentry
+	// Sentry.
 	var sentryClient *sentry.Client
 	{
 		var logger = log.With(logger, "component", "sentry")
@@ -121,7 +121,7 @@ func main() {
 		defer sentryClient.Close()
 	}
 
-	// Influx client
+	// Influx client.
 	var influxClient influx_client.Client
 	{
 		var logger = log.With(logger, "component", "influx")
@@ -136,7 +136,7 @@ func main() {
 		}
 	}
 
-	// Influx go-kit handler
+	// Influx go-kit handler.
 	var gokitInflux *gokit_influx.Influx
 	{
 		gokitInflux = gokit_influx.New(
@@ -146,7 +146,7 @@ func main() {
 		)
 	}
 
-	// Jaeger client
+	// Jaeger client.
 	var tracer opentracing.Tracer
 	{
 		var logger = log.With(logger, "component", "jaeger")
@@ -161,7 +161,7 @@ func main() {
 		defer closer.Close()
 	}
 
-	// Backend service
+	// Backend service.
 	var flakiModule module.Service
 	{
 		flakiModule = module.NewBasicService(flaki)
@@ -190,7 +190,7 @@ func main() {
 		flaki_endpoint.MakeTracingMiddleware(tracer, "nextValidID"),
 	)
 
-	// GRPC server
+	// GRPC server.
 	go func() {
 		var logger = log.With(logger, "transport", "grpc")
 		logger.Log("addr", grpcAddr)
@@ -206,18 +206,16 @@ func main() {
 			}
 		}
 
-		// NextID
+		// NextID.
 		var nextIDHandler grpc_transport.Handler
 		{
-			var logger = log.With(logger, "endpoint", "nextID")
-			nextIDHandler = flaki_grpc.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, logger, tracer)
+			nextIDHandler = flaki_grpc.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, tracer)
 		}
 
-		// NextValidID
+		// NextValidID.
 		var nextValidIDHandler grpc_transport.Handler
 		{
-			var logger = log.With(logger, "endpoint", "nextValidID")
-			nextValidIDHandler = flaki_grpc.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, logger, tracer)
+			nextValidIDHandler = flaki_grpc.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, tracer)
 		}
 
 		var grpcServer = flaki_grpc.NewGRPCServer(nextIDHandler, nextValidIDHandler)
@@ -227,14 +225,14 @@ func main() {
 		errc <- flakiServer.Serve(lis)
 	}()
 
-	// HTTP server
+	// HTTP server.
 	go func() {
 		var logger = log.With(logger, "transport", "http")
 		logger.Log("addr", httpAddr)
 
 		var route = mux.NewRouter()
 
-		// NextID
+		// NextID.
 		var nextIDHandler http.Handler
 		{
 			var logger = log.With(logger, "endpoint", "nextID")
@@ -242,7 +240,7 @@ func main() {
 		}
 		route.Handle("/nextid", nextIDHandler)
 
-		// NextValidID
+		// NextValidID.
 		var nextValidIDHandler http.Handler
 		{
 			var logger = log.With(logger, "endpoint", "nextValidID")
@@ -250,10 +248,10 @@ func main() {
 		}
 		route.Handle("/nextvalidid", nextValidIDHandler)
 
-		// Version
+		// Version.
 		route.Handle("/version", http.HandlerFunc(flaki_http.MakeVersion(componentName, Version, Environment, GitCommit)))
 
-		// Debug
+		// Debug.
 		var debugSubroute = route.PathPrefix("/debug").Subrouter()
 		debugSubroute.HandleFunc("/pprof/", http.HandlerFunc(pprof.Index))
 		debugSubroute.HandleFunc("/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
@@ -264,7 +262,7 @@ func main() {
 		errc <- http.ListenAndServe(httpAddr, route)
 	}()
 
-	// Influx writing
+	// Influx writing.
 	go func() {
 		var tic = time.NewTicker(influxWriteInterval)
 		gokitInflux.WriteLoop(tic.C, influxClient)
@@ -277,18 +275,17 @@ func config(logger log.Logger) map[string]interface{} {
 
 	logger.Log("msg", "Loading configuration & command args")
 
-	var configFile = "./conf/DEV/flaki_service.yml"
-	// Component default
-	viper.SetDefault("config-file", configFile)
+	// Component default.
+	viper.SetDefault("config-file", "./conf/DEV/flaki_service.yml")
 	viper.SetDefault("component-name", "flaki-service")
 	viper.SetDefault("component-http-address", "0.0.0.0:8888")
 	viper.SetDefault("component-grpc-address", "0.0.0.0:5555")
 
-	// Flaki generator default
+	// Flaki generator default.
 	viper.SetDefault("flaki-node-id", 0)
 	viper.SetDefault("flaki-component-id", 0)
 
-	// Influx DB client default
+	// Influx DB client default.
 	viper.SetDefault("influx-url", "http://127.0.0.1:8086")
 	viper.SetDefault("influx-username", "flaki")
 	viper.SetDefault("influx-password", "flaki")
@@ -298,22 +295,22 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("influx-write-consistency", "")
 	viper.SetDefault("influx-write-interval-ms", 1000)
 
-	// Sentry client default
+	// Sentry client default.
 	viper.SetDefault("sentry-dsn", "")
 
-	// Jaeger tracing default
+	// Jaeger tracing default.
 	viper.SetDefault("jaeger-sampler-type", "const")
 	viper.SetDefault("jaeger-sampler-param", 1)
 	viper.SetDefault("jaeger-sampler-url", "http://127.0.0.1:5775")
 	viper.SetDefault("jaeger-reporter-logspan", false)
 	viper.SetDefault("jaeger-reporter-flushinterval-ms", 1000)
 
-	// First level of override
+	// First level of override.
 	pflag.String("config-file", viper.GetString("config-file"), "The configuration file path can be relative or absolute.")
 	viper.BindPFlag("config-file", pflag.Lookup("config-file"))
 	pflag.Parse()
 
-	// Load & log config
+	// Load & log config.
 	viper.SetConfigFile(viper.GetString("config-file"))
 	var err = viper.ReadInConfig()
 	if err != nil {

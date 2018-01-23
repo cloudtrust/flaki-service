@@ -49,26 +49,26 @@ func (es *Endpoints) applyMids(e endpoint.Endpoint, mids ...endpoint.Middleware)
 	return e
 }
 
-func (es *Endpoints) NextID(ctx context.Context) (uint64, error) {
-	var id uint64
+func (es *Endpoints) NextID(ctx context.Context) (string, error) {
+	var id string
 	{
 		var idPreCast interface{}
 		var err error
 		idPreCast, err = es.NextIDEndpoint(ctx, nil)
 		if err != nil {
-			return 0, err
+			return "", err
 		}
-		id = idPreCast.(uint64)
+		id = idPreCast.(string)
 	}
 	return id, nil
 }
 
-func (es *Endpoints) NextValidID(ctx context.Context) uint64 {
-	var id uint64
+func (es *Endpoints) NextValidID(ctx context.Context) string {
+	var id string
 	{
 		var idPreCast interface{}
 		idPreCast, _ = es.NextValidIDEndpoint(ctx, nil)
-		id = idPreCast.(uint64)
+		id = idPreCast.(string)
 	}
 	return id
 }

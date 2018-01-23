@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"time"
 
 	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
+	opentracing_tag "github.com/opentracing/opentracing-go/ext"
 	jaeger_client "github.com/uber/jaeger-client-go/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -30,11 +29,13 @@ func main() {
 		defer logger.Log("msg", "Goodbye")
 	}
 	logger = log.With(logger, "transport", "grpc")
+
+	// Jaeger tracer config.
 	var jaegerConfig = jaeger_client.Configuration{
 		Sampler: &jaeger_client.SamplerConfig{
 			Type:              "const",
 			Param:             1,
-			SamplingServerURL: "http://127.0.0.1:5775/",
+			SamplingServerURL: "http://127.0.0.1:5775",
 		},
 		Reporter: &jaeger_client.ReporterConfig{
 			LogSpans:            false,
@@ -42,14 +43,14 @@ func main() {
 		},
 	}
 
-	// Jaeger client
+	// Jaeger client.
 	var tracer opentracing.Tracer
 	{
 		var logger = log.With(logger, "component", "jaeger")
 		var closer io.Closer
 		var err error
 
-		tracer, closer, err = jaegerConfig.New("flaki_http")
+		tracer, closer, err = jaegerConfig.New("flaki-service")
 		if err != nil {
 			logger.Log("error", err)
 			return
@@ -68,107 +69,79 @@ func main() {
 		defer clienConn.Close()
 	}
 
+	// Client.
 	var flakiClient = fb.NewFlakiClient(clienConn)
 
-	// Empty request
+	nextID(flakiClient, logger, tracer)
+	nextValidID(flakiClient, logger, tracer)
+}
+
+func nextID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer) {
+	// NextID.
 	var b = flatbuffers.NewBuilder(0)
 	fb.EmptyRequestStart(b)
 	b.Finish(fb.EmptyRequestEnd(b))
 
-	var span = tracer.StartSpan("fuck")
+	var span = tracer.StartSpan("grpc")
+	opentracing_tag.SpanKindRPCClient.Set(span)
 	defer span.Finish()
-	span = span.SetBaggageItem("myBaggage", "myBaggageValue")
-	span = span.SetBaggageItem("myBaggage", "myBaggageValue2")
 
-	var m = make(opentracing.TextMapCarrier)
-
-	var err = tracer.Inject(span.Context(), opentracing.TextMap, m)
+	// Propagate the opentracing span.
+	var carrier = make(opentracing.TextMapCarrier)
+	var err = tracer.Inject(span.Context(), opentracing.TextMap, carrier)
 	if err != nil {
 		logger.Log("error", err)
 		return
 	}
 
-	m.Set("correlation-id", "1")
-	fmt.Printf("map: %s\n", m)
+	var md = metadata.New(carrier)
+	var correlationIDMD = metadata.New(map[string]string{"correlation-id": "1"})
 
-	var md = metadata.New(m)
-	fmt.Printf("metadata: %s\n", md)
-
-	// gRPC NextID
-	var nextIDReply *fb.NextIDReply
+	// grpc NextID
+	var nextIDreply *fb.FlakiReply
 	{
 		var err error
-		var ctx = metadata.NewOutgoingContext(opentracing.ContextWithSpan(context.Background(), span), md)
-		nextIDReply, err = flakiClient.NextID(ctx, b)
+		var ctx = metadata.NewOutgoingContext(opentracing.ContextWithSpan(context.Background(), span), metadata.Join(md, correlationIDMD))
+		nextIDreply, err = client.NextID(ctx, b)
 		if err != nil {
 			logger.Log("error", err)
 			return
 		}
-		logger.Log("endpoint", "nextID", "id", nextIDReply.Id(), "error", nextIDReply.Error())
+		logger.Log("endpoint", "nextID", "id", nextIDreply.Id(), "error", nextIDreply.Error())
+	}
+}
+
+func nextValidID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer) {
+	// NextValidID.
+	var b = flatbuffers.NewBuilder(0)
+	fb.EmptyRequestStart(b)
+	b.Finish(fb.EmptyRequestEnd(b))
+
+	var span = tracer.StartSpan("grpc")
+	opentracing_tag.SpanKindRPCClient.Set(span)
+	defer span.Finish()
+
+	// Propagate the opentracing span.
+	var carrier = make(opentracing.TextMapCarrier)
+	var err = tracer.Inject(span.Context(), opentracing.TextMap, carrier)
+	if err != nil {
+		logger.Log("error", err)
+		return
 	}
 
-	// gRPC NextValidID
-	var nextValidIDReply *fb.NextValidIDReply
+	var md = metadata.New(carrier)
+	var correlationIDMD = metadata.New(map[string]string{"correlation-id": "2"})
+
+	// grpc NextValidID
+	var nextValidIDreply *fb.FlakiReply
 	{
 		var err error
-		var ctx = metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{"id": strconv.FormatUint(1, 10)}))
-		nextValidIDReply, err = flakiClient.NextValidID(ctx, b)
+		var ctx = metadata.NewOutgoingContext(context.Background(), metadata.Join(md, correlationIDMD))
+		nextValidIDreply, err = client.NextValidID(ctx, b)
 		if err != nil {
 			logger.Log("error", err)
 			return
 		}
-		logger.Log("endpoint", "nextValidID", "id", nextValidIDReply.Id())
+		logger.Log("endpoint", "nextValidID", "id", nextValidIDreply.Id(), "error", nextValidIDreply.Error())
 	}
 }
-
-/*
-func NewGRPCClient(conn *grpc.ClientConn) flaki_component.Service {
-
-	var nextIDEndpoint endpoint.Endpoint
-	{
-		nextIDEndpoint = grpc_transport.NewClient(
-			conn,
-			"flaki.Flaki",
-			"NextID",
-			encodeNextIDRequest,
-			decodeNextIDResponse,
-			fb.NextIDReply{},
-		).Endpoint()
-	}
-
-	var nextValidIDEndpoint endpoint.Endpoint
-	{
-		nextValidIDEndpoint = grpc_transport.NewClient(
-			conn,
-			"flaki.Flaki",
-			"NextValidID",
-			encodeNextValidIDRequest,
-			decodeNextValidIDResponse,
-			fb.NextValidIDReply{},
-		).Endpoint()
-	}
-
-	return &flaki_endpoint.Endpoints{
-		NextIDEndpoint:      nextIDEndpoint,
-		NextValidIDEndpoint: nextValidIDEndpoint,
-	}
-}
-
-func encodeNextIDRequest(_ context.Context, req interface{}) (interface{}, error) {
-	return req, nil
-}
-
-func encodeNextValidIDRequest(_ context.Context, req interface{}) (interface{}, error) {
-	return req, nil
-}
-func decodeNextIDResponse(_ context.Context, req interface{}) (interface{}, error) {
-	panic("decodeNextIDResponse")
-
-	return req, nil
-}
-
-func decodeNextValidIDResponse(_ context.Context, req interface{}) (interface{}, error) {
-	panic("decodeNextValidIDResponse")
-
-	return req, nil
-}*/

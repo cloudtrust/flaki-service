@@ -55,7 +55,7 @@ func TestErrorMiddleware(t *testing.T) {
 
 	mockSentry.Called = false
 	assert.Zero(t, mockSentry.CorrelationID)
-	srv.NextID(context.WithValue(context.Background(), "correlationID", id))
+	srv.NextID(context.WithValue(context.Background(), "correlation-id", id))
 	assert.Equal(t, idStr, mockSentry.CorrelationID)
 }
 
@@ -93,7 +93,7 @@ type mockSentry struct {
 
 func (client *mockSentry) CaptureErrorAndWait(err error, tags map[string]string, interfaces ...sentry.Interface) string {
 	client.Called = true
-	client.CorrelationID = tags["correlationID"]
+	client.CorrelationID = tags["correlation-id"]
 	return ""
 }
 func (client *mockSentry) SetDSN(dsn string) error           { return nil }

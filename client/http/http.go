@@ -9,13 +9,11 @@ import (
 	"os"
 	"time"
 
-	"strconv"
-
 	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
-	opentracing_log "github.com/opentracing/opentracing-go/log"
+	opentracing_tag "github.com/opentracing/opentracing-go/ext"
 	jaeger_client "github.com/uber/jaeger-client-go/config"
 )
 
@@ -33,11 +31,12 @@ func main() {
 	}
 	logger = log.With(logger, "transport", "http")
 
+	// Jaeger tracer config.
 	var jaegerConfig = jaeger_client.Configuration{
 		Sampler: &jaeger_client.SamplerConfig{
 			Type:              "const",
 			Param:             1,
-			SamplingServerURL: "http://127.0.0.1:5775/",
+			SamplingServerURL: "http://127.0.0.1:5775",
 		},
 		Reporter: &jaeger_client.ReporterConfig{
 			LogSpans:            false,
@@ -45,14 +44,14 @@ func main() {
 		},
 	}
 
-	// Jaeger client
+	// Jaeger client.
 	var tracer opentracing.Tracer
 	{
 		var logger = log.With(logger, "component", "jaeger")
 		var closer io.Closer
 		var err error
 
-		tracer, closer, err = jaegerConfig.New("flaki_http")
+		tracer, closer, err = jaegerConfig.New("flaki-service")
 		if err != nil {
 			logger.Log("error", err)
 			return
@@ -60,15 +59,19 @@ func main() {
 		defer closer.Close()
 	}
 
-	var id, err = nextID(logger, tracer)
-	fmt.Printf("ID: %d, err: %v", id, err)
+	nextID(logger, tracer)
+	nextValidID(logger, tracer)
 }
 
-func nextID(logger log.Logger, tracer opentracing.Tracer) (uint64, error) {
-	// Empty request
+func nextID(logger log.Logger, tracer opentracing.Tracer) {
+	// NextID.
 	var b = flatbuffers.NewBuilder(0)
 	fb.EmptyRequestStart(b)
 	b.Finish(fb.EmptyRequestEnd(b))
+
+	var span = tracer.StartSpan("http")
+	opentracing_tag.HTTPMethod.Set(span, "http-client")
+	defer span.Finish()
 
 	// http NextID
 	var httpNextIDResp *http.Response
@@ -80,87 +83,81 @@ func nextID(logger log.Logger, tracer opentracing.Tracer) (uint64, error) {
 		req, err = http.NewRequest("POST", url, bytes.NewReader(b.FinishedBytes()))
 		if err != nil {
 			logger.Log("error", err)
+			return
 		}
 
-		var span = tracer.StartSpan("nexitJDR")
-		defer span.Finish()
-		span.LogFields(
-			opentracing_log.String("operation", "nexid"),
-			opentracing_log.String("microservice_level", "transport"),
-		)
-		span = span.SetBaggageItem("opentracing-baguage", "my_baguage")
-		fmt.Printf("Span context: %s\n", span.Context())
-
 		var carrier = opentracing.HTTPHeadersCarrier(req.Header)
-		fmt.Printf("%s", carrier)
 		tracer.Inject(span.Context(), opentracing.HTTPHeaders, carrier)
 
 		req.Header.Set("Content-Type", "application/octet-stream")
-		//req.Header.Set("jaeger-baggage", "11")
 
-		var corrID uint64 = 10 //rand.Uint64()
-
-		req.Header.Set("X-Correlation-ID", strconv.FormatUint(corrID, 10))
+		req.Header.Set("X-Correlation-ID", "1")
 		httpNextIDResp, err = http.DefaultClient.Do(req)
 
 		if err != nil {
 			logger.Log("error", err)
+			return
 		}
 		defer httpNextIDResp.Body.Close()
-
-		// Read correlation id from reply.
-		/*var corrIDResp uint64
-		{
-			corrIDResp, err = strconv.ParseUint(httpNextIDResp.Header.Get("X-Correlation-ID"), 10, 64)
-			if err != nil {
-				return 0, err
-			}
-			if corrID != corrIDResp {
-				var err = fmt.Errorf("Wrong correlation id from response")
-				logger.Log("error", err)
-				return 0, err
-			}
-		}*/
 
 		// Read flatbuffer reply.
 		var data []byte
 		data, err = ioutil.ReadAll(httpNextIDResp.Body)
 		if err != nil {
 			logger.Log("error", err)
+			return
 		}
 
-		var nextIDReply = fb.GetRootAsNextIDReply(data, 0)
-		logger.Log("endpoint", "nextID", "id", nextIDReply.Id(), "error", nextIDReply.Error())
-
-		return nextIDReply.Id(), nil
+		var reply = fb.GetRootAsFlakiReply(data, 0)
+		logger.Log("endpoint", "nextID", "id", reply.Id(), "error", reply.Error())
 	}
 }
 
-func nextValidID(logger log.Logger) uint64 {
-	// Empty request
+func nextValidID(logger log.Logger, tracer opentracing.Tracer) {
+	// NextID.
 	var b = flatbuffers.NewBuilder(0)
 	fb.EmptyRequestStart(b)
 	b.Finish(fb.EmptyRequestEnd(b))
+
+	var span = tracer.StartSpan("http")
+	opentracing_tag.HTTPMethod.Set(span, "http-client")
+	defer span.Finish()
 
 	// http NextValidID
 	var httpNextValidIDResp *http.Response
 	{
 		var err error
-		httpNextValidIDResp, err = http.Post(fmt.Sprintf("http://%s/nextvalidid", address), "application/octet-stream", bytes.NewReader(b.FinishedBytes()))
+		var req *http.Request
+		var url = fmt.Sprintf("http://%s/nextvalidid", address)
+
+		req, err = http.NewRequest("POST", url, bytes.NewReader(b.FinishedBytes()))
 		if err != nil {
 			logger.Log("error", err)
+			return
 		}
-		defer httpNextValidIDResp.Body.Close()
+
+		var carrier = opentracing.HTTPHeadersCarrier(req.Header)
+		tracer.Inject(span.Context(), opentracing.HTTPHeaders, carrier)
+
+		req.Header.Set("Content-Type", "application/octet-stream")
+
+		req.Header.Set("X-Correlation-ID", "2")
+		httpNextValidIDResp, err = http.DefaultClient.Do(req)
+
+		if err != nil {
+			logger.Log("error", err)
+			return
+		}
 
 		// Read flatbuffer reply.
 		var data []byte
 		data, err = ioutil.ReadAll(httpNextValidIDResp.Body)
 		if err != nil {
 			logger.Log("error", err)
+			return
 		}
 
-		var nextValidIDReply = fb.GetRootAsNextValidIDReply(data, 0)
-		logger.Log("endpoint", "nextValidID", "id", nextValidIDReply.Id())
-		return nextValidIDReply.Id()
+		var reply = fb.GetRootAsFlakiReply(data, 0)
+		logger.Log("endpoint", "nextID", "id", reply.Id(), "error", reply.Error())
 	}
 }
