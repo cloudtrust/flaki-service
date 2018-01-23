@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
+	"github.com/cloudtrust/flaki-service/service/transport/flatbuffer/fb"
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -109,7 +109,7 @@ func nextID(logger log.Logger, tracer opentracing.Tracer) {
 		}
 
 		var reply = fb.GetRootAsFlakiReply(data, 0)
-		logger.Log("endpoint", "nextID", "id", reply.Id(), "error", reply.Error())
+		logger.Log("endpoint", "nextValidID", "id", reply.Id(), "error", reply.Error())
 	}
 }
 

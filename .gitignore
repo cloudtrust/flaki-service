@@ -20,6 +20,6 @@ bin/*
 debug
 
 # Flatbuffers generated files
-/service/transport/flatbuffer/flaki/*
+/service/transport/flatbuffer/fb/*
 
 

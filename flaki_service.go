@@ -12,10 +12,10 @@ import (
 	"time"
 
 	flaki_gen "github.com/cloudtrust/flaki"
-	component "github.com/cloudtrust/flaki-service/service/component"
+	flaki_component "github.com/cloudtrust/flaki-service/service/component"
 	flaki_endpoint "github.com/cloudtrust/flaki-service/service/endpoint"
-	module "github.com/cloudtrust/flaki-service/service/module"
-	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
+	flaki_module "github.com/cloudtrust/flaki-service/service/module"
+	"github.com/cloudtrust/flaki-service/service/transport/flatbuffer/fb"
 	flaki_grpc "github.com/cloudtrust/flaki-service/service/transport/grpc"
 	flaki_http "github.com/cloudtrust/flaki-service/service/transport/http"
 	sentry "github.com/getsentry/raven-go"
@@ -162,16 +162,17 @@ func main() {
 	}
 
 	// Backend service.
-	var flakiModule module.Service
+	var flakiModule flaki_module.Service
 	{
-		flakiModule = module.NewBasicService(flaki)
+		flakiModule = flaki_module.NewBasicService(flaki)
+		flakiModule = flaki_module.MakeLoggingMiddleware(log.With(logger, "middleware", "module"))(flakiModule)
 	}
 
-	var flakiComponent component.Service
+	var flakiComponent flaki_component.Service
 	{
-		flakiComponent = component.NewBasicService(flakiModule)
-		flakiComponent = component.MakeLoggingMiddleware(log.With(logger, "middleware", "component", "name", "flaki"))(flakiComponent)
-		flakiComponent = component.MakeErrorMiddleware(sentryClient)(flakiComponent)
+		flakiComponent = flaki_component.NewBasicService(flakiModule)
+		flakiComponent = flaki_component.MakeLoggingMiddleware(log.With(logger, "middleware", "component"))(flakiComponent)
+		flakiComponent = flaki_component.MakeErrorMiddleware(sentryClient)(flakiComponent)
 	}
 
 	var flakiEndpoints = flaki_endpoint.NewEndpoints(flaki_endpoint.MakeCorrelationIDMiddleware(flaki))
@@ -235,16 +236,14 @@ func main() {
 		// NextID.
 		var nextIDHandler http.Handler
 		{
-			var logger = log.With(logger, "endpoint", "nextID")
-			nextIDHandler = flaki_http.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, logger, tracer)
+			nextIDHandler = flaki_http.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint, tracer)
 		}
 		route.Handle("/nextid", nextIDHandler)
 
 		// NextValidID.
 		var nextValidIDHandler http.Handler
 		{
-			var logger = log.With(logger, "endpoint", "nextValidID")
-			nextValidIDHandler = flaki_http.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, logger, tracer)
+			nextValidIDHandler = flaki_http.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint, tracer)
 		}
 		route.Handle("/nextvalidid", nextValidIDHandler)
 

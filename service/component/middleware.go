@@ -8,26 +8,27 @@ import (
 	"github.com/go-kit/kit/log"
 )
 
-// Middleware on Service
+// Middleware on Service.
 type Middleware func(Service) Service
 
-// Logging Middleware
+// Logging Middleware.
 type loggingMiddleware struct {
 	logger log.Logger
 	next   Service
 }
 
-// loggingMiddleware implements Service
+// loggingMiddleware implements Service.
 func (m *loggingMiddleware) NextID(ctx context.Context) (string, error) {
 	defer func(begin time.Time) {
-		m.logger.Log("method", "NextID", "correlation_id", ctx.Value("correlation-id"), "took", time.Since(begin))
+		m.logger.Log("method", "NextID", "correlation_id", ctx.Value("correlation-id").(string), "took", time.Since(begin))
 	}(time.Now())
 	return m.next.NextID(ctx)
 }
 
+// loggingMiddleware implements Service.
 func (m *loggingMiddleware) NextValidID(ctx context.Context) string {
 	defer func(begin time.Time) {
-		m.logger.Log("method", "NextValidID", "correlation_id", ctx.Value("correlation-id"), "took", time.Since(begin))
+		m.logger.Log("method", "NextValidID", "correlation_id", ctx.Value("correlation-id").(string), "took", time.Since(begin))
 	}(time.Now())
 	return m.next.NextValidID(ctx)
 }
@@ -42,7 +43,7 @@ func MakeLoggingMiddleware(log log.Logger) Middleware {
 	}
 }
 
-// Sentry interface
+// Sentry interface.
 type sentryClient interface {
 	SetDSN(dsn string) error
 	SetRelease(release string)
@@ -64,33 +65,27 @@ type sentryClient interface {
 	SetIncludePaths(p []string)
 }
 
-// Error Middleware
+// Error Middleware.
 type errorMiddleware struct {
 	client sentryClient
 	next   Service
 }
 
+// errorMiddleware implements Service.
 func (s *errorMiddleware) NextID(ctx context.Context) (string, error) {
 	var id, err = s.next.NextID(ctx)
 	if err != nil {
-		s.client.CaptureErrorAndWait(err, map[string]string{"correlation-id": getStrIDFromContext(ctx)})
+		s.client.CaptureErrorAndWait(err, map[string]string{"correlation-id": ctx.Value("correlation-id").(string)})
 	}
 	return id, err
 }
 
-func getStrIDFromContext(ctx context.Context) string {
-	var id = ctx.Value("correlation-id")
-	if id == nil {
-		return ""
-	}
-	return id.(string)
-}
-
+// errorMiddleware implements Service.
 func (s *errorMiddleware) NextValidID(ctx context.Context) string {
 	return s.next.NextValidID(ctx)
 }
 
-// MakeErrorMiddleware makes an error middleware, where the errors are send to Sentry.
+// MakeErrorMiddleware makes an error handling middleware, where the errors are sent to Sentry.
 func MakeErrorMiddleware(client sentryClient) Middleware {
 	return func(next Service) Service {
 		return &errorMiddleware{

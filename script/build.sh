@@ -42,7 +42,7 @@ FLATBUF_DIR="./service/transport/flatbuffer"
 echo "==> Removing old directories..."
 rm -f bin/*
 mkdir -p bin/
-rm -f "$FLATBUF_DIR"/flaki/*
+rm -f "$FLATBUF_DIR"/fb/*
 
 # Get the git commit.
 GIT_COMMIT="$(git rev-parse HEAD)"
@@ -54,7 +54,7 @@ LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.Environment=${ENV}"
 echo
 echo "==> Flatbuffers:"
 flatc --grpc --go -o "$FLATBUF_DIR" "$FLATBUF_DIR"/flaki.fbs 
-ls -hl "$FLATBUF_DIR"/flaki
+ls -hl "$FLATBUF_DIR"/fb
 
 # Build.
 echo

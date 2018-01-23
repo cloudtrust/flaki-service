@@ -19,16 +19,36 @@ func TestLoggingMiddleware(t *testing.T) {
 		fail: false,
 	})
 
+	// Context with correlation ID.
+	rand.Seed(time.Now().UnixNano())
+	var id = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation-id", id)
+
 	// NextID.
 	assert.False(t, mockLogger.Called)
-	srv.NextID(context.Background())
+	assert.Zero(t, mockLogger.CorrelationID)
+	srv.NextID(ctx)
 	assert.True(t, mockLogger.Called)
+	assert.Equal(t, id, mockLogger.CorrelationID)
 
 	// NextValidID.
 	mockLogger.Called = false
-	srv.NextValidID(context.Background())
+	mockLogger.CorrelationID = ""
+	srv.NextValidID(ctx)
 	assert.True(t, mockLogger.Called)
+	assert.Equal(t, id, mockLogger.CorrelationID)
 
+	// NextID without correlation ID.
+	var f = func() {
+		srv.NextID(context.Background())
+	}
+	assert.Panics(t, f)
+
+	// NextValidID without correlation ID.
+	f = func() {
+		srv.NextValidID(context.Background())
+	}
+	assert.Panics(t, f)
 }
 func TestErrorMiddleware(t *testing.T) {
 	var mockSentry = &mockSentry{Called: false}
@@ -37,26 +57,28 @@ func TestErrorMiddleware(t *testing.T) {
 		fail: true,
 	})
 
+	// Context with correlation ID.
+	rand.Seed(time.Now().UnixNano())
+	var id = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation-id", id)
+
 	// NextID.
 	assert.False(t, mockSentry.Called)
-	srv.NextID(context.Background())
+	assert.Zero(t, mockSentry.CorrelationID)
+	srv.NextID(ctx)
 	assert.True(t, mockSentry.Called)
+	assert.Equal(t, id, mockSentry.CorrelationID)
 
-	// NextValidID.
-	mockSentry.Called = false
-	srv.NextValidID(context.Background())
 	// NextValidID never returns an error.
+	mockSentry.Called = false
+	srv.NextValidID(ctx)
 	assert.False(t, mockSentry.Called)
 
-	// With correlationID.
-	rand.Seed(time.Now().UnixNano())
-	var id = rand.Uint64()
-	var idStr = strconv.FormatUint(id, 10)
-
-	mockSentry.Called = false
-	assert.Zero(t, mockSentry.CorrelationID)
-	srv.NextID(context.WithValue(context.Background(), "correlation-id", id))
-	assert.Equal(t, idStr, mockSentry.CorrelationID)
+	// NextID without correlation ID.
+	var f = func() {
+		srv.NextID(context.Background())
+	}
+	assert.Panics(t, f)
 }
 
 // Mock Flaki service. If fail is set to true, it returns an error.
@@ -64,24 +86,31 @@ type mockFlakiService struct {
 	fail bool
 }
 
-func (s *mockFlakiService) NextID(context.Context) (uint64, error) {
+func (s *mockFlakiService) NextID(context.Context) (string, error) {
 	if s.fail {
-		return 0, fmt.Errorf("fail")
+		return "", fmt.Errorf("fail")
 	}
-	return 0, nil
+	return "", nil
 }
 
-func (s *mockFlakiService) NextValidID(context.Context) uint64 {
-	return 0
+func (s *mockFlakiService) NextValidID(context.Context) string {
+	return ""
 }
 
 // Mock Logger.
 type mockLogger struct {
-	Called bool
+	Called        bool
+	CorrelationID string
 }
 
 func (l *mockLogger) Log(keyvals ...interface{}) error {
 	l.Called = true
+
+	for i, kv := range keyvals {
+		if kv == "correlation_id" {
+			l.CorrelationID = keyvals[i+1].(string)
+		}
+	}
 	return nil
 }
 

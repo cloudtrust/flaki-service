@@ -31,12 +31,12 @@ type mockFlakiModule struct {
 	nextValidIDCalled bool
 }
 
-func (m *mockFlakiModule) NextID(context.Context) (uint64, error) {
+func (m *mockFlakiModule) NextID(context.Context) (string, error) {
 	m.nextIDCalled = true
-	return 0, nil
+	return "", nil
 }
 
-func (m *mockFlakiModule) NextValidID(context.Context) uint64 {
+func (m *mockFlakiModule) NextValidID(context.Context) string {
 	m.nextValidIDCalled = true
-	return 0
+	return ""
 }

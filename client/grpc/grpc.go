@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
+	"github.com/cloudtrust/flaki-service/service/transport/flatbuffer/fb"
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"

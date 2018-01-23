@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 )
 
 func TestMakeCorrelationIDMiddleware(t *testing.T) {
-
 }
+
 func TestMakeLoggingMiddleware(t *testing.T) {
 
 }
@@ -22,53 +23,51 @@ func TestMakeMetricMiddleware(t *testing.T) {
 
 }
 func TestMakeTracingMiddleware(t *testing.T) {
+	var mockTracer = &mockTracer{}
+
+	// Context with correlation ID and span.
 	rand.Seed(time.Now().UnixNano())
-	var id = rand.Uint64()
+	var id = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation-id", id)
+	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
 
-	var mockTracer = &mockTracer{Called: false}
+	var endpoints = NewEndpoints(MakeTracingMiddleware(mockTracer, "flaki"))
 
-	var endpoints = NewEndpoints()
+	// NextID.
 	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiService{
 		id:   id,
 		fail: false,
 	},
-		MakeTracingMiddleware(mockTracer, "flaki"),
 	)
-
-	assert.False(t, mockTracer.Called)
-	endpoints.NextID(context.Background())
+	mockTracer.Called = false
+	endpoints.NextID(ctx)
 	assert.True(t, mockTracer.Called)
 
-	// Test with already existing span
-	mockTracer.Called = false
-	var span = mockTracer.StartSpan("flaki")
-	var ctx = opentracing.ContextWithSpan(context.Background(), span)
-
-	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiService{
+	// NextValidID.
+	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiService{
 		id:   id,
 		fail: false,
 	},
-		MakeTracingMiddleware(mockTracer, "flaki"),
 	)
-
-	endpoints.NextID(ctx)
+	mockTracer.Called = false
+	endpoints.NextValidID(ctx)
 	assert.True(t, mockTracer.Called)
 }
 
 // Mock Service.
 type mockFlakiService struct {
-	id   uint64
+	id   string
 	fail bool
 }
 
-func (s *mockFlakiService) NextID(context.Context) (uint64, error) {
+func (s *mockFlakiService) NextID(context.Context) (string, error) {
 	if s.fail {
-		return 0, fmt.Errorf("fail")
+		return "", fmt.Errorf("fail")
 	}
 	return s.id, nil
 }
 
-func (s *mockFlakiService) NextValidID(context.Context) uint64 {
+func (s *mockFlakiService) NextValidID(context.Context) string {
 	return s.id
 }
 
@@ -88,16 +87,14 @@ func (t *mockTracer) Extract(format interface{}, carrier interface{}) (opentraci
 	return nil, nil
 }
 
-// Mock Span
+// Mock Span.
 type mockSpan struct {
 }
 
-func (s *mockSpan) Finish()                                          {}
-func (s *mockSpan) FinishWithOptions(opts opentracing.FinishOptions) {}
-func (s *mockSpan) Context() opentracing.SpanContext                 { return nil }
-
-func (s *mockSpan) SetOperationName(operationName string) opentracing.Span { return s }
-
+func (s *mockSpan) Finish()                                                     {}
+func (s *mockSpan) FinishWithOptions(opts opentracing.FinishOptions)            {}
+func (s *mockSpan) Context() opentracing.SpanContext                            { return nil }
+func (s *mockSpan) SetOperationName(operationName string) opentracing.Span      { return s }
 func (s *mockSpan) SetTag(key string, value interface{}) opentracing.Span       { return s }
 func (s *mockSpan) LogFields(fields ...opentracing_log.Field)                   {}
 func (s *mockSpan) LogKV(alternatingKeyValues ...interface{})                   {}

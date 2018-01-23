@@ -9,7 +9,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	opentracing "github.com/opentracing/opentracing-go"
-	tags "github.com/opentracing/opentracing-go/ext"
 )
 
 // MakeCorrelationIDMiddleware makes a middleware that adds a correlation ID
@@ -20,10 +19,7 @@ func MakeCorrelationIDMiddleware(flaki flaki.Flaki) endpoint.Middleware {
 			var id = ctx.Value("correlation-id")
 
 			if id == nil {
-				// If there is no correlation ID in the context, add one.
 				ctx = context.WithValue(ctx, "correlation-id", flaki.NextValidIDString())
-			} else {
-				ctx = context.WithValue(ctx, "correlation-id", id)
 			}
 			return next(ctx, req)
 		}
@@ -35,7 +31,7 @@ func MakeLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
-				logger.Log("correlation_id", ctx.Value("correlation-id"), "took", time.Since(begin))
+				logger.Log("correlation_id", ctx.Value("correlation-id").(string), "took", time.Since(begin))
 			}(time.Now())
 			return next(ctx, req)
 		}
@@ -63,7 +59,7 @@ func MakeTracingMiddleware(tracer opentracing.Tracer, operationName string) endp
 				span = tracer.StartSpan(operationName, opentracing.ChildOf(span.Context()))
 				defer span.Finish()
 
-				tags.SpanKindRPCServer.Set(span)
+				span.SetTag("correlation-id", ctx.Value("correlation-id").(string))
 
 				ctx = opentracing.ContextWithSpan(ctx, span)
 			}

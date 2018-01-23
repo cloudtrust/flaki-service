@@ -3,12 +3,12 @@ package grpc
 import (
 	"context"
 
-	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
+	"github.com/cloudtrust/flaki-service/service/transport/flatbuffer/fb"
 	"github.com/go-kit/kit/endpoint"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
-	opentracing_tag "github.com/opentracing/opentracing-go/ext"
+	otag "github.com/opentracing/opentracing-go/ext"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -82,8 +82,9 @@ func makeTracerHandler(tracer opentracing.Tracer, operationName string) grpc_tra
 		defer span.Finish()
 
 		// Set tags.
-		opentracing_tag.Component.Set(span, "flaki-service")
-		opentracing_tag.SpanKindRPCServer.Set(span)
+		otag.Component.Set(span, "flaki-service")
+		span.SetTag("transport", "grpc")
+		otag.SpanKindRPCServer.Set(span)
 
 		return opentracing.ContextWithSpan(ctx, span)
 	}

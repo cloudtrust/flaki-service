@@ -1,4 +1,4 @@
-namespace flaki;
+namespace fb;
 
 // The response message containing the unique ID or an error
 table FlakiReply {

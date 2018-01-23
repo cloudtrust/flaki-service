@@ -6,17 +6,16 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	fb "github.com/cloudtrust/flaki-service/service/transport/flatbuffer/flaki"
+	"github.com/cloudtrust/flaki-service/service/transport/flatbuffer/fb"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
-	opentracing_tag "github.com/opentracing/opentracing-go/ext"
+	otag "github.com/opentracing/opentracing-go/ext"
 )
 
 // MakeNextIDHandler makes a HTTP handler for the NextID endpoint.
-func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
+func MakeNextIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeFlakiRequest,
 		encodeFlakiReply,
@@ -27,7 +26,7 @@ func MakeNextIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.T
 }
 
 // MakeNextValidIDHandler makes a HTTP handler for the NextValidID endpoint.
-func MakeNextValidIDHandler(e endpoint.Endpoint, log log.Logger, tracer opentracing.Tracer) *http_transport.Server {
+func MakeNextValidIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeFlakiRequest,
 		encodeFlakiReply,
@@ -71,10 +70,11 @@ func makeTracerHandler(tracer opentracing.Tracer, operationName string) http_tra
 		defer span.Finish()
 
 		// Set tags.
-		opentracing_tag.Component.Set(span, "flaki-service")
-		opentracing_tag.HTTPMethod.Set(span, operationName)
-		var newctx = opentracing.ContextWithSpan(ctx, span)
-		return newctx
+		otag.Component.Set(span, "flaki-service")
+		span.SetTag("transport", "http")
+		otag.SpanKindRPCServer.Set(span)
+
+		return opentracing.ContextWithSpan(ctx, span)
 	}
 }
 
