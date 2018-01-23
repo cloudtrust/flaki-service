@@ -48,4 +48,6 @@ select * from "nextID-endpoint" where "correlationID" = '0';
 
 
 Activation / deactivation of the modules (metrics, tracing, ....)
+travis
 
+go list ./... | grep -v /vendor/ | grep -v /client | grep -v /service/transport/flatbuffer/fb | xargs go test

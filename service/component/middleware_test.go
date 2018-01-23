@@ -13,7 +13,7 @@ import (
 )
 
 func TestLoggingMiddleware(t *testing.T) {
-	var mockLogger = &mockLogger{Called: false}
+	var mockLogger = &mockLogger{}
 
 	var srv = MakeLoggingMiddleware(mockLogger)(&mockFlakiService{
 		fail: false,
@@ -25,8 +25,8 @@ func TestLoggingMiddleware(t *testing.T) {
 	var ctx = context.WithValue(context.Background(), "correlation-id", id)
 
 	// NextID.
-	assert.False(t, mockLogger.Called)
-	assert.Zero(t, mockLogger.CorrelationID)
+	mockLogger.Called = false
+	mockLogger.CorrelationID = ""
 	srv.NextID(ctx)
 	assert.True(t, mockLogger.Called)
 	assert.Equal(t, id, mockLogger.CorrelationID)
@@ -51,7 +51,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	assert.Panics(t, f)
 }
 func TestErrorMiddleware(t *testing.T) {
-	var mockSentry = &mockSentry{Called: false}
+	var mockSentry = &mockSentry{}
 
 	var srv = MakeErrorMiddleware(mockSentry)(&mockFlakiService{
 		fail: true,
@@ -63,14 +63,15 @@ func TestErrorMiddleware(t *testing.T) {
 	var ctx = context.WithValue(context.Background(), "correlation-id", id)
 
 	// NextID.
-	assert.False(t, mockSentry.Called)
-	assert.Zero(t, mockSentry.CorrelationID)
+	mockSentry.Called = false
+	mockSentry.CorrelationID = ""
 	srv.NextID(ctx)
 	assert.True(t, mockSentry.Called)
 	assert.Equal(t, id, mockSentry.CorrelationID)
 
 	// NextValidID never returns an error.
 	mockSentry.Called = false
+	mockSentry.CorrelationID = ""
 	srv.NextValidID(ctx)
 	assert.False(t, mockSentry.Called)
 
