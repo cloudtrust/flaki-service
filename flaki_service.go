@@ -18,17 +18,18 @@ import (
 	"github.com/cloudtrust/flaki-service/service/transport/flatbuffer/fb"
 	flaki_grpc "github.com/cloudtrust/flaki-service/service/transport/grpc"
 	flaki_http "github.com/cloudtrust/flaki-service/service/transport/http"
+	"github.com/garyburd/redigo/redis"
 	sentry "github.com/getsentry/raven-go"
 	"github.com/go-kit/kit/log"
 	gokit_influx "github.com/go-kit/kit/metrics/influx"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/gorilla/mux"
-	influx_client "github.com/influxdata/influxdb/client/v2"
+	influx "github.com/influxdata/influxdb/client/v2"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	jaeger_client "github.com/uber/jaeger-client-go/config"
+	jaeger "github.com/uber/jaeger-client-go/config"
 	"google.golang.org/grpc"
 )
 
@@ -44,10 +45,9 @@ var (
 func main() {
 
 	// Logger.
-	var logger = log.NewLogfmtLogger(os.Stdout)
+	var logger = log.NewJSONLogger(os.Stdout)
 	{
 		logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
-		defer logger.Log("msg", "Goodbye")
 	}
 
 	// Configurations.
@@ -56,25 +56,25 @@ func main() {
 		componentName    = fmt.Sprintf(config["component-name"].(string))
 		grpcAddr         = fmt.Sprintf(config["component-grpc-address"].(string))
 		httpAddr         = fmt.Sprintf(config["component-http-address"].(string))
-		influxHTTPConfig = influx_client.HTTPConfig{
+		influxHTTPConfig = influx.HTTPConfig{
 			Addr:     config["influx-url"].(string),
 			Username: config["influx-username"].(string),
 			Password: config["influx-password"].(string),
 		}
-		influxBatchPointsConfig = influx_client.BatchPointsConfig{
+		influxBatchPointsConfig = influx.BatchPointsConfig{
 			Precision:        config["influx-precision"].(string),
 			Database:         config["influx-database"].(string),
 			RetentionPolicy:  config["influx-retention-policy"].(string),
 			WriteConsistency: config["influx-write-consistency"].(string),
 		}
 		influxWriteInterval = time.Duration(config["influx-write-interval-ms"].(int)) * time.Millisecond
-		jaegerConfig        = jaeger_client.Configuration{
-			Sampler: &jaeger_client.SamplerConfig{
+		jaegerConfig        = jaeger.Configuration{
+			Sampler: &jaeger.SamplerConfig{
 				Type:              config["jaeger-sampler-type"].(string),
 				Param:             float64(config["jaeger-sampler-param"].(int)),
 				SamplingServerURL: config["jaeger-sampler-url"].(string),
 			},
-			Reporter: &jaeger_client.ReporterConfig{
+			Reporter: &jaeger.ReporterConfig{
 				LogSpans:            config["jaeger-reporter-logspan"].(bool),
 				BufferFlushInterval: time.Duration(config["jaeger-reporter-flushinterval-ms"].(int)) * time.Millisecond,
 			},
@@ -82,7 +82,37 @@ func main() {
 		sentryDSN        = fmt.Sprintf(config["sentry-dsn"].(string))
 		flakiNodeID      = uint64(config["flaki-node-id"].(int))
 		flakiComponentID = uint64(config["flaki-component-id"].(int))
+
+		debugRouteEnabled = config["debug-route-enabled"].(bool)
+
+		redisURL      = config["redis-url"].(string)
+		redisPassword = config["redis-password"].(string)
+		redisDatabase = config["redis-database"].(int)
 	)
+
+	// Redis.
+	var redisPool = &redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
+		},
+	}
+	/*
+		var redisClient redis.Conn
+		{
+			var err error
+			redisClient, err = redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
+			if err != nil {
+				logger.Log("msg", "couldn't create redis client", "error", err)
+				return
+			}
+			defer redisClient.Close()
+		}*/
+	var rw = NewLogstashRedisWriter(redisPool)
+
+	time.Sleep(2 * time.Second)
+	logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, rw))
+	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+	defer logger.Log("msg", "Goodbye")
 
 	// Log component version infos.
 	logger.Log("component_name", componentName, "version", Version, "environment", Environment, "git_commit", GitCommit)
@@ -115,25 +145,24 @@ func main() {
 		logger.Log("sentry_dsn", sentryDSN)
 		sentryClient, err = sentry.New(sentryDSN)
 		if err != nil {
-			logger.Log("msg", "Couldn't create Sentry client", "error", err)
+			logger.Log("msg", "couldn't create Sentry client", "error", err)
 			return
 		}
 		defer sentryClient.Close()
 	}
 
 	// Influx client.
-	var influxClient influx_client.Client
+	var influxClient influx.Client
 	{
 		var logger = log.With(logger, "component", "influx")
-		{
-			var err error
-			influxClient, err = influx_client.NewHTTPClient(influxHTTPConfig)
-			if err != nil {
-				logger.Log("msg", "Couldn't create Influx client", "error", err)
-				return
-			}
-			defer influxClient.Close()
+
+		var err error
+		influxClient, err = influx.NewHTTPClient(influxHTTPConfig)
+		if err != nil {
+			logger.Log("msg", "couldn't create Influx client", "error", err)
+			return
 		}
+		defer influxClient.Close()
 	}
 
 	// Influx go-kit handler.
@@ -248,15 +277,42 @@ func main() {
 		route.Handle("/nextvalidid", nextValidIDHandler)
 
 		// Version.
-		route.Handle("/version", http.HandlerFunc(flaki_http.MakeVersion(componentName, Version, Environment, GitCommit)))
+		route.Handle("/", http.HandlerFunc(flaki_http.MakeVersion(componentName, Version, Environment, GitCommit)))
+
+		// Health.
+		/*
+			var healthSubroute = route.PathPrefix("/health").Subrouter()
+			healthSubroute.HandleFunc("/", http.HandlerFunc(health.MakeHealthChecks(influxClient, sentryClient, tracer))
+			healthSubroute.HandleFunc("/influx", http.HandlerFunc(flaki_http.MakeVersion("influx", "", "", "")))
+			healthSubroute.HandleFunc("/sentry", http.HandlerFunc(flaki_http.MakeVersion("sentry", "", "", "")))
+			healthSubroute.HandleFunc("/jaeger", http.HandlerFunc(flaki_http.MakeVersion("jaeger", "", "", "")))
+		*/
+		/* handle the following routes:
+		/health/checks/: all checks, returns json like:
+		{
+			influx: up
+			jaeger: up
+			sentry: up
+			...
+		}
+		then individual routes:
+		/health/check/influx, sentry, jaeger, ....
+		{
+			nom du check: create db, ....
+			temps: xxx ms
+			status: OK/KO
+		}
+		*/
 
 		// Debug.
-		var debugSubroute = route.PathPrefix("/debug").Subrouter()
-		debugSubroute.HandleFunc("/pprof/", http.HandlerFunc(pprof.Index))
-		debugSubroute.HandleFunc("/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-		debugSubroute.HandleFunc("/pprof/profile", http.HandlerFunc(pprof.Profile))
-		debugSubroute.HandleFunc("/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-		debugSubroute.HandleFunc("/pprof/trace", http.HandlerFunc(pprof.Trace))
+		if debugRouteEnabled {
+			var debugSubroute = route.PathPrefix("/debug").Subrouter()
+			debugSubroute.HandleFunc("/pprof/", http.HandlerFunc(pprof.Index))
+			debugSubroute.HandleFunc("/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+			debugSubroute.HandleFunc("/pprof/profile", http.HandlerFunc(pprof.Profile))
+			debugSubroute.HandleFunc("/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+			debugSubroute.HandleFunc("/pprof/trace", http.HandlerFunc(pprof.Trace))
+		}
 
 		errc <- http.ListenAndServe(httpAddr, route)
 	}()
@@ -266,6 +322,18 @@ func main() {
 		var tic = time.NewTicker(influxWriteInterval)
 		gokitInflux.WriteLoop(tic.C, influxClient)
 	}()
+
+	// Redis writing.
+	/*
+		go func() {
+			for {
+				var err = redisClient.Flush()
+				if err != nil {
+					fmt.Println(err)
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}()*/
 
 	logger.Log("error", <-errc)
 }
@@ -303,6 +371,14 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("jaeger-sampler-url", "http://127.0.0.1:5775")
 	viper.SetDefault("jaeger-reporter-logspan", false)
 	viper.SetDefault("jaeger-reporter-flushinterval-ms", 1000)
+
+	// Debug routes enabled.
+	viper.SetDefault("debug-route-enabled", true)
+
+	// Redis.
+	viper.SetDefault("redis-url", "127.0.0.1:6379")
+	viper.SetDefault("redis-password", "flaki")
+	viper.SetDefault("redis-database", 0)
 
 	// First level of override.
 	pflag.String("config-file", viper.GetString("config-file"), "The configuration file path can be relative or absolute.")

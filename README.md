@@ -53,3 +53,5 @@ travis
 go list ./... | grep -v /vendor/ | grep -v /client | grep -v /service/transport/flatbuffer/fb | xargs go test
 TODO make travis work with multiple packages
 https://github.com/mattn/goveralls/issues/20
+
+
