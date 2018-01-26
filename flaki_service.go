@@ -45,7 +45,7 @@ var (
 func main() {
 
 	// Logger.
-	var logger = log.NewJSONLogger(os.Stdout)
+	var logger = log.NewLogfmtLogger(os.Stdout)
 	{
 		logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	}
@@ -53,11 +53,11 @@ func main() {
 	// Configurations.
 	var config = config(log.With(logger, "component", "config_loader"))
 	var (
-		componentName    = fmt.Sprintf(config["component-name"].(string))
-		grpcAddr         = fmt.Sprintf(config["component-grpc-address"].(string))
-		httpAddr         = fmt.Sprintf(config["component-http-address"].(string))
+		componentName    = config["component-name"].(string)
+		grpcAddr         = config["component-grpc-address"].(string)
+		httpAddr         = config["component-http-address"].(string)
 		influxHTTPConfig = influx.HTTPConfig{
-			Addr:     config["influx-url"].(string),
+			Addr:     fmt.Sprintf("http://%s", config["influx-url"].(string)),
 			Username: config["influx-username"].(string),
 			Password: config["influx-password"].(string),
 		}
@@ -72,7 +72,7 @@ func main() {
 			Sampler: &jaeger.SamplerConfig{
 				Type:              config["jaeger-sampler-type"].(string),
 				Param:             float64(config["jaeger-sampler-param"].(int)),
-				SamplingServerURL: config["jaeger-sampler-url"].(string),
+				SamplingServerURL: fmt.Sprintf("http://%s", config["jaeger-sampler-url"].(string)),
 			},
 			Reporter: &jaeger.ReporterConfig{
 				LogSpans:            config["jaeger-reporter-logspan"].(bool),
@@ -83,7 +83,11 @@ func main() {
 		flakiNodeID      = uint64(config["flaki-node-id"].(int))
 		flakiComponentID = uint64(config["flaki-component-id"].(int))
 
-		debugRouteEnabled = config["debug-route-enabled"].(bool)
+		influxEnabled     = config["influx"].(bool)
+		sentryEnabled     = config["sentry"].(bool)
+		jaegerEnabled     = config["jaeger"].(bool)
+		redisEnabled      = config["redis"].(bool)
+		pprofRouteEnabled = config["pprof-route-enabled"].(bool)
 
 		redisURL      = config["redis-url"].(string)
 		redisPassword = config["redis-password"].(string)
@@ -91,28 +95,17 @@ func main() {
 	)
 
 	// Redis.
-	var redisPool = &redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
-		},
+	if redisEnabled {
+		var redisPool = &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
+			},
+		}
+		// Create logger that duplicates logs to stdout and redis.
+		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisPool)))
+		logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+		defer logger.Log("msg", "Goodbye")
 	}
-	/*
-		var redisClient redis.Conn
-		{
-			var err error
-			redisClient, err = redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
-			if err != nil {
-				logger.Log("msg", "couldn't create redis client", "error", err)
-				return
-			}
-			defer redisClient.Close()
-		}*/
-	var rw = NewLogstashRedisWriter(redisPool)
-
-	time.Sleep(2 * time.Second)
-	logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, rw))
-	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
-	defer logger.Log("msg", "Goodbye")
 
 	// Log component version infos.
 	logger.Log("component_name", componentName, "version", Version, "environment", Environment, "git_commit", GitCommit)
@@ -138,8 +131,8 @@ func main() {
 	}
 
 	// Sentry.
-	var sentryClient *sentry.Client
-	{
+	var sentryClient Sentry
+	if sentryEnabled {
 		var logger = log.With(logger, "component", "sentry")
 		var err error
 		logger.Log("sentry_dsn", sentryDSN)
@@ -149,11 +142,14 @@ func main() {
 			return
 		}
 		defer sentryClient.Close()
+	} else {
+		sentryClient = &NoopSentry{}
 	}
 
 	// Influx client.
 	var influxClient influx.Client
-	{
+	var gokitInflux GokitInflux
+	if influxEnabled {
 		var logger = log.With(logger, "component", "influx")
 
 		var err error
@@ -163,21 +159,20 @@ func main() {
 			return
 		}
 		defer influxClient.Close()
-	}
 
-	// Influx go-kit handler.
-	var gokitInflux *gokit_influx.Influx
-	{
 		gokitInflux = gokit_influx.New(
 			map[string]string{},
 			influxBatchPointsConfig,
 			log.With(logger, "component", "go-kit influx"),
 		)
+	} else {
+		influxClient = &NoopInflux{}
+		gokitInflux = &NoopGokitInflux{}
 	}
 
 	// Jaeger client.
 	var tracer opentracing.Tracer
-	{
+	if jaegerEnabled {
 		var logger = log.With(logger, "component", "jaeger")
 		var closer io.Closer
 		var err error
@@ -188,6 +183,8 @@ func main() {
 			return
 		}
 		defer closer.Close()
+	} else {
+		tracer = opentracing.NoopTracer{}
 	}
 
 	// Backend service.
@@ -305,7 +302,7 @@ func main() {
 		*/
 
 		// Debug.
-		if debugRouteEnabled {
+		if pprofRouteEnabled {
 			var debugSubroute = route.PathPrefix("/debug").Subrouter()
 			debugSubroute.HandleFunc("/pprof/", http.HandlerFunc(pprof.Index))
 			debugSubroute.HandleFunc("/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
@@ -323,24 +320,12 @@ func main() {
 		gokitInflux.WriteLoop(tic.C, influxClient)
 	}()
 
-	// Redis writing.
-	/*
-		go func() {
-			for {
-				var err = redisClient.Flush()
-				if err != nil {
-					fmt.Println(err)
-				}
-				time.Sleep(1 * time.Second)
-			}
-		}()*/
-
 	logger.Log("error", <-errc)
 }
 
 func config(logger log.Logger) map[string]interface{} {
 
-	logger.Log("msg", "Loading configuration & command args")
+	logger.Log("msg", "Loading configuration and command args")
 
 	// Component default.
 	viper.SetDefault("config-file", "./conf/DEV/flaki_service.yml")
@@ -353,31 +338,35 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("flaki-component-id", 0)
 
 	// Influx DB client default.
-	viper.SetDefault("influx-url", "http://127.0.0.1:8086")
-	viper.SetDefault("influx-username", "flaki")
-	viper.SetDefault("influx-password", "flaki")
-	viper.SetDefault("influx-database", "flakimetrics")
-	viper.SetDefault("influx-precision", "s")
+	viper.SetDefault("influx", false)
+	viper.SetDefault("influx-url", "")
+	viper.SetDefault("influx-username", "")
+	viper.SetDefault("influx-password", "")
+	viper.SetDefault("influx-database", "")
+	viper.SetDefault("influx-precision", "")
 	viper.SetDefault("influx-retention-policy", "")
 	viper.SetDefault("influx-write-consistency", "")
-	viper.SetDefault("influx-write-interval-ms", 1000)
+	viper.SetDefault("influx-write-interval-ms", 0)
 
 	// Sentry client default.
+	viper.SetDefault("sentry", false)
 	viper.SetDefault("sentry-dsn", "")
 
 	// Jaeger tracing default.
-	viper.SetDefault("jaeger-sampler-type", "const")
-	viper.SetDefault("jaeger-sampler-param", 1)
-	viper.SetDefault("jaeger-sampler-url", "http://127.0.0.1:5775")
+	viper.SetDefault("jaeger", false)
+	viper.SetDefault("jaeger-sampler-type", "")
+	viper.SetDefault("jaeger-sampler-param", 0)
+	viper.SetDefault("jaeger-sampler-url", "")
 	viper.SetDefault("jaeger-reporter-logspan", false)
-	viper.SetDefault("jaeger-reporter-flushinterval-ms", 1000)
+	viper.SetDefault("jaeger-reporter-flushinterval-ms", 0)
 
 	// Debug routes enabled.
-	viper.SetDefault("debug-route-enabled", true)
+	viper.SetDefault("pprof-route-enabled", true)
 
 	// Redis.
-	viper.SetDefault("redis-url", "127.0.0.1:6379")
-	viper.SetDefault("redis-password", "flaki")
+	viper.SetDefault("redis", false)
+	viper.SetDefault("redis-url", "")
+	viper.SetDefault("redis-password", "")
 	viper.SetDefault("redis-database", 0)
 
 	// First level of override.
@@ -385,14 +374,20 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.BindPFlag("config-file", pflag.Lookup("config-file"))
 	pflag.Parse()
 
-	// Load & log config.
+	// Load config.
 	viper.SetConfigFile(viper.GetString("config-file"))
 	var err = viper.ReadInConfig()
 	if err != nil {
 		logger.Log("error", err)
 	}
-
 	var config = viper.AllSettings()
+
+	// If the URL is not set, we consider the components disabled.
+	config["influx"] = config["influx-url"].(string) != ""
+	config["sentry"] = config["sentry-dsn"].(string) != ""
+	config["jaeger"] = config["jaeger-sampler-url"].(string) != ""
+	config["redis"] = config["redis-url"].(string) != ""
+
 	for k, v := range config {
 		logger.Log(k, v)
 	}

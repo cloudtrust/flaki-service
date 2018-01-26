@@ -44,30 +44,15 @@ func MakeLoggingMiddleware(log log.Logger) Middleware {
 }
 
 // Sentry interface.
-type sentryClient interface {
-	SetDSN(dsn string) error
-	SetRelease(release string)
-	SetEnvironment(environment string)
-	SetDefaultLoggerName(name string)
-	Capture(packet *sentry.Packet, captureTags map[string]string) (eventID string, ch chan error)
-	CaptureMessage(message string, tags map[string]string, interfaces ...sentry.Interface) string
-	CaptureMessageAndWait(message string, tags map[string]string, interfaces ...sentry.Interface) string
+type Sentry interface {
 	CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string
 	CaptureErrorAndWait(err error, tags map[string]string, interfaces ...sentry.Interface) string
-	CapturePanic(f func(), tags map[string]string, interfaces ...sentry.Interface) (err interface{}, errorID string)
-	CapturePanicAndWait(f func(), tags map[string]string, interfaces ...sentry.Interface) (err interface{}, errorID string)
 	Close()
-	Wait()
-	URL() string
-	ProjectID() string
-	Release() string
-	IncludePaths() []string
-	SetIncludePaths(p []string)
 }
 
 // Error Middleware.
 type errorMiddleware struct {
-	client sentryClient
+	client Sentry
 	next   Service
 }
 
@@ -86,7 +71,7 @@ func (s *errorMiddleware) NextValidID(ctx context.Context) string {
 }
 
 // MakeErrorMiddleware makes an error handling middleware, where the errors are sent to Sentry.
-func MakeErrorMiddleware(client sentryClient) Middleware {
+func MakeErrorMiddleware(client Sentry) Middleware {
 	return func(next Service) Service {
 		return &errorMiddleware{
 			client: client,
