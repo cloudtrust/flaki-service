@@ -23,7 +23,7 @@
   branch = "master"
   name = "github.com/cloudtrust/flaki"
   packages = ["."]
-  revision = "fe713078385dab5701618dd05f67547a97246eab"
+  revision = "dacccf24d43e7e66b0b85b60d810a9fb5b289143"
 
 [[projects]]
   branch = "master"
@@ -42,6 +42,12 @@
   packages = ["."]
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
   version = "v1.4.7"
+
+[[projects]]
+  name = "github.com/garyburd/redigo"
+  packages = ["internal","redis"]
+  revision = "d1ed5c67e5794de818ea85e6b522fda02623a484"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
@@ -71,7 +77,7 @@
   branch = "master"
   name = "github.com/golang/protobuf"
   packages = ["proto","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
-  revision = "c65a0412e71e8b9b3bfd22925720d23c0f054237"
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
 
 [[projects]]
   name = "github.com/google/flatbuffers"
@@ -197,13 +203,13 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "5ccada7d0a7ba9aeb5d3aca8d3501b4c2a509fec"
+  revision = "0ed95abb35c445290478a5348a7b38bb154135fd"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "af50095a40f9041b3b38960738837185c26e9419"
+  revision = "ff2a66f350cefa5c93a634eadb5d25bb60c85a9c"
 
 [[projects]]
   branch = "master"
@@ -215,7 +221,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "a8101f21cf983e773d0c1133ebc5424792003214"
+  revision = "4eb30f4778eed4c258ba66527a0d4f9ec8a36c45"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -232,6 +238,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "82e0fd34b17ecb10c8af19b2723839ab8a2a9671453c706478d0947b91258b64"
+  inputs-digest = "31a855e9f10802d5f39ec260383098f8a692cdc10260c978f24488d092b88fdb"
   solver-name = "gps-cdcl"
   solver-version = 1

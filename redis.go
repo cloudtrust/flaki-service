@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/go-kit/kit/log"
 )
 
 type logstashLog struct {
@@ -21,10 +20,9 @@ type redisWriter struct {
 }
 
 func NewLogstashRedisWriter(pool *redis.Pool) io.Writer {
-	var redisWriter = &redisWriter{
+	return &redisWriter{
 		pool: pool,
 	}
-	return redisWriter
 }
 
 func (w *redisWriter) Write(p []byte) (int, error) {
@@ -34,7 +32,6 @@ func (w *redisWriter) Write(p []byte) (int, error) {
 	// Encode to logstash format.
 	var logstashLog, err = logstashEncode(logs)
 	if err != nil {
-		fmt.Println(err)
 		return 0, err
 	}
 
@@ -44,7 +41,7 @@ func (w *redisWriter) Write(p []byte) (int, error) {
 
 	err = c.Send("RPUSH", "flaki-service", logstashLog)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("redis err: %s", err)
 		return 0, err
 	}
 	return len(p), nil
@@ -74,34 +71,4 @@ func logstashEncode(m map[string]string) ([]byte, error) {
 	var ll []byte
 	ll, err = json.Marshal(l)
 	return ll, err
-}
-
-type MultiLogger interface {
-	log.Logger
-	AddLogger(logger log.Logger)
-}
-
-type multiLogger struct {
-	loggers []log.Logger
-}
-
-func NewMultiLogger(loggers ...log.Logger) MultiLogger {
-	var l = append([]log.Logger{}, loggers...)
-	return &multiLogger{
-		loggers: l,
-	}
-}
-
-func (l *multiLogger) AddLogger(logger log.Logger) {
-	l.loggers = append(l.loggers, logger)
-}
-
-func (l *multiLogger) Log(keyvals ...interface{}) error {
-	for _, logger := range l.loggers {
-		var err = logger.Log(keyvals...)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

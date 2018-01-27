@@ -121,37 +121,12 @@ type mockSentry struct {
 	CorrelationID string
 }
 
+func (client *mockSentry) CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string {
+	return ""
+}
 func (client *mockSentry) CaptureErrorAndWait(err error, tags map[string]string, interfaces ...sentry.Interface) string {
 	client.Called = true
 	client.CorrelationID = tags["correlation-id"]
 	return ""
 }
-func (client *mockSentry) SetDSN(dsn string) error           { return nil }
-func (client *mockSentry) SetRelease(release string)         {}
-func (client *mockSentry) SetEnvironment(environment string) {}
-func (client *mockSentry) SetDefaultLoggerName(name string)  {}
-func (client *mockSentry) Capture(packet *sentry.Packet, captureTags map[string]string) (eventID string, ch chan error) {
-	return "", nil
-}
-func (client *mockSentry) CaptureMessage(message string, tags map[string]string, interfaces ...sentry.Interface) string {
-	return ""
-}
-func (client *mockSentry) CaptureMessageAndWait(message string, tags map[string]string, interfaces ...sentry.Interface) string {
-	return ""
-}
-func (client *mockSentry) CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string {
-	return ""
-}
-func (client *mockSentry) CapturePanic(f func(), tags map[string]string, interfaces ...sentry.Interface) (err interface{}, errorID string) {
-	return nil, ""
-}
-func (client *mockSentry) CapturePanicAndWait(f func(), tags map[string]string, interfaces ...sentry.Interface) (err interface{}, errorID string) {
-	return nil, ""
-}
-func (client *mockSentry) Close()                     {}
-func (client *mockSentry) Wait()                      {}
-func (client *mockSentry) URL() string                { return "" }
-func (client *mockSentry) ProjectID() string          { return "" }
-func (client *mockSentry) Release() string            { return "" }
-func (client *mockSentry) IncludePaths() []string     { return nil }
-func (client *mockSentry) SetIncludePaths(p []string) {}
+func (client *mockSentry) Close() {}

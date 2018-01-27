@@ -4,16 +4,20 @@ import (
 	"context"
 	"time"
 
-	"github.com/cloudtrust/flaki"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
+// Flaki is the interface of the distributed unique IDs generator.
+type Flaki interface {
+	NextValidIDString() string
+}
+
 // MakeCorrelationIDMiddleware makes a middleware that adds a correlation ID
 // in the context if there is not already one.
-func MakeCorrelationIDMiddleware(flaki flaki.Flaki) endpoint.Middleware {
+func MakeCorrelationIDMiddleware(flaki Flaki) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			var id = ctx.Value("correlation-id")

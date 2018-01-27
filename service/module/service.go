@@ -2,8 +2,6 @@ package flaki
 
 import (
 	"context"
-
-	flaki "github.com/cloudtrust/flaki"
 )
 
 // Service is the interface that the services implement.
@@ -12,12 +10,18 @@ type Service interface {
 	NextValidID(context.Context) string
 }
 
+// Flaki is the interface of the distributed unique IDs generator.
+type Flaki interface {
+	NextIDString() (string, error)
+	NextValidIDString() string
+}
+
 type basicService struct {
-	flaki flaki.Flaki
+	flaki Flaki
 }
 
 // NewBasicService returns the basic service.
-func NewBasicService(flaki flaki.Flaki) Service {
+func NewBasicService(flaki Flaki) Service {
 	return &basicService{
 		flaki: flaki,
 	}

@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	flaki_gen "github.com/cloudtrust/flaki"
+	"github.com/cloudtrust/flaki"
 	flaki_component "github.com/cloudtrust/flaki-service/service/component"
 	flaki_endpoint "github.com/cloudtrust/flaki-service/service/endpoint"
 	flaki_module "github.com/cloudtrust/flaki-service/service/module"
@@ -21,6 +21,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 	sentry "github.com/getsentry/raven-go"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
 	gokit_influx "github.com/go-kit/kit/metrics/influx"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -119,11 +120,11 @@ func main() {
 	}()
 
 	// Flaki unique distributed ID generator.
-	var flaki flaki_gen.Flaki
+	var flakiGen *flaki.Flaki
 	{
 		var logger = log.With(logger, "component", "flaki")
 		var err error
-		flaki, err = flaki_gen.NewFlaki(flaki_gen.ComponentID(flakiComponentID), flaki_gen.NodeID(flakiNodeID))
+		flakiGen, err = flaki.New(flaki.ComponentID(flakiComponentID), flaki.NodeID(flakiNodeID))
 		if err != nil {
 			logger.Log("msg", "couldn't create flaki id generator", "error", err)
 			return
@@ -131,6 +132,12 @@ func main() {
 	}
 
 	// Sentry.
+	type Sentry interface {
+		CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string
+		CaptureErrorAndWait(err error, tags map[string]string, interfaces ...sentry.Interface) string
+		Close()
+	}
+
 	var sentryClient Sentry
 	if sentryEnabled {
 		var logger = log.With(logger, "component", "sentry")
@@ -147,27 +154,33 @@ func main() {
 	}
 
 	// Influx client.
-	var influxClient influx.Client
-	var gokitInflux GokitInflux
+	type Metrics interface {
+		NewCounter(name string) metrics.Counter
+		NewGauge(name string) metrics.Gauge
+		NewHistogram(name string) metrics.Histogram
+		WriteLoop(c <-chan time.Time)
+	}
+
+	var influxMetrics Metrics
 	if influxEnabled {
 		var logger = log.With(logger, "component", "influx")
 
-		var err error
-		influxClient, err = influx.NewHTTPClient(influxHTTPConfig)
+		var influxClient, err = influx.NewHTTPClient(influxHTTPConfig)
 		if err != nil {
 			logger.Log("msg", "couldn't create Influx client", "error", err)
 			return
 		}
 		defer influxClient.Close()
 
-		gokitInflux = gokit_influx.New(
+		var gokitInflux = gokit_influx.New(
 			map[string]string{},
 			influxBatchPointsConfig,
 			log.With(logger, "component", "go-kit influx"),
 		)
+
+		influxMetrics = NewMetrics(influxClient, gokitInflux)
 	} else {
-		influxClient = &NoopInflux{}
-		gokitInflux = &NoopGokitInflux{}
+		influxMetrics = &NoopMetrics{}
 	}
 
 	// Jaeger client.
@@ -190,7 +203,7 @@ func main() {
 	// Backend service.
 	var flakiModule flaki_module.Service
 	{
-		flakiModule = flaki_module.NewBasicService(flaki)
+		flakiModule = flaki_module.NewBasicService(flakiGen)
 		flakiModule = flaki_module.MakeLoggingMiddleware(log.With(logger, "middleware", "module"))(flakiModule)
 	}
 
@@ -201,18 +214,18 @@ func main() {
 		flakiComponent = flaki_component.MakeErrorMiddleware(sentryClient)(flakiComponent)
 	}
 
-	var flakiEndpoints = flaki_endpoint.NewEndpoints(flaki_endpoint.MakeCorrelationIDMiddleware(flaki))
+	var flakiEndpoints = flaki_endpoint.NewEndpoints(flaki_endpoint.MakeCorrelationIDMiddleware(flakiGen))
 
 	flakiEndpoints.MakeNextIDEndpoint(
 		flakiComponent,
-		flaki_endpoint.MakeMetricMiddleware(gokitInflux.NewHistogram("nextID-endpoint")),
+		flaki_endpoint.MakeMetricMiddleware(influxMetrics.NewHistogram("nextID-endpoint")),
 		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextID")),
 		flaki_endpoint.MakeTracingMiddleware(tracer, "nextID"),
 	)
 
 	flakiEndpoints.MakeNextValidIDEndpoint(
 		flakiComponent,
-		flaki_endpoint.MakeMetricMiddleware(gokitInflux.NewHistogram("nextValidID-endpoint")),
+		flaki_endpoint.MakeMetricMiddleware(influxMetrics.NewHistogram("nextValidID-endpoint")),
 		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextValidID")),
 		flaki_endpoint.MakeTracingMiddleware(tracer, "nextValidID"),
 	)
@@ -317,7 +330,7 @@ func main() {
 	// Influx writing.
 	go func() {
 		var tic = time.NewTicker(influxWriteInterval)
-		gokitInflux.WriteLoop(tic.C, influxClient)
+		influxMetrics.WriteLoop(tic.C)
 	}()
 
 	logger.Log("error", <-errc)
