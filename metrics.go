@@ -42,6 +42,34 @@ func (m *InfluxMetrics) WriteLoop(c <-chan time.Time) {
 	m.gokit.WriteLoop(c, m.client)
 }
 
+func MakeInfluxHealthChecks(client influx.Client) *HealthChecks {
+
+	var checks = []HealthTest{
+		makePingHealthTest(client),
+	}
+
+	return &HealthChecks{
+		name:   "influx",
+		checks: checks,
+	}
+}
+
+func makePingHealthTest(client influx.Client) HealthTest {
+	return func() TestReport {
+		var d, _, err = client.Ping(time.Duration(5 * time.Second))
+		var status = "OK"
+		if err != nil {
+			status = "KO"
+		}
+
+		return TestReport{
+			Name:     "ping",
+			Duration: d.String(),
+			Status:   status,
+		}
+	}
+}
+
 // NoopMetrics is an Influx metrics that does nothing.
 type NoopMetrics struct{}
 

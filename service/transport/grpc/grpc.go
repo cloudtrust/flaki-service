@@ -18,24 +18,22 @@ type grpcServer struct {
 }
 
 // MakeNextIDHandler makes a GRPC handler for the NextID endpoint.
-func MakeNextIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *grpc_transport.Server {
+func MakeNextIDHandler(e endpoint.Endpoint) *grpc_transport.Server {
 	return grpc_transport.NewServer(
 		e,
 		decodeFlakiRequest,
 		encodeFlakiReply,
 		grpc_transport.ServerBefore(fetchCorrelationID),
-		grpc_transport.ServerBefore(makeTracerHandler(tracer, "nextID")),
 	)
 }
 
 // MakeNextValidIDHandler makes a GRPC handler for the NextValidID endpoint.
-func MakeNextValidIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *grpc_transport.Server {
+func MakeNextValidIDHandler(e endpoint.Endpoint) *grpc_transport.Server {
 	return grpc_transport.NewServer(
 		e,
 		decodeFlakiRequest,
 		encodeFlakiReply,
 		grpc_transport.ServerBefore(fetchCorrelationID),
-		grpc_transport.ServerBefore(makeTracerHandler(tracer, "nextValidID")),
 	)
 }
 

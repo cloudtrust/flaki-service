@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/garyburd/redigo/redis"
 )
@@ -71,4 +72,39 @@ func logstashEncode(m map[string]string) ([]byte, error) {
 	var ll []byte
 	ll, err = json.Marshal(l)
 	return ll, err
+}
+
+func MakeRedisHealthChecks(pool *redis.Pool) *HealthChecks {
+
+	var checks = []HealthTest{
+		makeRedisPingHealthTest(pool),
+	}
+
+	return &HealthChecks{
+		name:   "redis",
+		checks: checks,
+	}
+}
+
+func makeRedisPingHealthTest(pool *redis.Pool) HealthTest {
+	return func() TestReport {
+		// Get connection
+		var c = pool.Get()
+		defer c.Close()
+
+		var now = time.Now()
+		var _, err = c.Do("PING")
+		var duration = time.Since(now)
+
+		var status = "OK"
+		if err != nil {
+			status = "KO"
+		}
+
+		return TestReport{
+			Name:     "ping",
+			Duration: duration.String(),
+			Status:   status,
+		}
+	}
 }

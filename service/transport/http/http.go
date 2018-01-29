@@ -11,7 +11,6 @@ import (
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
-	otag "github.com/opentracing/opentracing-go/ext"
 )
 
 // MakeNextIDHandler makes a HTTP handler for the NextID endpoint.
@@ -21,7 +20,6 @@ func MakeNextIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *http_tra
 		encodeFlakiReply,
 		http_transport.ServerErrorEncoder(flakiErrorHandler),
 		http_transport.ServerBefore(fetchCorrelationID),
-		http_transport.ServerBefore(makeTracerHandler(tracer, "nextID")),
 	)
 }
 
@@ -32,7 +30,6 @@ func MakeNextValidIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *htt
 		encodeFlakiReply,
 		http_transport.ServerErrorEncoder(flakiErrorHandler),
 		http_transport.ServerBefore(fetchCorrelationID),
-		http_transport.ServerBefore(makeTracerHandler(tracer, "nextValidID")),
 	)
 }
 
@@ -73,29 +70,6 @@ func fetchCorrelationID(ctx context.Context, r *http.Request) context.Context {
 		ctx = context.WithValue(ctx, "correlation-id", correlationID)
 	}
 	return ctx
-}
-
-// makeTracerHandler try to extract an existing span from the HTTP headers. It it exists, we
-// continue the span, if not we create a new one.
-func makeTracerHandler(tracer opentracing.Tracer, operationName string) http_transport.RequestFunc {
-	return func(ctx context.Context, r *http.Request) context.Context {
-		var sc, err = tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-
-		var span opentracing.Span
-		if err != nil {
-			span = tracer.StartSpan(operationName)
-		} else {
-			span = tracer.StartSpan(operationName, opentracing.ChildOf(sc))
-		}
-		defer span.Finish()
-
-		// Set tags.
-		otag.Component.Set(span, "flaki-service")
-		span.SetTag("transport", "http")
-		otag.SpanKindRPCServer.Set(span)
-
-		return opentracing.ContextWithSpan(ctx, span)
-	}
 }
 
 // decodeFlakiRequest decodes the flatbuffer flaki request.

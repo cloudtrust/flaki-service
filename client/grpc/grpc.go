@@ -72,17 +72,21 @@ func main() {
 	// Client.
 	var flakiClient = fb.NewFlakiClient(clienConn)
 
-	nextID(flakiClient, logger, tracer)
-	nextValidID(flakiClient, logger, tracer)
+	var span = tracer.StartSpan("grpc_client")
+	opentracing_tag.SpanKindRPCClient.Set(span)
+	defer span.Finish()
+
+	nextID(flakiClient, logger, tracer, span)
+	nextValidID(flakiClient, logger, tracer, span)
 }
 
-func nextID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer) {
+func nextID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer, parentSpan opentracing.Span) {
 	// NextID.
 	var b = flatbuffers.NewBuilder(0)
 	fb.EmptyRequestStart(b)
 	b.Finish(fb.EmptyRequestEnd(b))
 
-	var span = tracer.StartSpan("grpc")
+	var span = tracer.StartSpan("grpc_client_nextid", opentracing.ChildOf(parentSpan.Context()))
 	opentracing_tag.SpanKindRPCClient.Set(span)
 	defer span.Finish()
 
@@ -111,13 +115,13 @@ func nextID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer)
 	}
 }
 
-func nextValidID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer) {
+func nextValidID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer, parentSpan opentracing.Span) {
 	// NextValidID.
 	var b = flatbuffers.NewBuilder(0)
 	fb.EmptyRequestStart(b)
 	b.Finish(fb.EmptyRequestEnd(b))
 
-	var span = tracer.StartSpan("grpc")
+	var span = tracer.StartSpan("grpc_client_nextvalidid", opentracing.ChildOf(parentSpan.Context()))
 	opentracing_tag.SpanKindRPCClient.Set(span)
 	defer span.Finish()
 
