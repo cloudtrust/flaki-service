@@ -3,14 +3,14 @@ component-name: flaki-service
 component-http-address: 0.0.0.0:8888
 component-grpc-address: 0.0.0.0:5555
 
+# Flaki generator configs
+flaki-node-id: 0
+flaki-component-id: 0
+
 # Redis
 redis-url: 127.0.0.1:6379
 redis-password: redis
 redis-database: 0
-
-# Flaki generator configs
-flaki-node-id: 0
-flaki-component-id: 0
 
 # Influx DB configs
 influx-url: 127.0.0.1:8086
