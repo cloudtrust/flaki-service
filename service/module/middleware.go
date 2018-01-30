@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
@@ -81,6 +82,35 @@ func MakeTracingMiddleware(tracer opentracing.Tracer) Middleware {
 		return &tracingMiddleware{
 			tracer: tracer,
 			next:   next,
+		}
+	}
+}
+
+// Metrics Middleware.
+type metricMiddleware struct {
+	counter metrics.Counter
+	next    Service
+}
+
+// metricMiddleware implements Service.
+func (m *metricMiddleware) NextID(ctx context.Context) (string, error) {
+	m.counter.Add(1)
+	return m.next.NextID(ctx)
+}
+
+// metricMiddleware implements Service.
+func (m *metricMiddleware) NextValidID(ctx context.Context) string {
+	m.counter.Add(1)
+	return m.next.NextValidID(ctx)
+}
+
+// MakeMetricMiddleware makes a metric middleware that counts the number
+// of IDs generated.
+func MakeMetricMiddleware(counter metrics.Counter) Middleware {
+	return func(next Service) Service {
+		return &metricMiddleware{
+			counter: counter,
+			next:    next,
 		}
 	}
 }

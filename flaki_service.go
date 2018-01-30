@@ -70,6 +70,7 @@ func main() {
 		}
 		influxWriteInterval = time.Duration(config["influx-write-interval-ms"].(int)) * time.Millisecond
 		jaegerConfig        = jaeger.Configuration{
+			Disabled: !config["jaeger"].(bool),
 			Sampler: &jaeger.SamplerConfig{
 				Type:              config["jaeger-sampler-type"].(string),
 				Param:             float64(config["jaeger-sampler-param"].(int)),
@@ -86,7 +87,6 @@ func main() {
 
 		influxEnabled     = config["influx"].(bool)
 		sentryEnabled     = config["sentry"].(bool)
-		jaegerEnabled     = config["jaeger"].(bool)
 		redisEnabled      = config["redis"].(bool)
 		pprofRouteEnabled = config["pprof-route-enabled"].(bool)
 
@@ -196,7 +196,7 @@ func main() {
 
 	// Jaeger client.
 	var tracer opentracing.Tracer
-	if jaegerEnabled {
+	{
 		var logger = log.With(logger, "component", "jaeger")
 		var closer io.Closer
 		var err error
@@ -207,8 +207,7 @@ func main() {
 			return
 		}
 		defer closer.Close()
-	} else {
-		tracer = opentracing.NoopTracer{}
+
 	}
 
 	// Backend service.
@@ -217,6 +216,7 @@ func main() {
 		flakiModule = flaki_module.NewBasicService(flakiGen)
 		flakiModule = flaki_module.MakeLoggingMiddleware(log.With(logger, "middleware", "module"))(flakiModule)
 		flakiModule = flaki_module.MakeTracingMiddleware(tracer)(flakiModule)
+		flakiModule = flaki_module.MakeMetricMiddleware(influxMetrics.NewCounter("number_id"))(flakiModule)
 	}
 
 	var flakiComponent flaki_component.Service
@@ -232,14 +232,14 @@ func main() {
 	flakiEndpoints.MakeNextIDEndpoint(
 		flakiComponent,
 		flaki_endpoint.MakeMetricMiddleware(influxMetrics.NewHistogram("nextid_endpoint")),
-		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextID")),
+		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "NextID")),
 		flaki_endpoint.MakeTracingMiddleware(tracer, "nextid_endpoint"),
 	)
 
 	flakiEndpoints.MakeNextValidIDEndpoint(
 		flakiComponent,
 		flaki_endpoint.MakeMetricMiddleware(influxMetrics.NewHistogram("nextvalidid_endpoint")),
-		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "nextvalidid")),
+		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "NextValidID")),
 		flaki_endpoint.MakeTracingMiddleware(tracer, "nextvalidid_endpoint"),
 	)
 
@@ -378,7 +378,7 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("influx-precision", "")
 	viper.SetDefault("influx-retention-policy", "")
 	viper.SetDefault("influx-write-consistency", "")
-	viper.SetDefault("influx-write-interval-ms", 0)
+	viper.SetDefault("influx-write-interval-ms", 1000)
 
 	// Sentry client default.
 	viper.SetDefault("sentry", false)
@@ -390,7 +390,7 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("jaeger-sampler-param", 0)
 	viper.SetDefault("jaeger-sampler-url", "")
 	viper.SetDefault("jaeger-reporter-logspan", false)
-	viper.SetDefault("jaeger-reporter-flushinterval-ms", 0)
+	viper.SetDefault("jaeger-reporter-flushinterval-ms", 1000)
 
 	// Debug routes enabled.
 	viper.SetDefault("pprof-route-enabled", true)
