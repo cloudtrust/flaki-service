@@ -48,7 +48,7 @@ func NewGRPCServer(nextIDHandler, nextValidIDHandler grpc_transport.Handler) fb.
 // fetchCorrelationID reads the correlation ID from the GRPC metadata.
 // If the id is not zero, we put it in the context.
 func fetchCorrelationID(ctx context.Context, md metadata.MD) context.Context {
-	var val = md["correlation-id"]
+	var val = md["correlation_id"]
 
 	// If there is no id in the metadata, return current context.
 	if val == nil || val[0] == "" {
@@ -57,7 +57,7 @@ func fetchCorrelationID(ctx context.Context, md metadata.MD) context.Context {
 
 	// If there is an id in the metadata, add it to the context.
 	var id = val[0]
-	return context.WithValue(ctx, "correlation-id", id)
+	return context.WithValue(ctx, "correlation_id", id)
 }
 
 // makeTracerHandler try to extract an existing span from the GRPC metadata. It it exists, we

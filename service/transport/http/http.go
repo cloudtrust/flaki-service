@@ -67,7 +67,7 @@ func MakeVersion(componentName, version, environment, gitCommit string) func(htt
 func fetchCorrelationID(ctx context.Context, r *http.Request) context.Context {
 	var correlationID = r.Header.Get("X-Correlation-ID")
 	if correlationID != "" {
-		ctx = context.WithValue(ctx, "correlation-id", correlationID)
+		ctx = context.WithValue(ctx, "correlation_id", correlationID)
 	}
 	return ctx
 }

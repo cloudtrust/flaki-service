@@ -20,7 +20,7 @@ type basicService struct {
 	flaki Flaki
 }
 
-// NewBasicService returns the basic service.
+// NewBasicService returns the Flaki basic service.
 func NewBasicService(flaki Flaki) Service {
 	return &basicService{
 		flaki: flaki,

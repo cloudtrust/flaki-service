@@ -99,7 +99,7 @@ func nextID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer,
 	}
 
 	var md = metadata.New(carrier)
-	var correlationIDMD = metadata.New(map[string]string{"correlation-id": "1"})
+	var correlationIDMD = metadata.New(map[string]string{"correlation_id": "1"})
 
 	// grpc NextID
 	var nextIDreply *fb.FlakiReply
@@ -134,7 +134,7 @@ func nextValidID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tr
 	}
 
 	var md = metadata.New(carrier)
-	var correlationIDMD = metadata.New(map[string]string{"correlation-id": "2"})
+	var correlationIDMD = metadata.New(map[string]string{"correlation_id": "2"})
 
 	// grpc NextValidID
 	var nextValidIDreply *fb.FlakiReply

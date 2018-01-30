@@ -142,7 +142,6 @@ func main() {
 	// Sentry.
 	type Sentry interface {
 		CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string
-		CaptureErrorAndWait(err error, tags map[string]string, interfaces ...sentry.Interface) string
 		URL() string
 		Close()
 	}

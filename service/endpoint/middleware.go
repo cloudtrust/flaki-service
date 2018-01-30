@@ -20,10 +20,10 @@ type Flaki interface {
 func MakeCorrelationIDMiddleware(flaki Flaki) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			var id = ctx.Value("correlation-id")
+			var id = ctx.Value("correlation_id")
 
 			if id == nil {
-				ctx = context.WithValue(ctx, "correlation-id", flaki.NextValidIDString())
+				ctx = context.WithValue(ctx, "correlation_id", flaki.NextValidIDString())
 			}
 			return next(ctx, req)
 		}
@@ -35,7 +35,7 @@ func MakeLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
-				logger.Log("correlation_id", ctx.Value("correlation-id").(string), "took", time.Since(begin))
+				logger.Log("correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 			}(time.Now())
 			return next(ctx, req)
 		}
@@ -48,7 +48,7 @@ func MakeMetricMiddleware(h metrics.Histogram) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
-				h.With("correlation-id", ctx.Value("correlation-id").(string)).Observe(time.Since(begin).Seconds())
+				h.With("correlation_id", ctx.Value("correlation_id").(string)).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 			return next(ctx, req)
 		}
@@ -63,7 +63,7 @@ func MakeTracingMiddleware(tracer opentracing.Tracer, operationName string) endp
 				span = tracer.StartSpan(operationName, opentracing.ChildOf(span.Context()))
 				defer span.Finish()
 
-				span.SetTag("correlation-id", ctx.Value("correlation-id").(string))
+				span.SetTag("correlation_id", ctx.Value("correlation_id").(string))
 
 				ctx = opentracing.ContextWithSpan(ctx, span)
 			}

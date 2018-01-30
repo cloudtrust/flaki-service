@@ -13,7 +13,7 @@ import (
 func TestNewEndpoints(t *testing.T) {
 	// Context with correlation ID.
 	rand.Seed(time.Now().UnixNano())
-	var ctx = context.WithValue(context.Background(), "correlation-id", 0)
+	var ctx = context.WithValue(context.Background(), "correlation_id", 0)
 
 	var endpoints = NewEndpoints()
 
@@ -28,7 +28,7 @@ func TestNewEndpoints(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expectedID, id)
 
-	// NextID.
+	// NextValidID.
 	expectedID = strconv.FormatUint(rand.Uint64(), 10)
 	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiService{
 		id:   expectedID,

@@ -145,19 +145,19 @@ The subroutes return a JSON of the form:
   }
 ]
 ```
-There is one entry per test, and each entry specify the name of the test, its duration and the result.
+There is one entry per test, and each entry lists the name of the test, its duration and the status.
 
 ## About monitoring
 Each gRPC or HTTP request will trigger a set of operations that are going to be logged, measured, tracked and traced. For those information to be usable, we must be able to link the logs, metrics, traces and error report together. We achieve that with a unique correlation ID. For a given request, the same correlation ID will appear on the logs, metrics, traces and error report.
 
 Note: InfluxDB indexes tags, so we put the correlation ID as tags to speed up queries. To query a tag, do not forget to simple quote it, otherwise it always returns empty results.
 ```
-select * from "\<measurement>" where "correlation_id" = '\<correlation-id>';
+select * from "<measurement>" where "correlation_id" = '<correlation_id>';
 ```
 
 Note: In Jaeger UI, to search traces with a given correlation ID you must copy the following in the "Tags" box: 
 ```
-correlation-id:\<correlation-id>
+correlation_id:<correlation_id>
 ```
 
 
