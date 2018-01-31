@@ -11,6 +11,8 @@ flaki-component-id: 0
 redis-url: 127.0.0.1:6379
 redis-password: redis
 redis-database: 0
+redis-write-interval-ms: 1000
+
 
 # Influx DB configs
 influx-url: 127.0.0.1:8086
@@ -30,7 +32,7 @@ jaeger-sampler-type: const
 jaeger-sampler-param: 1
 jaeger-sampler-url: 127.0.0.1:5775
 jaeger-reporter-logspan: false
-jaeger-reporter-flushinterval-ms: 1000
+jaeger-write-interval-ms: 1000
 
 # Debug routes
 pprof-route-enabled: true

@@ -78,7 +78,7 @@ func main() {
 			},
 			Reporter: &jaeger.ReporterConfig{
 				LogSpans:            config["jaeger-reporter-logspan"].(bool),
-				BufferFlushInterval: time.Duration(config["jaeger-reporter-flushinterval-ms"].(int)) * time.Millisecond,
+				BufferFlushInterval: time.Duration(config["jaeger-write-interval-ms"].(int)) * time.Millisecond,
 			},
 		}
 		sentryDSN        = fmt.Sprintf(config["sentry-dsn"].(string))
@@ -90,30 +90,33 @@ func main() {
 		redisEnabled      = config["redis"].(bool)
 		pprofRouteEnabled = config["pprof-route-enabled"].(bool)
 
-		redisURL      = config["redis-url"].(string)
-		redisPassword = config["redis-password"].(string)
-		redisDatabase = config["redis-database"].(int)
+		redisURL           = config["redis-url"].(string)
+		redisPassword      = config["redis-password"].(string)
+		redisDatabase      = config["redis-database"].(int)
+		redisWriteInterval = time.Duration(config["redis-write-interval-ms"].(int)) * time.Millisecond
 	)
 
 	// Health checks.
 	var health = Health{}
 
 	// Redis.
+	var redisConn redis.Conn
 	if redisEnabled {
-		var redisPool = &redis.Pool{
-			Dial: func() (redis.Conn, error) {
-				return redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
-			},
+		var err error
+		redisConn, err = redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
+		if err != nil {
+			logger.Log("msg", "couldn't create redis client", "error", err)
+			return
 		}
-		defer redisPool.Close()
+		defer redisConn.Close()
 
 		// Create logger that duplicates logs to stdout and redis.
-		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisPool)))
+		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisConn)))
 		logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 		defer logger.Log("msg", "Goodbye")
 
 		// Redis health checks.
-		health.AddCheck(MakeRedisHealthChecks(redisPool))
+		//health.AddCheck(MakeRedisHealthChecks(redisPool))
 	}
 
 	// Log component version infos.
@@ -351,6 +354,14 @@ func main() {
 		influxMetrics.WriteLoop(tic.C)
 	}()
 
+	// Redis writing.
+	go func() {
+		for {
+			redisConn.Flush()
+			time.Sleep(redisWriteInterval)
+		}
+	}()
+
 	logger.Log("error", <-errc)
 }
 
@@ -389,7 +400,7 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("jaeger-sampler-param", 0)
 	viper.SetDefault("jaeger-sampler-url", "")
 	viper.SetDefault("jaeger-reporter-logspan", false)
-	viper.SetDefault("jaeger-reporter-flushinterval-ms", 1000)
+	viper.SetDefault("jaeger-write-interval-ms", 1000)
 
 	// Debug routes enabled.
 	viper.SetDefault("pprof-route-enabled", true)
@@ -399,6 +410,7 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("redis-url", "")
 	viper.SetDefault("redis-password", "")
 	viper.SetDefault("redis-database", 0)
+	viper.SetDefault("redis-write-interval-ms", 1000)
 
 	// First level of override.
 	pflag.String("config-file", viper.GetString("config-file"), "The configuration file path can be relative or absolute.")

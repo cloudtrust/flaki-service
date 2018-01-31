@@ -97,7 +97,7 @@ jaeger-sampler-type |  | ""
 jaeger-sampler-param |  | 0
 jaeger-sampler-url |  | ""
 jaeger-reporter-logspan |  | false
-jaeger-reporter-flushinterval-ms | Flush interval in milliseconds | 1000
+jaeger-write-interval-ms | Flush interval in milliseconds | 1000
 
 ### Debug
 Key | Description | Default value 

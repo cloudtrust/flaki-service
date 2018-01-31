@@ -1,0 +1,21 @@
+mode: set
+github.com/cloudtrust/flaki-service/service/transport/http/middleware.go:15.88,16.46 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/middleware.go:16.46,17.72 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/middleware.go:17.72,22.18 3 0
+github.com/cloudtrust/flaki-service/service/transport/http/middleware.go:27.4,34.84 5 0
+github.com/cloudtrust/flaki-service/service/transport/http/middleware.go:22.18,24.5 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/middleware.go:24.5,26.5 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:17.95,24.2 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:27.100,34.2 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:44.114,45.54 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:45.54,56.17 4 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:56.17,58.4 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:58.4,61.4 2 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:67.79,69.25 2 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:72.2,72.12 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:69.25,71.3 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:76.90,80.16 3 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:84.2,84.47 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:80.16,82.3 1 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:88.88,101.2 9 0
+github.com/cloudtrust/flaki-service/service/transport/http/http.go:104.79,117.2 9 0

@@ -3,9 +3,13 @@ sudo: false
 go:
   - tip
 before_install:
-  - go get github.com/mattn/goveralls
+  - go get code.google.com/p/go.tools/cmd/cover 
+  - go get github.com/mattn/goveralls 
+  - go get github.com/modocache/gover
   - go get github.com/golang/dep/cmd/dep
 install:
   - $GOPATH/bin/dep ensure -v
 script:
-  - $GOPATH/bin/goveralls -service=travis-ci
+  - go list -f '{{if len .TestGoFiles}}"go test -coverprofile={{.Dir}}/.coverprofile {{.ImportPath}}"{{end}}' ./... | xargs -L 1 sh -c
+  - gover
+  - goveralls -coverprofile=gover.coverprofile -service=travis-ci 

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -17,12 +16,12 @@ type logstashLog struct {
 }
 
 type redisWriter struct {
-	pool *redis.Pool
+	con redis.Conn
 }
 
-func NewLogstashRedisWriter(pool *redis.Pool) io.Writer {
+func NewLogstashRedisWriter(con redis.Conn) *redisWriter {
 	return &redisWriter{
-		pool: pool,
+		con: con,
 	}
 }
 
@@ -36,11 +35,7 @@ func (w *redisWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 
-	// Get connection
-	var c = w.pool.Get()
-	defer c.Close()
-
-	err = c.Send("RPUSH", "flaki-service", logstashLog)
+	err = w.con.Send("RPUSH", "flaki-service", logstashLog)
 	if err != nil {
 		fmt.Printf("redis err: %s", err)
 		return 0, err
