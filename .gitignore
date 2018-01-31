@@ -18,6 +18,7 @@
 vendor/*
 bin/*
 debug
+.coverprofile
 
 # Flatbuffers generated files
 /service/transport/flatbuffer/fb/*
