@@ -21,6 +21,6 @@ debug
 .coverprofile
 
 # Flatbuffers generated files
-/service/transport/flatbuffer/fb/*
+/pkg/flaki/transport/flatbuffer/fb/*
 
 
