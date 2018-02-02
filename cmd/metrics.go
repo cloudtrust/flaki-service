@@ -42,6 +42,10 @@ func (m *InfluxMetrics) WriteLoop(c <-chan time.Time) {
 	m.gokit.WriteLoop(c, m.client)
 }
 
+func (m *InfluxMetrics) Ping(timeout time.Duration) (time.Duration, string, error) {
+	return m.client.Ping(timeout)
+}
+
 // NoopMetrics is an Influx metrics that does nothing.
 type NoopMetrics struct{}
 
@@ -49,6 +53,9 @@ func (m *NoopMetrics) NewCounter(name string) metrics.Counter     { return &Noop
 func (m *NoopMetrics) NewGauge(name string) metrics.Gauge         { return &NoopGauge{} }
 func (m *NoopMetrics) NewHistogram(name string) metrics.Histogram { return &NoopHistogram{} }
 func (m *NoopMetrics) WriteLoop(c <-chan time.Time)               {}
+func (m *NoopMetrics) Ping(timeout time.Duration) (time.Duration, string, error) {
+	return time.Duration(0), "Noop", nil
+}
 
 // NoopCounter is a Counter that does nothing.
 type NoopCounter struct{}

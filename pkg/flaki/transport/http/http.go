@@ -10,11 +10,10 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/flatbuffers/go"
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // MakeNextIDHandler makes a HTTP handler for the NextID endpoint.
-func MakeNextIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *http_transport.Server {
+func MakeNextIDHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeFlakiRequest,
 		encodeFlakiReply,
@@ -24,7 +23,7 @@ func MakeNextIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *http_tra
 }
 
 // MakeNextValidIDHandler makes a HTTP handler for the NextValidID endpoint.
-func MakeNextValidIDHandler(e endpoint.Endpoint, tracer opentracing.Tracer) *http_transport.Server {
+func MakeNextValidIDHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeFlakiRequest,
 		encodeFlakiReply,
