@@ -3,58 +3,75 @@ package component
 import (
 	"context"
 
-	health "github.com/cloudtrust/flaki-service/pkg/health/module"
+	"github.com/cloudtrust/flaki-service/pkg/health/module"
 )
 
-type TestReport struct {
-	Name     string `json:"name"`
-	Duration string `json:"duration"`
-	Status   string `json:"status"`
-	Error    string `json:"status,omitempty"`
+type HealthReports struct {
+	Reports []HealthReport
 }
+
 type HealthReport struct {
-	reports []TestReport
+	Name     string
+	Duration string
+	Status   string
+	Error    string
 }
 
-// Service is the interface that the service implements.
-type Service interface {
-	InfluxHealthChecks(context.Context) (HealthReport, error)
-	JaegerHealthChecks(context.Context) (HealthReport, error)
-	RedisHealthChecks(context.Context) (HealthReport, error)
-	SentryHealthChecks(context.Context) (HealthReport, error)
-}
-type InfluxService interface {
-	InfluxHealthChecks(context.Context) (HealthReport, error)
-}
-
-// healthService contains the health checks.
-type healthService struct {
-	module health.Service
+// HealthService contains the health checks.
+type HealthService struct {
+	influx *module.InfluxHealthModule
+	jaeger *module.JaegerHealthModule
+	redis  *module.RedisHealthModule
+	sentry *module.SentryHealthModule
 }
 
 // NewHealthService returns the basic service.
-func NewHealthService(healthModule health.Service) Service {
-	return &healthService{
-		module: healthModule,
+func NewHealthService(influxM *module.InfluxHealthModule, jaegerM *module.JaegerHealthModule,
+	redisM *module.RedisHealthModule, sentryM *module.SentryHealthModule) *HealthService {
+	return &HealthService{
+		influx: influxM,
+		jaeger: jaegerM,
+		redis:  redisM,
+		sentry: sentryM,
 	}
 }
 
 // InfluxHealthChecks uses the health component to test the Influx health.
-func (s *healthService) InfluxHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	return s.module.InfluxHealthChecks(ctx)
+func (s *HealthService) InfluxHealthChecks(ctx context.Context) HealthReports {
+	var reports = s.influx.HealthChecks(ctx)
+	var hr = HealthReports{}
+	for _, r := range reports {
+		hr.Reports = append(hr.Reports, HealthReport(r))
+	}
+	return hr
 }
 
 // JaegerHealthChecks uses the health component to test the Jaeger health.
-func (s *healthService) JaegerHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	return s.module.JaegerHealthChecks(ctx)
+func (s *HealthService) JaegerHealthChecks(ctx context.Context) HealthReports {
+	var reports = s.jaeger.HealthChecks(ctx)
+	var hr = HealthReports{}
+	for _, r := range reports {
+		hr.Reports = append(hr.Reports, HealthReport(r))
+	}
+	return hr
 }
 
 // RedisHealthChecks uses the health component to test the Redis health.
-func (s *healthService) RedisHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	return s.module.RedisHealthChecks(ctx)
+func (s *HealthService) RedisHealthChecks(ctx context.Context) HealthReports {
+	var reports = s.redis.HealthChecks(ctx)
+	var hr = HealthReports{}
+	for _, r := range reports {
+		hr.Reports = append(hr.Reports, HealthReport(r))
+	}
+	return hr
 }
 
 // SentryHealthChecks uses the health component to test the Sentry health.
-func (s *healthService) SentryHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	return s.module.SentryHealthChecks(ctx)
+func (s *HealthService) SentryHealthChecks(ctx context.Context) HealthReports {
+	var reports = s.sentry.HealthChecks(ctx)
+	var hr = HealthReports{}
+	for _, r := range reports {
+		hr.Reports = append(hr.Reports, HealthReport(r))
+	}
+	return hr
 }

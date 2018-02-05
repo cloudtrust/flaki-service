@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/garyburd/redigo/redis"
 )
@@ -36,7 +35,6 @@ func (w *redisWriter) Write(p []byte) (int, error) {
 
 	err = w.con.Send("RPUSH", "flaki-service", logstashLog)
 	if err != nil {
-		fmt.Printf("redis err: %s", err)
 		return 0, err
 	}
 	return len(p), nil

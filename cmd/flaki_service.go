@@ -52,11 +52,11 @@ func main() {
 	// Logger.
 	var logger = log.NewJSONLogger(os.Stdout)
 	{
-		logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	}
 
 	// Configurations.
-	var config = config(log.With(logger, "component", "config_loader"))
+	var config = config(log.With(logger, "unit", "config"))
 	var (
 		componentName    = config["component-name"].(string)
 		grpcAddr         = config["component-grpc-address"].(string)
@@ -106,19 +106,22 @@ func main() {
 		var err error
 		redisConn, err = redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
 		if err != nil {
-			logger.Log("msg", "couldn't create redis client", "error", err)
+			logger.Log("msg", "could not create redis client", "error", err)
 			return
 		}
 		defer redisConn.Close()
 
 		// Create logger that duplicates logs to stdout and redis.
 		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisConn)))
-		logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
-		defer logger.Log("msg", "Goodbye")
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	}
+	defer logger.Log("msg", "goodbye")
+
+	// Add component name and version to the logger tags.
+	logger = log.With(logger, "component_name", componentName, "component_version", Version)
 
 	// Log component version infos.
-	logger.Log("component_name", componentName, "version", Version, "environment", Environment, "git_commit", GitCommit)
+	logger.Log("environment", Environment, "git_commit", GitCommit)
 
 	// Critical errors channel.
 	var errc = make(chan error)
@@ -131,11 +134,11 @@ func main() {
 	// Flaki unique distributed ID generator.
 	var flakiGen *flaki.Flaki
 	{
-		var logger = log.With(logger, "component", "flaki")
+		var logger = log.With(logger, "unit", "flaki")
 		var err error
 		flakiGen, err = flaki.New(flaki.ComponentID(flakiComponentID), flaki.NodeID(flakiNodeID))
 		if err != nil {
-			logger.Log("msg", "couldn't create flaki id generator", "error", err)
+			logger.Log("msg", "could not create Flaki", "error", err)
 			return
 		}
 	}
@@ -149,12 +152,12 @@ func main() {
 
 	var sentryClient Sentry
 	if sentryEnabled {
-		var logger = log.With(logger, "component", "sentry")
+		var logger = log.With(logger, "unit", "sentry")
 		var err error
 		logger.Log("sentry_dsn", sentryDSN)
 		sentryClient, err = sentry.New(sentryDSN)
 		if err != nil {
-			logger.Log("msg", "couldn't create Sentry client", "error", err)
+			logger.Log("msg", "could not create Sentry client", "error", err)
 			return
 		}
 		defer sentryClient.Close()
@@ -173,11 +176,11 @@ func main() {
 
 	var influxMetrics Metrics
 	if influxEnabled {
-		var logger = log.With(logger, "component", "influx")
+		var logger = log.With(logger, "unit", "influx")
 
 		var influxClient, err = influx.NewHTTPClient(influxHTTPConfig)
 		if err != nil {
-			logger.Log("msg", "couldn't create Influx client", "error", err)
+			logger.Log("msg", "could not create Influx client", "error", err)
 			return
 		}
 		defer influxClient.Close()
@@ -185,7 +188,7 @@ func main() {
 		var gokitInflux = gokit_influx.New(
 			map[string]string{},
 			influxBatchPointsConfig,
-			log.With(logger, "component", "go-kit influx"),
+			log.With(logger, "unit", "go-kit influx"),
 		)
 
 		influxMetrics = NewMetrics(influxClient, gokitInflux)
@@ -196,7 +199,7 @@ func main() {
 	// Jaeger client.
 	var tracer opentracing.Tracer
 	{
-		var logger = log.With(logger, "component", "jaeger")
+		var logger = log.With(logger, "unit", "jaeger")
 		var closer io.Closer
 		var err error
 
@@ -209,11 +212,13 @@ func main() {
 
 	}
 
-	// Backend service.
+	// Flaki service.
+	logger = log.With(logger, "svc", "flaki")
+
 	var flakiModule flaki_module.Service
 	{
 		flakiModule = flaki_module.NewBasicService(flakiGen)
-		flakiModule = flaki_module.MakeLoggingMiddleware(log.With(logger, "middleware", "module"))(flakiModule)
+		flakiModule = flaki_module.MakeLoggingMiddleware(log.With(logger, "mw", "module"))(flakiModule)
 		flakiModule = flaki_module.MakeTracingMiddleware(tracer)(flakiModule)
 		flakiModule = flaki_module.MakeMetricMiddleware(influxMetrics.NewCounter("number_id"))(flakiModule)
 	}
@@ -221,7 +226,7 @@ func main() {
 	var flakiComponent flaki_component.Service
 	{
 		flakiComponent = flaki_component.NewBasicService(flakiModule)
-		flakiComponent = flaki_component.MakeLoggingMiddleware(log.With(logger, "middleware", "component"))(flakiComponent)
+		flakiComponent = flaki_component.MakeLoggingMiddleware(log.With(logger, "mw", "component"))(flakiComponent)
 		flakiComponent = flaki_component.MakeErrorMiddleware(sentryClient)(flakiComponent)
 		flakiComponent = flaki_component.MakeTracingMiddleware(tracer)(flakiComponent)
 	}
@@ -231,25 +236,28 @@ func main() {
 	flakiEndpoints.MakeNextIDEndpoint(
 		flakiComponent,
 		flaki_endpoint.MakeMetricMiddleware(influxMetrics.NewHistogram("nextid_endpoint")),
-		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "NextID")),
+		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "mw", "endpoint", "method", "NextID")),
 		flaki_endpoint.MakeTracingMiddleware(tracer, "nextid_endpoint"),
 	)
 
 	flakiEndpoints.MakeNextValidIDEndpoint(
 		flakiComponent,
 		flaki_endpoint.MakeMetricMiddleware(influxMetrics.NewHistogram("nextvalidid_endpoint")),
-		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "middleware", "endpoint", "method", "NextValidID")),
+		flaki_endpoint.MakeLoggingMiddleware(log.With(logger, "mw", "endpoint", "method", "NextValidID")),
 		flaki_endpoint.MakeTracingMiddleware(tracer, "nextvalidid_endpoint"),
 	)
 
-	var healthModule health_module.Service
-	{
-		healthModule = health_module.NewHealthService(influxMetrics, redisConn, tracer, sentryClient)
-	}
+	// Health service.
+	logger = log.With(logger, "svc", "health")
 
-	var healthComponent health_component.Service
+	var influxHM = health_module.NewInfluxHealthModule(influxMetrics)
+	var jaegerHM = health_module.NewJaegerHealthModule(tracer)
+	var redisHM = health_module.NewRedisHealthModule(redisConn)
+	var sentryHM = health_module.NewSentryHealthModule(sentryClient)
+
+	var healthComponent *health_component.HealthService
 	{
-		healthComponent = health_component.NewHealthService(healthModule)
+		healthComponent = health_component.NewHealthService(influxHM, jaegerHM, redisHM, sentryHM)
 	}
 
 	var healthEndpoints = health_endpoint.NewEndpoints()
@@ -269,7 +277,7 @@ func main() {
 			var err error
 			lis, err = net.Listen("tcp", grpcAddr)
 			if err != nil {
-				logger.Log("msg", "couldn't initialise listener", "error", err)
+				logger.Log("msg", "could not initialise listener", "error", err)
 				errc <- err
 				return
 			}
@@ -340,30 +348,6 @@ func main() {
 		var sentryHealthCheckHandler = health_http.MakeSentryHealthCheckHandler(healthEndpoints.SentryHealthCheckEndpoint)
 		healthSubroute.Handle("/sentry", sentryHealthCheckHandler)
 
-		/*
-
-			healthSubroute.HandleFunc("/", http.HandlerFunc(health.MakeHealthChecks(influxClient, sentryClient, tracer))
-			healthSubroute.HandleFunc("/influx", http.HandlerFunc(flaki_http.MakeVersion("influx", "", "", "")))
-			healthSubroute.HandleFunc("/sentry", http.HandlerFunc(flaki_http.MakeVersion("sentry", "", "", "")))
-			healthSubroute.HandleFunc("/jaeger", http.HandlerFunc(flaki_http.MakeVersion("jaeger", "", "", "")))
-		*/
-		/* handle the following routes:
-		/health/checks/: all checks, returns json like:
-		{
-			influx: up
-			jaeger: up
-			sentry: up
-			...
-		}
-		then individual routes:
-		/health/check/influx, sentry, jaeger, ....
-		{
-			nom du check: create db, ....
-			temps: xxx ms
-			status: OK/KO
-		}
-		*/
-
 		// Debug.
 		if pprofRouteEnabled {
 			var debugSubroute = route.PathPrefix("/debug").Subrouter()
@@ -386,9 +370,8 @@ func main() {
 	// Redis writing.
 	if redisEnabled {
 		go func() {
-			for {
+			for range time.NewTicker(redisWriteInterval).C {
 				redisConn.Flush()
-				time.Sleep(redisWriteInterval)
 			}
 		}()
 	}
@@ -397,7 +380,7 @@ func main() {
 
 func config(logger log.Logger) map[string]interface{} {
 
-	logger.Log("msg", "Loading configuration and command args")
+	logger.Log("msg", "load configuration and command args")
 
 	// Component default.
 	viper.SetDefault("config-file", "./conf/DEV/flaki_service.yml")

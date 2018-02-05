@@ -3,20 +3,27 @@ package endpoint
 import (
 	"context"
 
-	health "github.com/cloudtrust/flaki-service/pkg/health/module"
+	health_cmp "github.com/cloudtrust/flaki-service/pkg/health/component"
 	"github.com/go-kit/kit/endpoint"
 )
 
-type HealthReport interface {
-	Get() []byte
+type HealthReports struct {
+	Reports []HealthReport
+}
+
+type HealthReport struct {
+	Name     string
+	Duration string
+	Status   string
+	Error    string
 }
 
 // Service is the interface that the service implements.
 type Service interface {
-	InfluxHealthChecks(context.Context) (HealthReport, error)
-	JaegerHealthChecks(context.Context) (HealthReport, error)
-	RedisHealthChecks(context.Context) (HealthReport, error)
-	SentryHealthChecks(context.Context) (HealthReport, error)
+	InfluxHealthChecks(context.Context) health_cmp.HealthReports
+	JaegerHealthChecks(context.Context) health_cmp.HealthReports
+	RedisHealthChecks(context.Context) health_cmp.HealthReports
+	SentryHealthChecks(context.Context) health_cmp.HealthReports
 }
 
 // Endpoints wraps a service behind a set of endpoints.
@@ -40,7 +47,12 @@ func NewEndpoints(mids ...endpoint.Middleware) *Endpoints {
 // MakeInfluxHealthCheckEndpoint makes the InfluxHealthCheck endpoint and apply the middelwares mids and Endpoints.mids.
 func (es *Endpoints) MakeInfluxHealthCheckEndpoint(s Service, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.InfluxHealthChecks(ctx)
+		var reports = s.InfluxHealthChecks(ctx)
+		var hr = HealthReports{}
+		for _, r := range reports.Reports {
+			hr.Reports = append(hr.Reports, HealthReport(r))
+		}
+		return hr, nil
 	}
 	e = es.applyMids(e, mids...)
 	es.InfluxHealthCheckEndpoint = e
@@ -50,7 +62,12 @@ func (es *Endpoints) MakeInfluxHealthCheckEndpoint(s Service, mids ...endpoint.M
 // MakeJaegerHealthCheckEndpoint makes the JaegerHealthCheck endpoint and apply the middelwares mids and Endpoints.mids.
 func (es *Endpoints) MakeJaegerHealthCheckEndpoint(s Service, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.JaegerHealthChecks(ctx)
+		var reports = s.JaegerHealthChecks(ctx)
+		var hr = HealthReports{}
+		for _, r := range reports.Reports {
+			hr.Reports = append(hr.Reports, HealthReport(r))
+		}
+		return hr, nil
 	}
 	e = es.applyMids(e, mids...)
 	es.JaegerHealthCheckEndpoint = e
@@ -60,7 +77,12 @@ func (es *Endpoints) MakeJaegerHealthCheckEndpoint(s Service, mids ...endpoint.M
 // MakeRedisHealthCheckEndpoint makes the RedisHealthCheck endpoint and apply the middelwares mids and Endpoints.mids.
 func (es *Endpoints) MakeRedisHealthCheckEndpoint(s Service, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.RedisHealthChecks(ctx)
+		var reports = s.RedisHealthChecks(ctx)
+		var hr = HealthReports{}
+		for _, r := range reports.Reports {
+			hr.Reports = append(hr.Reports, HealthReport(r))
+		}
+		return hr, nil
 	}
 	e = es.applyMids(e, mids...)
 	es.RedisHealthCheckEndpoint = e
@@ -70,7 +92,12 @@ func (es *Endpoints) MakeRedisHealthCheckEndpoint(s Service, mids ...endpoint.Mi
 // MakeSentryHealthCheckEndpoint makes the SentryHealthCheck endpoint and apply the middelwares mids and Endpoints.mids.
 func (es *Endpoints) MakeSentryHealthCheckEndpoint(s Service, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.SentryHealthChecks(ctx)
+		var reports = s.SentryHealthChecks(ctx)
+		var hr = HealthReports{}
+		for _, r := range reports.Reports {
+			hr.Reports = append(hr.Reports, HealthReport(r))
+		}
+		return hr, nil
 	}
 	e = es.applyMids(e, mids...)
 	es.SentryHealthCheckEndpoint = e
@@ -89,61 +116,61 @@ func (es *Endpoints) applyMids(e endpoint.Endpoint, mids ...endpoint.Middleware)
 }
 
 // Implements Service.
-func (es *Endpoints) InfluxHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	var testReport []health.TestReport
+func (es *Endpoints) InfluxHealthChecks(ctx context.Context) (HealthReports, error) {
+	var reports HealthReports
 	{
 		var report interface{}
 		var err error
 		report, err = es.InfluxHealthCheckEndpoint(ctx, nil)
 		if err != nil {
-			return []health.TestReport{}, err
+			return HealthReports{}, err
 		}
-		testReport = report.([]health.TestReport)
+		reports = report.(HealthReports)
 	}
-	return testReport, nil
+	return reports, nil
 }
 
 // Implements Service.
-func (es *Endpoints) JaegerHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	var testReport []health.TestReport
+func (es *Endpoints) JaegerHealthChecks(ctx context.Context) (HealthReports, error) {
+	var reports HealthReports
 	{
 		var report interface{}
 		var err error
 		report, err = es.JaegerHealthCheckEndpoint(ctx, nil)
 		if err != nil {
-			return []health.TestReport{}, err
+			return HealthReports{}, err
 		}
-		testReport = report.([]health.TestReport)
+		reports = report.(HealthReports)
 	}
-	return testReport, nil
+	return reports, nil
 }
 
 // Implements Service.
-func (es *Endpoints) RedisHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	var testReport []health.TestReport
+func (es *Endpoints) RedisHealthChecks(ctx context.Context) (HealthReports, error) {
+	var reports HealthReports
 	{
 		var report interface{}
 		var err error
 		report, err = es.RedisHealthCheckEndpoint(ctx, nil)
 		if err != nil {
-			return []health.TestReport{}, err
+			return HealthReports{}, err
 		}
-		testReport = report.([]health.TestReport)
+		reports = report.(HealthReports)
 	}
-	return testReport, nil
+	return reports, nil
 }
 
 // Implements Service.
-func (es *Endpoints) SentryHealthChecks(ctx context.Context) ([]health.TestReport, error) {
-	var testReport []health.TestReport
+func (es *Endpoints) SentryHealthChecks(ctx context.Context) (HealthReports, error) {
+	var reports HealthReports
 	{
 		var report interface{}
 		var err error
 		report, err = es.SentryHealthCheckEndpoint(ctx, nil)
 		if err != nil {
-			return []health.TestReport{}, err
+			return HealthReports{}, err
 		}
-		testReport = report.([]health.TestReport)
+		reports = report.(HealthReports)
 	}
-	return testReport, nil
+	return reports, nil
 }

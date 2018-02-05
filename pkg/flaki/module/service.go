@@ -16,21 +16,21 @@ type Flaki interface {
 	NextValidIDString() string
 }
 
-type basicService struct {
+type flakiService struct {
 	flaki Flaki
 }
 
 // NewBasicService returns the Flaki basic service.
 func NewBasicService(flaki Flaki) Service {
-	return &basicService{
+	return &flakiService{
 		flaki: flaki,
 	}
 }
 
-func (s *basicService) NextID(_ context.Context) (string, error) {
+func (s *flakiService) NextID(_ context.Context) (string, error) {
 	return s.flaki.NextIDString()
 }
 
-func (s *basicService) NextValidID(_ context.Context) string {
+func (s *flakiService) NextValidID(_ context.Context) string {
 	return s.flaki.NextValidIDString()
 }

@@ -6,20 +6,30 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	health_endpoint "github.com/cloudtrust/flaki-service/pkg/health/endpoint"
-	health "github.com/cloudtrust/flaki-service/pkg/health/module"
+	health "github.com/cloudtrust/flaki-service/pkg/health/endpoint"
 	"github.com/go-kit/kit/endpoint"
 	http_transport "github.com/go-kit/kit/transport/http"
 )
 
-func MakeHealthChecksHandler(es *health_endpoint.Endpoints) func(http.ResponseWriter, *http.Request) {
+type HealthReports struct {
+	Reports []HealthReport `json:"health checks"`
+}
+
+type HealthReport struct {
+	Name     string `json:"name"`
+	Duration string `json:"duration"`
+	Status   string `json:"status"`
+	Error    string `json:"error,omitempty"`
+}
+
+func MakeHealthChecksHandler(es *health.Endpoints) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		var report = map[string]string{}
 
 		// Make all tests
-		var influxReport []health.TestReport
+		var influxReport health.HealthReports
 		{
 			var err error
 			influxReport, err = es.InfluxHealthChecks(context.Background())
@@ -29,7 +39,7 @@ func MakeHealthChecksHandler(es *health_endpoint.Endpoints) func(http.ResponseWr
 				report["influx"] = reportsStatus(influxReport)
 			}
 		}
-		var jaegerReport []health.TestReport
+		var jaegerReport health.HealthReports
 		{
 			var err error
 			jaegerReport, err = es.JaegerHealthChecks(context.Background())
@@ -39,7 +49,7 @@ func MakeHealthChecksHandler(es *health_endpoint.Endpoints) func(http.ResponseWr
 				report["jaeger"] = reportsStatus(jaegerReport)
 			}
 		}
-		var redisReport []health.TestReport
+		var redisReport health.HealthReports
 		{
 			var err error
 			redisReport, err = es.RedisHealthChecks(context.Background())
@@ -49,7 +59,7 @@ func MakeHealthChecksHandler(es *health_endpoint.Endpoints) func(http.ResponseWr
 				report["redis"] = reportsStatus(redisReport)
 			}
 		}
-		var sentryReport []health.TestReport
+		var sentryReport health.HealthReports
 		{
 			var err error
 			sentryReport, err = es.SentryHealthChecks(context.Background())
@@ -71,8 +81,8 @@ func MakeHealthChecksHandler(es *health_endpoint.Endpoints) func(http.ResponseWr
 	}
 }
 
-func reportsStatus(reports []health.TestReport) string {
-	for _, r := range reports {
+func reportsStatus(reports health.HealthReports) string {
+	for _, r := range reports.Reports {
 		if r.Status != "OK" {
 			return "KO"
 		}
@@ -132,9 +142,13 @@ func decodeHealthCheckRequest(_ context.Context, r *http.Request) (res interface
 func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, res interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
 
-	var report = res.([]health.TestReport)
+	var reports = res.(health.HealthReports)
+	var hr = HealthReports{}
+	for _, r := range reports.Reports {
+		hr.Reports = append(hr.Reports, HealthReport(r))
+	}
 
-	var d, err = json.MarshalIndent(report, "", "  ")
+	var d, err = json.MarshalIndent(hr, "", "  ")
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
