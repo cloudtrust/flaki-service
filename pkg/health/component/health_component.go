@@ -1,4 +1,4 @@
-package component
+package healthc
 
 import (
 	"context"
@@ -19,15 +19,15 @@ type HealthReport struct {
 
 // HealthService contains the health checks.
 type HealthService struct {
-	influx *module.InfluxHealthModule
-	jaeger *module.JaegerHealthModule
-	redis  *module.RedisHealthModule
-	sentry *module.SentryHealthModule
+	influx *healthm.InfluxHealthModule
+	jaeger *healthm.JaegerHealthModule
+	redis  *healthm.RedisHealthModule
+	sentry *healthm.SentryHealthModule
 }
 
 // NewHealthService returns the basic service.
-func NewHealthService(influxM *module.InfluxHealthModule, jaegerM *module.JaegerHealthModule,
-	redisM *module.RedisHealthModule, sentryM *module.SentryHealthModule) *HealthService {
+func NewHealthService(influxM *healthm.InfluxHealthModule, jaegerM *healthm.JaegerHealthModule,
+	redisM *healthm.RedisHealthModule, sentryM *healthm.SentryHealthModule) *HealthService {
 	return &HealthService{
 		influx: influxM,
 		jaeger: jaegerM,

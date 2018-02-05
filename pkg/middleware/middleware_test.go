@@ -1,4 +1,4 @@
-package endpoint
+package middleware
 
 import (
 	"context"
@@ -218,20 +218,20 @@ func TestMakeTracingMiddleware(t *testing.T) {
 	assert.Panics(t, f)
 }
 
-// Mock Service.
-type mockFlakiService struct {
+// Mock Flaki Component.
+type mockFlakiComponent struct {
 	id   string
 	fail bool
 }
 
-func (s *mockFlakiService) NextID(context.Context) (string, error) {
+func (s *mockFlakiComponent) NextID(context.Context) (string, error) {
 	if s.fail {
 		return "", fmt.Errorf("fail")
 	}
 	return s.id, nil
 }
 
-func (s *mockFlakiService) NextValidID(context.Context) string {
+func (s *mockFlakiComponent) NextValidID(context.Context) string {
 	return s.id
 }
 

@@ -1,4 +1,4 @@
-package flaki
+package flakim
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	var id = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 
-	var srv = NewBasicService(mockFlaki)
+	var srv = New(mockFlaki)
 	srv = MakeLoggingMiddleware(mockLogger)(srv)
 
 	// NextID.
@@ -61,7 +61,7 @@ func TestMetricMiddleware(t *testing.T) {
 	var id = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 
-	var srv = NewBasicService(mockFlaki)
+	var srv = New(mockFlaki)
 	srv = MakeMetricMiddleware(mockCounter)(srv)
 
 	// NextID.
@@ -104,7 +104,7 @@ func TestTracingMiddleware(t *testing.T) {
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
 
-	var srv = NewBasicService(mockFlaki)
+	var srv = New(mockFlaki)
 	srv = MakeTracingMiddleware(mockTracer)(srv)
 
 	// NextID.

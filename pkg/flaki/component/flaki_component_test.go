@@ -1,4 +1,4 @@
-package component
+package flakic
 
 import (
 	"context"
@@ -15,7 +15,7 @@ func TestNewBasicService(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var mockFlakiModule = &mockFlakiModule{}
 
-	var srv = NewBasicService(mockFlakiModule)
+	var srv = New(mockFlakiModule)
 
 	// NextID
 	var expectedID = strconv.FormatUint(rand.Uint64(), 10)

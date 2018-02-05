@@ -1,4 +1,4 @@
-package flaki
+package flakim
 
 import (
 	"context"
@@ -15,7 +15,7 @@ func TestNextID(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
 
-	var flakiService = NewBasicService(&mockFlaki{
+	var flakiService = New(&mockFlaki{
 		id:   expectedID,
 		fail: false,
 	})
@@ -28,7 +28,7 @@ func TestNextID(t *testing.T) {
 func TestNextIDFail(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
-	var flakiService = NewBasicService(&mockFlaki{
+	var flakiService = New(&mockFlaki{
 		id:   strconv.FormatUint(rand.Uint64(), 10),
 		fail: true,
 	})
@@ -43,7 +43,7 @@ func TestNextValidID(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var expected = strconv.FormatUint(rand.Uint64(), 10)
 
-	var flakiService = NewBasicService(&mockFlaki{
+	var flakiService = New(&mockFlaki{
 		id: expected,
 	})
 

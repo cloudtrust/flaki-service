@@ -1,4 +1,4 @@
-package endpoint
+package flakie
 
 import (
 	"context"
@@ -14,9 +14,9 @@ type Endpoints struct {
 	NextValidIDEndpoint endpoint.Endpoint
 }
 
-// NewEndpoints returns Endpoints with the middlware mids. Mids are used to apply middlware
+// New returns Endpoints with the middlware mids. Mids are used to apply middlware
 // to all the endpoint in Endpoints.
-func NewEndpoints(mids ...endpoint.Middleware) *Endpoints {
+func New(mids ...endpoint.Middleware) *Endpoints {
 	var m = append([]endpoint.Middleware{}, mids...)
 	return &Endpoints{
 		mids: m,
@@ -24,7 +24,7 @@ func NewEndpoints(mids ...endpoint.Middleware) *Endpoints {
 }
 
 // MakeNextIDEndpoint makes the NextIDEndpoint and apply the middelwares mids and Endpoints.mids.
-func (es *Endpoints) MakeNextIDEndpoint(s component.Service, mids ...endpoint.Middleware) *Endpoints {
+func (es *Endpoints) MakeNextIDEndpoint(s flakic.Component, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
 		return s.NextID(ctx)
 	}
@@ -34,7 +34,7 @@ func (es *Endpoints) MakeNextIDEndpoint(s component.Service, mids ...endpoint.Mi
 }
 
 // MakeNextValidIDEndpoint makes the NextValidIDEndpoint and apply the middelwares mids and Endpoints.mids.
-func (es *Endpoints) MakeNextValidIDEndpoint(s component.Service, mids ...endpoint.Middleware) *Endpoints {
+func (es *Endpoints) MakeNextValidIDEndpoint(s flakic.Component, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
 		return s.NextValidID(ctx), nil
 	}

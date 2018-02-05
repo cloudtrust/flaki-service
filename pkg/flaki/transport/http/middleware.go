@@ -1,4 +1,4 @@
-package http
+package flakihttp
 
 import (
 	"net/http"

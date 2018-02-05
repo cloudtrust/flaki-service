@@ -1,4 +1,4 @@
-package component
+package flakic
 
 import (
 	"context"
@@ -9,12 +9,24 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
-// Middleware on Service.
-type Middleware func(Service) Service
+// FlakiComponent is the interface of the flaki Component
+type FlakiComponent interface {
+	NextID(context.Context) (string, error)
+	NextValidID(context.Context) string
+}
+
+// Middleware on FlakiComponent.
+type Middleware func(FlakiComponent) FlakiComponent
+
+// Logging Middleware.
+type loggingMiddleware struct {
+	logger log.Logger
+	next   FlakiComponent
+}
 
 // MakeLoggingMiddleware makes a logging middleware.
 func MakeLoggingMiddleware(log log.Logger) Middleware {
-	return func(next Service) Service {
+	return func(next FlakiComponent) FlakiComponent {
 		return &loggingMiddleware{
 			logger: log,
 			next:   next,
@@ -22,13 +34,7 @@ func MakeLoggingMiddleware(log log.Logger) Middleware {
 	}
 }
 
-// Logging Middleware.
-type loggingMiddleware struct {
-	logger log.Logger
-	next   Service
-}
-
-// loggingMiddleware implements Service.
+// loggingMiddleware implements FlakiComponent.
 func (m *loggingMiddleware) NextID(ctx context.Context) (string, error) {
 	defer func(begin time.Time) {
 		m.logger.Log("method", "NextID", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
@@ -36,7 +42,7 @@ func (m *loggingMiddleware) NextID(ctx context.Context) (string, error) {
 	return m.next.NextID(ctx)
 }
 
-// loggingMiddleware implements Service.
+// loggingMiddleware implements FlakiComponent.
 func (m *loggingMiddleware) NextValidID(ctx context.Context) string {
 	defer func(begin time.Time) {
 		m.logger.Log("method", "NextValidID", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
@@ -44,9 +50,15 @@ func (m *loggingMiddleware) NextValidID(ctx context.Context) string {
 	return m.next.NextValidID(ctx)
 }
 
+// Tracing Middleware.
+type tracingMiddleware struct {
+	tracer opentracing.Tracer
+	next   FlakiComponent
+}
+
 // MakeTracingMiddleware makes a tracing middleware.
 func MakeTracingMiddleware(tracer opentracing.Tracer) Middleware {
-	return func(next Service) Service {
+	return func(next FlakiComponent) FlakiComponent {
 		return &tracingMiddleware{
 			tracer: tracer,
 			next:   next,
@@ -54,13 +66,7 @@ func MakeTracingMiddleware(tracer opentracing.Tracer) Middleware {
 	}
 }
 
-// Tracing Middleware.
-type tracingMiddleware struct {
-	tracer opentracing.Tracer
-	next   Service
-}
-
-// tracingMiddleware implements Service.
+// tracingMiddleware implements FlakiComponent.
 func (m *tracingMiddleware) NextID(ctx context.Context) (string, error) {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		span = m.tracer.StartSpan("nextid_component", opentracing.ChildOf(span.Context()))
@@ -73,7 +79,7 @@ func (m *tracingMiddleware) NextID(ctx context.Context) (string, error) {
 	return m.next.NextID(ctx)
 }
 
-// tracingMiddleware implements Service.
+// tracingMiddleware implements FlakiComponent.
 func (m *tracingMiddleware) NextValidID(ctx context.Context) string {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		span = m.tracer.StartSpan("nextvalidid_component", opentracing.ChildOf(span.Context()))
@@ -91,9 +97,15 @@ type Sentry interface {
 	CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string
 }
 
+// Error Middleware.
+type errorMiddleware struct {
+	client Sentry
+	next   FlakiComponent
+}
+
 // MakeErrorMiddleware makes an error handling middleware, where the errors are sent to Sentry.
 func MakeErrorMiddleware(client Sentry) Middleware {
-	return func(next Service) Service {
+	return func(next FlakiComponent) FlakiComponent {
 		return &errorMiddleware{
 			client: client,
 			next:   next,
@@ -101,13 +113,7 @@ func MakeErrorMiddleware(client Sentry) Middleware {
 	}
 }
 
-// Error Middleware.
-type errorMiddleware struct {
-	client Sentry
-	next   Service
-}
-
-// errorMiddleware implements Service.
+// errorMiddleware implements FlakiComponent.
 func (m *errorMiddleware) NextID(ctx context.Context) (string, error) {
 	var id, err = m.next.NextID(ctx)
 	if err != nil {
@@ -116,7 +122,7 @@ func (m *errorMiddleware) NextID(ctx context.Context) (string, error) {
 	return id, err
 }
 
-// errorMiddleware implements Service.
+// errorMiddleware implements FlakiComponent.
 func (m *errorMiddleware) NextValidID(ctx context.Context) string {
 	return m.next.NextValidID(ctx)
 }

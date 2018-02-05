@@ -1,4 +1,4 @@
-package endpoint
+package healthe
 
 import (
 	"context"

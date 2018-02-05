@@ -1,4 +1,4 @@
-package flaki
+package flakim
 
 import (
 	"context"
@@ -9,23 +9,23 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
-// Middleware on Service.
-type Middleware func(Service) Service
+// Middleware on Flaki Module.
+type Middleware func(Module) Module
+
+// Logging Middleware.
+type loggingMiddleware struct {
+	logger log.Logger
+	next   Module
+}
 
 // MakeLoggingMiddleware makes a logging middleware.
 func MakeLoggingMiddleware(log log.Logger) Middleware {
-	return func(next Service) Service {
+	return func(next Module) Module {
 		return &loggingMiddleware{
 			logger: log,
 			next:   next,
 		}
 	}
-}
-
-// Logging Middleware.
-type loggingMiddleware struct {
-	logger log.Logger
-	next   Service
 }
 
 // loggingMiddleware implements Service.
@@ -44,21 +44,21 @@ func (m *loggingMiddleware) NextValidID(ctx context.Context) string {
 	return m.next.NextValidID(ctx)
 }
 
+// Metrics Middleware.
+type metricMiddleware struct {
+	counter metrics.Counter
+	next    Module
+}
+
 // MakeMetricMiddleware makes a metric middleware that counts the number
 // of IDs generated.
 func MakeMetricMiddleware(counter metrics.Counter) Middleware {
-	return func(next Service) Service {
+	return func(next Module) Module {
 		return &metricMiddleware{
 			counter: counter,
 			next:    next,
 		}
 	}
-}
-
-// Metrics Middleware.
-type metricMiddleware struct {
-	counter metrics.Counter
-	next    Service
 }
 
 // metricMiddleware implements Service.
@@ -73,20 +73,20 @@ func (m *metricMiddleware) NextValidID(ctx context.Context) string {
 	return m.next.NextValidID(ctx)
 }
 
+// Tracing Middleware.
+type tracingMiddleware struct {
+	tracer opentracing.Tracer
+	next   Module
+}
+
 // MakeTracingMiddleware makes a tracing middleware.
 func MakeTracingMiddleware(tracer opentracing.Tracer) Middleware {
-	return func(next Service) Service {
+	return func(next Module) Module {
 		return &tracingMiddleware{
 			tracer: tracer,
 			next:   next,
 		}
 	}
-}
-
-// Tracing Middleware.
-type tracingMiddleware struct {
-	tracer opentracing.Tracer
-	next   Service
 }
 
 // tracingMiddleware implements Service.

@@ -1,7 +1,8 @@
-package endpoint
+package flakie
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -19,7 +20,7 @@ func TestNewEndpoints(t *testing.T) {
 
 	// NextID.
 	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiService{
+	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiComponent{
 		id:   expectedID,
 		fail: false,
 	},
@@ -30,11 +31,28 @@ func TestNewEndpoints(t *testing.T) {
 
 	// NextValidID.
 	expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiService{
+	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiComponent{
 		id:   expectedID,
 		fail: false,
 	},
 	)
 	id = endpoints.NextValidID(ctx)
 	assert.Equal(t, expectedID, id)
+}
+
+// Mock Flaki Component.
+type mockFlakiComponent struct {
+	id   string
+	fail bool
+}
+
+func (s *mockFlakiComponent) NextID(context.Context) (string, error) {
+	if s.fail {
+		return "", fmt.Errorf("fail")
+	}
+	return s.id, nil
+}
+
+func (s *mockFlakiComponent) NextValidID(context.Context) string {
+	return s.id
 }
