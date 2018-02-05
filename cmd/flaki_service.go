@@ -11,17 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cloudtrust/flaki"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/component"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/endpoint"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/module"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/transport/flatbuffer/fb"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/transport/grpc"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/transport/http"
-	"github.com/cloudtrust/flaki-service/pkg/health/component"
-	"github.com/cloudtrust/flaki-service/pkg/health/endpoint"
-	"github.com/cloudtrust/flaki-service/pkg/health/module"
-	"github.com/cloudtrust/flaki-service/pkg/health/transport/http"
+	flaki_gen "github.com/cloudtrust/flaki"
+	"github.com/cloudtrust/flaki-service/pkg/flaki"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/pkg/health"
 	"github.com/cloudtrust/flaki-service/pkg/middleware"
 	"github.com/garyburd/redigo/redis"
 	sentry "github.com/getsentry/raven-go"
@@ -133,11 +126,11 @@ func main() {
 	}()
 
 	// Flaki unique distributed ID generator.
-	var flakiGen *flaki.Flaki
+	var flakiGen *flaki_gen.Flaki
 	{
 		var logger = log.With(logger, "unit", "flaki")
 		var err error
-		flakiGen, err = flaki.New(flaki.ComponentID(flakiComponentID), flaki.NodeID(flakiNodeID))
+		flakiGen, err = flaki_gen.New(flaki_gen.ComponentID(flakiComponentID), flaki_gen.NodeID(flakiNodeID))
 		if err != nil {
 			logger.Log("msg", "could not create Flaki", "error", err)
 			return
@@ -212,27 +205,27 @@ func main() {
 		defer closer.Close()
 
 	}
-
+	health_component
 	// Flaki service.
 	logger = log.With(logger, "svc", "flaki")
 
-	var flakiModule flakim.Module
+	var flakiModule flaki.Module
 	{
-		flakiModule = flakim.New(flakiGen)
-		flakiModule = flakim.MakeLoggingMiddleware(log.With(logger, "mw", "module"))(flakiModule)
-		flakiModule = flakim.MakeTracingMiddleware(tracer)(flakiModule)
-		flakiModule = flakim.MakeMetricMiddleware(influxMetrics.NewCounter("number_id"))(flakiModule)
+		flakiModule = flaki.New(flakiGen)
+		flakiModule = flaki.MakeLoggingMiddleware(log.With(logger, "mw", "module"))(flakiModule)
+		flakiModule = flaki.MakeTracingMiddleware(tracer)(flakiModule)
+		flakiModule = flaki.MakeMetricMiddleware(influxMetrics.NewCounter("number_id"))(flakiModule)
 	}
 
-	var flakiComponent flakic.Component
+	var flakiComponent flaki.Component
 	{
-		flakiComponent = flakic.New(flakiModule)
-		flakiComponent = flakic.MakeLoggingMiddleware(log.With(logger, "mw", "component"))(flakiComponent)
-		flakiComponent = flakic.MakeErrorMiddleware(sentryClient)(flakiComponent)
-		flakiComponent = flakic.MakeTracingMiddleware(tracer)(flakiComponent)
+		flakiComponent = flaki.New(flakiModule)
+		flakiComponent = flaki.MakeLoggingMiddleware(log.With(logger, "mw", "component"))(flakiComponent)
+		flakiComponent = flaki.MakeErrorMiddleware(sentryClient)(flakiComponent)
+		flakiComponent = flaki.MakeTracingMiddleware(tracer)(flakiComponent)
 	}
 
-	var flakiEndpoints = flakie.New(middleware.MakeCorrelationIDMiddleware(flakiGen))
+	var flakiEndpoints = flaki.New(middleware.MakeCorrelationIDMiddleware(flakiGen))
 
 	flakiEndpoints.MakeNextIDEndpoint(
 		flakiComponent,
@@ -251,17 +244,17 @@ func main() {
 	// Health service.
 	logger = log.With(logger, "svc", "health")
 
-	var influxHM = healthm.NewInfluxHealthModule(influxMetrics)
-	var jaegerHM = healthm.NewJaegerHealthModule(tracer)
-	var redisHM = healthm.NewRedisHealthModule(redisConn)
-	var sentryHM = healthm.NewSentryHealthModule(sentryClient)
+	var influxHM = health.NewInfluxHealthModule(influxMetrics)
+	var jaegerHM = health.NewJaegerHealthModule(tracer)
+	var redisHM = health.NewRedisHealthModule(redisConn)
+	var sentryHM = health.NewSentryHealthModule(sentryClient)
 
-	var healthComponent *healthc.HealthService
+	var healthComponent *health.HealthService
 	{
-		healthComponent = healthc.NewHealthService(influxHM, jaegerHM, redisHM, sentryHM)
+		healthComponent = health.NewHealthService(influxHM, jaegerHM, redisHM, sentryHM)
 	}
 
-	var healthEndpoints = healthe.NewEndpoints(middleware.MakeCorrelationIDMiddleware(flakiGen))
+	var healthEndpoints = health.NewEndpoints(middleware.MakeCorrelationIDMiddleware(flakiGen))
 
 	healthEndpoints.MakeInfluxHealthCheckEndpoint(
 		healthComponent,
@@ -307,18 +300,18 @@ func main() {
 		// NextID.
 		var nextIDHandler grpc_transport.Handler
 		{
-			nextIDHandler = flakigrpc.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint)
-			nextIDHandler = flakigrpc.MakeTracingMiddleware(tracer, "grpc_server_nextid")(nextIDHandler)
+			nextIDHandler = flaki.MakeNextIDHandler(flakiEndpoints.NextIDEndpoint)
+			nextIDHandler = flaki.MakeTracingMiddleware(tracer, "grpc_server_nextid")(nextIDHandler)
 		}
 
 		// NextValidID.
 		var nextValidIDHandler grpc_transport.Handler
 		{
-			nextValidIDHandler = flakigrpc.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint)
-			nextValidIDHandler = flakigrpc.MakeTracingMiddleware(tracer, "grpc_server_nextvalidid")(nextValidIDHandler)
+			nextValidIDHandler = flaki.MakeNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint)
+			nextValidIDHandler = flaki.MakeTracingMiddleware(tracer, "grpc_server_nextvalidid")(nextValidIDHandler)
 		}
 
-		var grpcServer = flakigrpc.NewGRPCServer(nextIDHandler, nextValidIDHandler)
+		var grpcServer = flaki.NewGRPCServer(nextIDHandler, nextValidIDHandler)
 		var flakiServer = grpc.NewServer(grpc.CustomCodec(flatbuffers.FlatbuffersCodec{}))
 		fb.RegisterFlakiServer(flakiServer, grpcServer)
 
