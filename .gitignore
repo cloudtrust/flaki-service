@@ -13,14 +13,14 @@
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
 
-.DS_Store
+**/.DS_Store
 .vscode/*
 vendor/*
 bin/*
-debug
-.coverprofile
+**/.debug
+**./.coverprofile
 
 # Flatbuffers generated files
-/pkg/flaki/transport/flatbuffer/fb/*
+/pkg/flaki/flatbuffer/fb/*
 
 
