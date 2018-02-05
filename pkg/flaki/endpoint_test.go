@@ -20,7 +20,7 @@ func TestNewEndpoints(t *testing.T) {
 
 	// NextID.
 	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiComponent{
+	endpoints = endpoints.MakeNextIDEndpoint(&mockComponent{
 		id:   expectedID,
 		fail: false,
 	},
@@ -31,7 +31,7 @@ func TestNewEndpoints(t *testing.T) {
 
 	// NextValidID.
 	expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiComponent{
+	endpoints = endpoints.MakeNextValidIDEndpoint(&mockComponent{
 		id:   expectedID,
 		fail: false,
 	},
@@ -40,19 +40,19 @@ func TestNewEndpoints(t *testing.T) {
 	assert.Equal(t, expectedID, id)
 }
 
-// Mock Flaki Component.
-type mockFlakiComponent struct {
+// Mock component.
+type mockComponent struct {
 	id   string
 	fail bool
 }
 
-func (s *mockFlakiComponent) NextID(context.Context) (string, error) {
+func (s *mockComponent) NextID(context.Context) (string, error) {
 	if s.fail {
 		return "", fmt.Errorf("fail")
 	}
 	return s.id, nil
 }
 
-func (s *mockFlakiComponent) NextValidID(context.Context) string {
+func (s *mockComponent) NextValidID(context.Context) string {
 	return s.id
 }

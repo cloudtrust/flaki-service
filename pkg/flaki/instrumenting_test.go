@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMetricMiddleware(t *testing.T) {
+func TestInstrumentingMW(t *testing.T) {
 	var mockCounter = &mockCounter{}
 	var mockFlaki = &mockFlaki{}
 
@@ -20,32 +20,32 @@ func TestMetricMiddleware(t *testing.T) {
 	var id = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 
-	var srv = New(mockFlaki)
-	srv = MakeMetricMiddleware(mockCounter)(srv)
+	var m = NewModule(mockFlaki)
+	m = MakeModuleInstrumentingMW(mockCounter)(m)
 
 	// NextID.
 	mockCounter.Called = false
 	mockCounter.CorrelationID = ""
-	srv.NextID(ctx)
+	m.NextID(ctx)
 	assert.True(t, mockCounter.Called)
 	assert.Equal(t, id, mockCounter.CorrelationID)
 
 	// NextValidID.
 	mockCounter.Called = false
 	mockCounter.CorrelationID = ""
-	srv.NextValidID(ctx)
+	m.NextValidID(ctx)
 	assert.True(t, mockCounter.Called)
 	assert.Equal(t, id, mockCounter.CorrelationID)
 
 	// NextID without correlation ID.
 	var f = func() {
-		srv.NextID(context.Background())
+		m.NextID(context.Background())
 	}
 	assert.Panics(t, f)
 
 	// NextValidID without correlation ID.
 	f = func() {
-		srv.NextValidID(context.Background())
+		m.NextValidID(context.Background())
 	}
 	assert.Panics(t, f)
 }

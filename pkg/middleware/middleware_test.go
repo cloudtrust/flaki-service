@@ -8,16 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki"
 	"github.com/go-kit/kit/metrics"
 	opentracing "github.com/opentracing/opentracing-go"
 	opentracing_log "github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMakeCorrelationIDMiddleware(t *testing.T) {
-	var mockFlaki = &mockFlaki{
-		fail: false,
-	}
+func TestEndpointCorrelationIDMW(t *testing.T) {
+	var mockFlaki = &mockFlaki{fail: false}
 	// We use Logging middleware to read the correlation ID generated
 	// by the CorrelationIDMiddleware.
 	var mockLogger = &mockLogger{}
@@ -27,15 +26,10 @@ func TestMakeCorrelationIDMiddleware(t *testing.T) {
 	var id = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 
-	var endpoints = NewEndpoints(MakeCorrelationIDMiddleware(mockFlaki))
+	var endpoints = flaki.NewEndpoints(MakeEndpointCorrelationIDMW(mockFlaki))
 
 	// NextID.
-	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-		MakeLoggingMiddleware(mockLogger),
-	)
+	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiComponent{id: id, fail: false}, MakeEndpointLoggingMW(mockLogger))
 	mockLogger.Called = false
 	mockLogger.CorrelationID = ""
 	endpoints.NextID(ctx)
@@ -43,12 +37,7 @@ func TestMakeCorrelationIDMiddleware(t *testing.T) {
 	assert.Equal(t, id, mockLogger.CorrelationID)
 
 	// NextValidID.
-	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-		MakeLoggingMiddleware(mockLogger),
-	)
+	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiComponent{id: id, fail: false}, MakeEndpointLoggingMW(mockLogger))
 	mockLogger.Called = false
 	mockLogger.CorrelationID = ""
 	endpoints.NextValidID(ctx)
@@ -76,7 +65,7 @@ func TestMakeCorrelationIDMiddleware(t *testing.T) {
 	assert.Equal(t, expectedID, mockLogger.CorrelationID)
 }
 
-func TestMakeLoggingMiddleware(t *testing.T) {
+func TestEndpointLoggingMW(t *testing.T) {
 	var mockLogger = &mockLogger{}
 
 	// Context with correlation ID.
@@ -84,14 +73,10 @@ func TestMakeLoggingMiddleware(t *testing.T) {
 	var id = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 
-	var endpoints = NewEndpoints(MakeLoggingMiddleware(mockLogger))
+	var endpoints = flaki.NewEndpoints(MakeEndpointLoggingMW(mockLogger))
 
 	// NextID.
-	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-	)
+	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiComponent{id: id, fail: false})
 	mockLogger.Called = false
 	mockLogger.CorrelationID = ""
 	endpoints.NextID(ctx)
@@ -99,11 +84,7 @@ func TestMakeLoggingMiddleware(t *testing.T) {
 	assert.Equal(t, id, mockLogger.CorrelationID)
 
 	// NextValidID.
-	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-	)
+	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiComponent{id: id, fail: false})
 	mockLogger.Called = false
 	mockLogger.CorrelationID = ""
 	endpoints.NextValidID(ctx)
@@ -122,7 +103,7 @@ func TestMakeLoggingMiddleware(t *testing.T) {
 	}
 	assert.Panics(t, f)
 }
-func TestMakeMetricMiddleware(t *testing.T) {
+func TestEndpointInstrumentingMW(t *testing.T) {
 	var mockHistogram = &mockHistogram{}
 
 	// Context with correlation ID.
@@ -130,14 +111,10 @@ func TestMakeMetricMiddleware(t *testing.T) {
 	var id = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 
-	var endpoints = NewEndpoints(MakeMetricMiddleware(mockHistogram))
+	var endpoints = flaki.NewEndpoints(MakeEndpointInstrumentingMW(mockHistogram))
 
 	// NextID.
-	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-	)
+	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiComponent{id: id, fail: false})
 	mockHistogram.Called = false
 	mockHistogram.CorrelationID = ""
 	endpoints.NextID(ctx)
@@ -145,11 +122,7 @@ func TestMakeMetricMiddleware(t *testing.T) {
 	assert.Equal(t, id, mockHistogram.CorrelationID)
 
 	// NextValidID.
-	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-	)
+	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiComponent{id: id, fail: false})
 	mockHistogram.Called = false
 	mockHistogram.CorrelationID = ""
 	endpoints.NextValidID(ctx)
@@ -168,11 +141,9 @@ func TestMakeMetricMiddleware(t *testing.T) {
 	}
 	assert.Panics(t, f)
 }
-func TestMakeTracingMiddleware(t *testing.T) {
+func TestEndpointTracingMW(t *testing.T) {
 	var mockSpan = &mockSpan{}
-	var mockTracer = &mockTracer{
-		Span: mockSpan,
-	}
+	var mockTracer = &mockTracer{Span: mockSpan}
 
 	// Context with correlation ID and span.
 	rand.Seed(time.Now().UnixNano())
@@ -180,25 +151,17 @@ func TestMakeTracingMiddleware(t *testing.T) {
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
 
-	var endpoints = NewEndpoints(MakeTracingMiddleware(mockTracer, "flaki"))
+	var endpoints = flaki.NewEndpoints(MakeEndpointTracingMW(mockTracer, "flaki"))
 
 	// NextID.
-	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-	)
+	endpoints = endpoints.MakeNextIDEndpoint(&mockFlakiComponent{id: id, fail: false})
 	mockTracer.Called = false
 	endpoints.NextID(ctx)
 	assert.True(t, mockTracer.Called)
 	assert.Equal(t, id, mockTracer.Span.CorrelationID)
 
 	// NextValidID.
-	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiService{
-		id:   id,
-		fail: false,
-	},
-	)
+	endpoints = endpoints.MakeNextValidIDEndpoint(&mockFlakiComponent{id: id, fail: false})
 	mockTracer.Called = false
 	mockTracer.Span.CorrelationID = ""
 	endpoints.NextValidID(ctx)
@@ -218,23 +181,6 @@ func TestMakeTracingMiddleware(t *testing.T) {
 	assert.Panics(t, f)
 }
 
-// Mock Flaki Component.
-type mockFlakiComponent struct {
-	id   string
-	fail bool
-}
-
-func (s *mockFlakiComponent) NextID(context.Context) (string, error) {
-	if s.fail {
-		return "", fmt.Errorf("fail")
-	}
-	return s.id, nil
-}
-
-func (s *mockFlakiComponent) NextValidID(context.Context) string {
-	return s.id
-}
-
 // Mock Flaki.
 type mockFlaki struct {
 	id   string
@@ -250,6 +196,23 @@ func (f *mockFlaki) NextIDString() (string, error) {
 
 func (f *mockFlaki) NextValidIDString() string {
 	return f.id
+}
+
+// Mock Flaki Component.
+type mockFlakiComponent struct {
+	id   string
+	fail bool
+}
+
+func (s *mockFlakiComponent) NextID(context.Context) (string, error) {
+	if s.fail {
+		return "", fmt.Errorf("fail")
+	}
+	return s.id, nil
+}
+
+func (s *mockFlakiComponent) NextValidID(context.Context) string {
+	return s.id
 }
 
 // Mock Logger.

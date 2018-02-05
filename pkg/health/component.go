@@ -4,28 +4,17 @@ import (
 	"context"
 )
 
-type HealthReports struct {
-	Reports []HealthReport
-}
-
-type HealthReport struct {
-	Name     string
-	Duration string
-	Status   string
-	Error    string
-}
-
 // HealthService contains the health checks.
 type HealthService struct {
-	influx *healthm.InfluxHealthModule
-	jaeger *healthm.JaegerHealthModule
-	redis  *healthm.RedisHealthModule
-	sentry *healthm.SentryHealthModule
+	influx *InfluxHealthModule
+	jaeger *JaegerHealthModule
+	redis  *RedisHealthModule
+	sentry *SentryHealthModule
 }
 
 // NewHealthService returns the basic service.
-func NewHealthService(influxM *healthm.InfluxHealthModule, jaegerM *healthm.JaegerHealthModule,
-	redisM *healthm.RedisHealthModule, sentryM *healthm.SentryHealthModule) *HealthService {
+func NewHealthService(influxM *InfluxHealthModule, jaegerM *JaegerHealthModule,
+	redisM *RedisHealthModule, sentryM *SentryHealthModule) *HealthService {
 	return &HealthService{
 		influx: influxM,
 		jaeger: jaegerM,

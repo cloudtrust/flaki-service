@@ -10,12 +10,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// Middleware on http transport.
-type Middleware func(http.Handler) http.Handler
-
-// MakeTracingMiddleware try to extract an existing span from the HTTP headers. It it exists, we
+// MakeHTTPTracingMW try to extract an existing span from the HTTP headers. It it exists, we
 // continue the span, if not we create a new one.
-func MakeTracingMiddleware(tracer opentracing.Tracer, operationName string) Middleware {
+func MakeHTTPTracingMW(tracer opentracing.Tracer, operationName string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -39,18 +36,27 @@ func MakeTracingMiddleware(tracer opentracing.Tracer, operationName string) Midd
 	}
 }
 
-// Middleware on grpc transport.
-type Middleware func(grpc_transport.Handler) grpc_transport.Handler
-
-type tracingMiddleware struct {
+type grpcTracingMW struct {
 	next          grpc_transport.Handler
 	tracer        opentracing.Tracer
 	operationName string
 }
 
+// MakeGRPCTracingMW try to extract an existing span from the HTTP headers. It it exists, we
+// continue the span, if not we create a new one.
+func MakeGRPCTracingMW(tracer opentracing.Tracer, operationName string) func(grpc_transport.Handler) grpc_transport.Handler {
+	return func(next grpc_transport.Handler) grpc_transport.Handler {
+		return &grpcTracingMW{
+			next:          next,
+			tracer:        tracer,
+			operationName: operationName,
+		}
+	}
+}
+
 // ServeGRPC try to extract an existing span from the GRPC metadata. It it exists, we
 // continue the span, if not we create a new one.
-func (m *tracingMiddleware) ServeGRPC(ctx context.Context, request interface{}) (context.Context, interface{}, error) {
+func (m *grpcTracingMW) ServeGRPC(ctx context.Context, request interface{}) (context.Context, interface{}, error) {
 	var md, _ = metadata.FromIncomingContext(ctx)
 
 	// Extract metadata.
@@ -76,78 +82,24 @@ func (m *tracingMiddleware) ServeGRPC(ctx context.Context, request interface{}) 
 	return m.next.ServeGRPC(opentracing.ContextWithSpan(ctx, span), request)
 }
 
-// MakeTracingMiddleware try to extract an existing span from the HTTP headers. It it exists, we
-// continue the span, if not we create a new one.
-func MakeTracingMiddleware(tracer opentracing.Tracer, operationName string) Middleware {
-	return func(next grpc_transport.Handler) grpc_transport.Handler {
-		return &tracingMiddleware{
-			next:          next,
-			tracer:        tracer,
-			operationName: operationName,
-		}
-	}
-}
-
-// Tracing Middleware.
-type tracingMiddleware struct {
+// Tracing middleware at component level.
+type componentTracingMW struct {
 	tracer opentracing.Tracer
-	next   Module
+	next   Component
 }
 
-// MakeTracingMiddleware makes a tracing middleware.
-func MakeTracingMiddleware(tracer opentracing.Tracer) Middleware {
-	return func(next Module) Module {
-		return &tracingMiddleware{
+// MakeComponentTracingMW makes a tracing middleware at component level.
+func MakeComponentTracingMW(tracer opentracing.Tracer) func(Component) Component {
+	return func(next Component) Component {
+		return &componentTracingMW{
 			tracer: tracer,
 			next:   next,
 		}
 	}
 }
 
-// tracingMiddleware implements Service.
-func (m *tracingMiddleware) NextID(ctx context.Context) (string, error) {
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		span = m.tracer.StartSpan("nextid_module", opentracing.ChildOf(span.Context()))
-		defer span.Finish()
-		span.SetTag("correlation_id", ctx.Value("correlation_id").(string))
-
-		ctx = opentracing.ContextWithSpan(ctx, span)
-	}
-
-	return m.next.NextID(ctx)
-}
-
-// tracingMiddleware implements Service.
-func (m *tracingMiddleware) NextValidID(ctx context.Context) string {
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		span = m.tracer.StartSpan("nextvalidid_module", opentracing.ChildOf(span.Context()))
-		defer span.Finish()
-		span.SetTag("correlation_id", ctx.Value("correlation_id").(string))
-
-		ctx = opentracing.ContextWithSpan(ctx, span)
-	}
-
-	return m.next.NextValidID(ctx)
-}
-
-// Tracing Middleware.
-type tracingMiddleware struct {
-	tracer opentracing.Tracer
-	next   FlakiComponent
-}
-
-// MakeTracingMiddleware makes a tracing middleware.
-func MakeTracingMiddleware(tracer opentracing.Tracer) Middleware {
-	return func(next FlakiComponent) FlakiComponent {
-		return &tracingMiddleware{
-			tracer: tracer,
-			next:   next,
-		}
-	}
-}
-
-// tracingMiddleware implements FlakiComponent.
-func (m *tracingMiddleware) NextID(ctx context.Context) (string, error) {
+// componentTracingMW implements Component.
+func (m *componentTracingMW) NextID(ctx context.Context) (string, error) {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		span = m.tracer.StartSpan("nextid_component", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
@@ -159,10 +111,52 @@ func (m *tracingMiddleware) NextID(ctx context.Context) (string, error) {
 	return m.next.NextID(ctx)
 }
 
-// tracingMiddleware implements FlakiComponent.
-func (m *tracingMiddleware) NextValidID(ctx context.Context) string {
+// componentTracingMW implements Component.
+func (m *componentTracingMW) NextValidID(ctx context.Context) string {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		span = m.tracer.StartSpan("nextvalidid_component", opentracing.ChildOf(span.Context()))
+		defer span.Finish()
+		span.SetTag("correlation_id", ctx.Value("correlation_id").(string))
+
+		ctx = opentracing.ContextWithSpan(ctx, span)
+	}
+
+	return m.next.NextValidID(ctx)
+}
+
+// Tracing middleware at module level.
+type moduleTracingMW struct {
+	tracer opentracing.Tracer
+	next   Module
+}
+
+// MakeModuleTracingMW makes a tracing middleware at component level.
+func MakeModuleTracingMW(tracer opentracing.Tracer) func(Module) Module {
+	return func(next Module) Module {
+		return &moduleTracingMW{
+			tracer: tracer,
+			next:   next,
+		}
+	}
+}
+
+// moduleTracingMW implements Module.
+func (m *moduleTracingMW) NextID(ctx context.Context) (string, error) {
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		span = m.tracer.StartSpan("nextid_module", opentracing.ChildOf(span.Context()))
+		defer span.Finish()
+		span.SetTag("correlation_id", ctx.Value("correlation_id").(string))
+
+		ctx = opentracing.ContextWithSpan(ctx, span)
+	}
+
+	return m.next.NextID(ctx)
+}
+
+// moduleTracingMW implements Module.
+func (m *moduleTracingMW) NextValidID(ctx context.Context) string {
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		span = m.tracer.StartSpan("nextvalidid_module", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
 		span.SetTag("correlation_id", ctx.Value("correlation_id").(string))
 

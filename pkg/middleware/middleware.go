@@ -15,9 +15,9 @@ type Flaki interface {
 	NextValidIDString() string
 }
 
-// MakeCorrelationIDMiddleware makes a middleware that adds a correlation ID
+// MakeEndpointCorrelationIDMW makes a middleware that adds a correlation ID
 // in the context if there is not already one.
-func MakeCorrelationIDMiddleware(flaki Flaki) endpoint.Middleware {
+func MakeEndpointCorrelationIDMW(flaki Flaki) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			var id = ctx.Value("correlation_id")
@@ -30,8 +30,8 @@ func MakeCorrelationIDMiddleware(flaki Flaki) endpoint.Middleware {
 	}
 }
 
-// MakeLoggingMiddleware makes a logging middleware.
-func MakeLoggingMiddleware(logger log.Logger) endpoint.Middleware {
+// MakeEndpointLoggingMW makes a logging middleware.
+func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
@@ -42,9 +42,9 @@ func MakeLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	}
 }
 
-// MakeMetricMiddleware makes a middleware that measure the endpoints response time and
+// MakeEndpointInstrumentingMW makes a middleware that measure the endpoints response time and
 // send the metrics to influx DB.
-func MakeMetricMiddleware(h metrics.Histogram) endpoint.Middleware {
+func MakeEndpointInstrumentingMW(h metrics.Histogram) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
@@ -55,8 +55,8 @@ func MakeMetricMiddleware(h metrics.Histogram) endpoint.Middleware {
 	}
 }
 
-// MakeTracingMiddleware makes a middleware that handle the tracing with jaeger.
-func MakeTracingMiddleware(tracer opentracing.Tracer, operationName string) endpoint.Middleware {
+// MakeEndpointTracingMW makes a middleware that handle the tracing with jaeger.
+func MakeEndpointTracingMW(tracer opentracing.Tracer, operationName string) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (interface{}, error) {
 			if span := opentracing.SpanFromContext(ctx); span != nil {

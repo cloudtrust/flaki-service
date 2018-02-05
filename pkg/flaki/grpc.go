@@ -15,23 +15,23 @@ type grpcServer struct {
 	nextValidID grpc_transport.Handler
 }
 
-// MakeNextIDGRPCHandler makes a GRPC handler for the NextID endpoint.
-func MakeNextIDGRPCHandler(e endpoint.Endpoint) *grpc_transport.Server {
+// MakeGRPCNextIDHandler makes a GRPC handler for the NextID endpoint.
+func MakeGRPCNextIDHandler(e endpoint.Endpoint) *grpc_transport.Server {
 	return grpc_transport.NewServer(
 		e,
-		decodeFlakiRequest,
-		encodeFlakiReply,
-		grpc_transport.ServerBefore(fetchCorrelationID),
+		decodeGRPCRequest,
+		encodeGRPCReply,
+		grpc_transport.ServerBefore(fetchGRPCCorrelationID),
 	)
 }
 
-// MakeNextValidIDGRPCHandler makes a GRPC handler for the NextValidID endpoint.
-func MakeNextValidIDGRPCHandler(e endpoint.Endpoint) *grpc_transport.Server {
+// MakeGRPCNextValidIDHandler makes a GRPC handler for the NextValidID endpoint.
+func MakeGRPCNextValidIDHandler(e endpoint.Endpoint) *grpc_transport.Server {
 	return grpc_transport.NewServer(
 		e,
-		decodeFlakiRequest,
-		encodeFlakiReply,
-		grpc_transport.ServerBefore(fetchCorrelationID),
+		decodeGRPCRequest,
+		encodeGRPCReply,
+		grpc_transport.ServerBefore(fetchGRPCCorrelationID),
 	)
 }
 
@@ -62,7 +62,7 @@ func fetchGRPCCorrelationID(ctx context.Context, md metadata.MD) context.Context
 func (s *grpcServer) NextID(ctx context.Context, req *fb.EmptyRequest) (*flatbuffers.Builder, error) {
 	var _, res, err = s.nextID.ServeGRPC(ctx, req)
 	if err != nil {
-		return flakiErrorHandler(err), nil
+		return grpcErrorHandler(err), nil
 	}
 
 	var b = res.(*flatbuffers.Builder)
@@ -74,7 +74,7 @@ func (s *grpcServer) NextID(ctx context.Context, req *fb.EmptyRequest) (*flatbuf
 func (s *grpcServer) NextValidID(ctx context.Context, req *fb.EmptyRequest) (*flatbuffers.Builder, error) {
 	var _, res, err = s.nextValidID.ServeGRPC(ctx, req)
 	if err != nil {
-		return flakiErrorHandler(err), nil
+		return grpcErrorHandler(err), nil
 	}
 
 	var b = res.(*flatbuffers.Builder)
@@ -82,8 +82,13 @@ func (s *grpcServer) NextValidID(ctx context.Context, req *fb.EmptyRequest) (*fl
 	return b, nil
 }
 
-// encodeFlakiReply encodes the flatbuffer flaki reply.
-func encodeFlakiReply(_ context.Context, res interface{}) (interface{}, error) {
+// decodeGRPCRequest decodes the flatbuffer flaki request.
+func decodeGRPCRequest(_ context.Context, req interface{}) (interface{}, error) {
+	return req, nil
+}
+
+// encodeHTTPReply encodes the flatbuffer flaki reply.
+func encodeGRPCReply(_ context.Context, res interface{}) (interface{}, error) {
 	var b = flatbuffers.NewBuilder(0)
 	var id = b.CreateString(res.(string))
 
@@ -94,13 +99,8 @@ func encodeFlakiReply(_ context.Context, res interface{}) (interface{}, error) {
 	return b, nil
 }
 
-// decodeFlakiRequest decodes the flatbuffer flaki request.
-func decodeFlakiRequest(_ context.Context, req interface{}) (interface{}, error) {
-	return req, nil
-}
-
-// flakiErrorHandler encodes the flatbuffer flaki reply when there is an error.
-func flakiErrorHandler(err error) *flatbuffers.Builder {
+// grpcErrorHandler encodes the flatbuffer flaki reply when there is an error.
+func grpcErrorHandler(err error) *flatbuffers.Builder {
 
 	var b = flatbuffers.NewBuilder(0)
 	var errStr = b.CreateString(err.Error())

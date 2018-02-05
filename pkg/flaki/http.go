@@ -12,23 +12,23 @@ import (
 	"github.com/google/flatbuffers/go"
 )
 
-// MakeNextIDHTTPHandler makes a HTTP handler for the NextID endpoint.
-func MakeNextIDHTTPHandler(e endpoint.Endpoint) *http_transport.Server {
+// MakeHTTPNextIDHandler makes a HTTP handler for the NextID endpoint.
+func MakeHTTPNextIDHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
-		decodeFlakiRequest,
-		encodeFlakiReply,
-		http_transport.ServerErrorEncoder(flakiErrorHandler),
-		http_transport.ServerBefore(fetchCorrelationID),
+		decodeHTTPRequest,
+		encodeHTTPReply,
+		http_transport.ServerErrorEncoder(httpErrorHandler),
+		http_transport.ServerBefore(fetchHTTPCorrelationID),
 	)
 }
 
-// MakeNextValidIDHTTPHandler makes a HTTP handler for the NextValidID endpoint.
-func MakeNextValidIDHTTPHandler(e endpoint.Endpoint) *http_transport.Server {
+// MakeHTTPNextValidIDHandler makes a HTTP handler for the NextValidID endpoint.
+func MakeHTTPNextValidIDHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
-		decodeFlakiRequest,
-		encodeFlakiReply,
-		http_transport.ServerErrorEncoder(flakiErrorHandler),
-		http_transport.ServerBefore(fetchCorrelationID),
+		decodeHTTPRequest,
+		encodeHTTPReply,
+		http_transport.ServerErrorEncoder(httpErrorHandler),
+		http_transport.ServerBefore(fetchHTTPCorrelationID),
 	)
 }
 
@@ -42,7 +42,7 @@ type info struct {
 // MakeVersion makes a HTTP handler that returns information about the version of the service.
 func MakeVersion(componentName, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 		var infos = info{
 			Name:    componentName,
@@ -76,6 +76,7 @@ func decodeHTTPRequest(_ context.Context, r *http.Request) (res interface{}, err
 	var data []byte
 
 	data, err = ioutil.ReadAll(r.Body)
+
 	if err != nil {
 		return nil, err
 	}

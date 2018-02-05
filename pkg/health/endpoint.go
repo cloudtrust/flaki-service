@@ -3,27 +3,15 @@ package health
 import (
 	"context"
 
-	health_cmp "github.com/cloudtrust/flaki-service/pkg/health/component"
 	"github.com/go-kit/kit/endpoint"
 )
 
-type HealthReports struct {
-	Reports []HealthReport
-}
-
-type HealthReport struct {
-	Name     string
-	Duration string
-	Status   string
-	Error    string
-}
-
 // Service is the interface that the service implements.
 type Service interface {
-	InfluxHealthChecks(context.Context) health_cmp.HealthReports
-	JaegerHealthChecks(context.Context) health_cmp.HealthReports
-	RedisHealthChecks(context.Context) health_cmp.HealthReports
-	SentryHealthChecks(context.Context) health_cmp.HealthReports
+	InfluxHealthChecks(context.Context) HealthReports
+	JaegerHealthChecks(context.Context) HealthReports
+	RedisHealthChecks(context.Context) HealthReports
+	SentryHealthChecks(context.Context) HealthReports
 }
 
 // Endpoints wraps a service behind a set of endpoints.

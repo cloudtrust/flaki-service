@@ -29,11 +29,11 @@ func NewModule(flaki Flaki) Module {
 }
 
 // NextID generates a unique string ID.
-func (s *module) NextID(_ context.Context) (string, error) {
-	return s.flaki.NextIDString()
+func (m *module) NextID(_ context.Context) (string, error) {
+	return m.flaki.NextIDString()
 }
 
 // NextValidID generates a unique string ID.
-func (s *module) NextValidID(_ context.Context) string {
-	return s.flaki.NextValidIDString()
+func (m *module) NextValidID(_ context.Context) string {
+	return m.flaki.NextValidIDString()
 }

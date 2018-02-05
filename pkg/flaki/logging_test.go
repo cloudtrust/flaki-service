@@ -10,7 +10,44 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLoggingMiddleware(t *testing.T) {
+func TestComponentLoggingMW(t *testing.T) {
+	var mockLogger = &mockLogger{}
+
+	var m = MakeComponentLoggingMW(mockLogger)(&mockModule{fail: false})
+
+	// Context with correlation ID.
+	rand.Seed(time.Now().UnixNano())
+	var id = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+
+	// NextID.
+	mockLogger.Called = false
+	mockLogger.CorrelationID = ""
+	m.NextID(ctx)
+	assert.True(t, mockLogger.Called)
+	assert.Equal(t, id, mockLogger.CorrelationID)
+
+	// NextValidID.
+	mockLogger.Called = false
+	mockLogger.CorrelationID = ""
+	m.NextValidID(ctx)
+	assert.True(t, mockLogger.Called)
+	assert.Equal(t, id, mockLogger.CorrelationID)
+
+	// NextID without correlation ID.
+	var f = func() {
+		m.NextID(context.Background())
+	}
+	assert.Panics(t, f)
+
+	// NextValidID without correlation ID.
+	f = func() {
+		m.NextValidID(context.Background())
+	}
+	assert.Panics(t, f)
+}
+
+func TestModuleLoggingMW(t *testing.T) {
 	var mockLogger = &mockLogger{}
 	var mockFlaki = &mockFlaki{}
 
@@ -19,32 +56,32 @@ func TestLoggingMiddleware(t *testing.T) {
 	var id = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 
-	var srv = New(mockFlaki)
-	srv = MakeLoggingMiddleware(mockLogger)(srv)
+	var m = NewModule(mockFlaki)
+	m = MakeModuleLoggingMW(mockLogger)(m)
 
 	// NextID.
 	mockLogger.Called = false
 	mockLogger.CorrelationID = ""
-	srv.NextID(ctx)
+	m.NextID(ctx)
 	assert.True(t, mockLogger.Called)
 	assert.Equal(t, id, mockLogger.CorrelationID)
 
 	// NextValidID.
 	mockLogger.Called = false
 	mockLogger.CorrelationID = ""
-	srv.NextValidID(ctx)
+	m.NextValidID(ctx)
 	assert.True(t, mockLogger.Called)
 	assert.Equal(t, id, mockLogger.CorrelationID)
 
 	// NextID without correlation ID.
 	var f = func() {
-		srv.NextID(context.Background())
+		m.NextID(context.Background())
 	}
 	assert.Panics(t, f)
 
 	// NextValidID without correlation ID.
 	f = func() {
-		srv.NextValidID(context.Background())
+		m.NextValidID(context.Background())
 	}
 	assert.Panics(t, f)
 }

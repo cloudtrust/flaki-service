@@ -11,12 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestErrorMiddleware(t *testing.T) {
+func TestComponentTrackingMW(t *testing.T) {
 	var mockSentry = &mockSentry{}
 
-	var srv = MakeErrorMiddleware(mockSentry)(&mockFlakiService{
-		fail: true,
-	})
+	var m = MakeComponentTrackingMW(mockSentry)(&mockComponent{fail: true})
 
 	// Context with correlation ID.
 	rand.Seed(time.Now().UnixNano())
@@ -26,19 +24,19 @@ func TestErrorMiddleware(t *testing.T) {
 	// NextID.
 	mockSentry.Called = false
 	mockSentry.CorrelationID = ""
-	srv.NextID(ctx)
+	m.NextID(ctx)
 	assert.True(t, mockSentry.Called)
 	assert.Equal(t, id, mockSentry.CorrelationID)
 
 	// NextValidID never returns an error.
 	mockSentry.Called = false
 	mockSentry.CorrelationID = ""
-	srv.NextValidID(ctx)
+	m.NextValidID(ctx)
 	assert.False(t, mockSentry.Called)
 
 	// NextID without correlation ID.
 	var f = func() {
-		srv.NextID(context.Background())
+		m.NextID(context.Background())
 	}
 	assert.Panics(t, f)
 }

@@ -8,14 +8,52 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	olog "github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTracingMiddleware(t *testing.T) {
+func TestComponentTracingMW(t *testing.T) {
 	var mockSpan = &mockSpan{}
-	var mockTracer = &mockTracer{
-		Span: mockSpan,
+	var mockTracer = &mockTracer{Span: mockSpan}
+	var mockComponent = &mockComponent{}
+
+	// Context with correlation ID and span.
+	rand.Seed(time.Now().UnixNano())
+	var id = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
+
+	var m = MakeComponentTracingMW(mockTracer)(mockComponent)
+
+	// NextID.
+	mockTracer.Called = false
+	mockTracer.Span.CorrelationID = ""
+	m.NextID(ctx)
+	assert.True(t, mockTracer.Called)
+	assert.Equal(t, id, mockTracer.Span.CorrelationID)
+
+	// NextValidID.
+	mockTracer.Called = false
+	mockTracer.Span.CorrelationID = ""
+	m.NextValidID(ctx)
+	assert.True(t, mockTracer.Called)
+	assert.Equal(t, id, mockTracer.Span.CorrelationID)
+
+	// NextID without correlation ID.
+	var f = func() {
+		m.NextID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
 	}
+	assert.Panics(t, f)
+
+	// NextValidID without correlation ID.
+	f = func() {
+		m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
+	}
+	assert.Panics(t, f)
+}
+func TestModuleTracingMW(t *testing.T) {
+	var mockSpan = &mockSpan{}
+	var mockTracer = &mockTracer{Span: mockSpan}
 	var mockFlaki = &mockFlaki{}
 
 	// Context with correlation ID and span.
@@ -24,50 +62,8 @@ func TestTracingMiddleware(t *testing.T) {
 	var ctx = context.WithValue(context.Background(), "correlation_id", id)
 	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
 
-	var srv = New(mockFlaki)
-	srv = MakeTracingMiddleware(mockTracer)(srv)
-
-	// NextID.
-	mockTracer.Called = false
-	mockTracer.Span.CorrelationID = ""
-	srv.NextID(ctx)
-	assert.True(t, mockTracer.Called)
-	assert.Equal(t, id, mockTracer.Span.CorrelationID)
-
-	// NextValidID.
-	mockTracer.Called = false
-	mockTracer.Span.CorrelationID = ""
-	srv.NextValidID(ctx)
-	assert.True(t, mockTracer.Called)
-	assert.Equal(t, id, mockTracer.Span.CorrelationID)
-
-	// NextID without correlation ID.
-	var f = func() {
-		srv.NextID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
-	}
-	assert.Panics(t, f)
-
-	// NextValidID without correlation ID.
-	f = func() {
-		srv.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
-	}
-	assert.Panics(t, f)
-}
-
-func TestTracingMiddleware(t *testing.T) {
-	var mockSpan = &mockSpan{}
-	var mockTracer = &mockTracer{
-		Span: mockSpan,
-	}
-	var mockFlakiService = &mockFlakiService{}
-
-	// Context with correlation ID and span.
-	rand.Seed(time.Now().UnixNano())
-	var id = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", id)
-	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
-
-	var srv = MakeTracingMiddleware(mockTracer)(mockFlakiService)
+	var srv = NewModule(mockFlaki)
+	srv = MakeModuleTracingMW(mockTracer)(srv)
 
 	// NextID.
 	mockTracer.Called = false
@@ -128,7 +124,7 @@ func (s *mockSpan) Finish()                                                     
 func (s *mockSpan) FinishWithOptions(opts opentracing.FinishOptions)            {}
 func (s *mockSpan) Context() opentracing.SpanContext                            { return nil }
 func (s *mockSpan) SetOperationName(operationName string) opentracing.Span      { return s }
-func (s *mockSpan) LogFields(fields ...opentracing_log.Field)                   {}
+func (s *mockSpan) LogFields(fields ...olog.Field)                              {}
 func (s *mockSpan) LogKV(alternatingKeyValues ...interface{})                   {}
 func (s *mockSpan) SetBaggageItem(restrictedKey, value string) opentracing.Span { return s }
 func (s *mockSpan) BaggageItem(restrictedKey string) string                     { return "" }

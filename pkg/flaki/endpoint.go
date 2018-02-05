@@ -23,7 +23,7 @@ func NewEndpoints(mids ...endpoint.Middleware) *Endpoints {
 }
 
 // MakeNextIDEndpoint makes the NextIDEndpoint and apply the middelwares mids and Endpoints.mids.
-func (es *Endpoints) MakeNextIDEndpoint(s flakic.Component, mids ...endpoint.Middleware) *Endpoints {
+func (es *Endpoints) MakeNextIDEndpoint(s Component, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
 		return s.NextID(ctx)
 	}
@@ -33,7 +33,7 @@ func (es *Endpoints) MakeNextIDEndpoint(s flakic.Component, mids ...endpoint.Mid
 }
 
 // MakeNextValidIDEndpoint makes the NextValidIDEndpoint and apply the middelwares mids and Endpoints.mids.
-func (es *Endpoints) MakeNextValidIDEndpoint(s flakic.Component, mids ...endpoint.Middleware) *Endpoints {
+func (es *Endpoints) MakeNextValidIDEndpoint(s Component, mids ...endpoint.Middleware) *Endpoints {
 	var e endpoint.Endpoint = func(ctx context.Context, req interface{}) (interface{}, error) {
 		return s.NextValidID(ctx), nil
 	}
