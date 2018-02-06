@@ -34,17 +34,18 @@ func (s *InfluxHealthModule) HealthChecks(context.Context) []InfluxHealthReport 
 
 func influxPingCheck(influx Influx) InfluxHealthReport {
 	var d, _, err = influx.Ping(time.Duration(5 * time.Second))
+
 	var status = "OK"
-	var e = ""
+	var error = ""
 	if err != nil {
 		status = "KO"
-		e = err.Error()
+		error = err.Error()
 	}
 
 	return InfluxHealthReport{
 		Name:     "ping",
 		Duration: d.String(),
 		Status:   status,
-		Error:    e,
+		Error:    error,
 	}
 }

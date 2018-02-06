@@ -34,7 +34,7 @@ func (s *JaegerHealthModule) HealthChecks(context.Context) []JaegerHealthReport 
 
 func jaegerPingCheck(jaeger Jaeger) JaegerHealthReport {
 	var duration = time.Duration(1 * time.Second)
-	var status = "Not yet implemented"
+	var status = "Not implemented"
 	return JaegerHealthReport{
 		Name:     "ping",
 		Duration: duration.String(),

@@ -12,7 +12,7 @@ type HealthService struct {
 	sentry *SentryHealthModule
 }
 
-// NewHealthService returns the basic service.
+// NewHealthService returns the health service.
 func NewHealthService(influxM *InfluxHealthModule, jaegerM *JaegerHealthModule,
 	redisM *RedisHealthModule, sentryM *SentryHealthModule) *HealthService {
 	return &HealthService{

@@ -21,6 +21,7 @@ type HealthReport struct {
 	Error    string `json:"error,omitempty"`
 }
 
+// MakeHealthChecksHandler makes a HTTP handler for all health checks.
 func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -80,6 +81,7 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 	}
 }
 
+// reportsStatus returs 'OK' if all tests passed.
 func reportsStatus(reports HealthReports) string {
 	for _, r := range reports.Reports {
 		if r.Status != "OK" {
@@ -125,7 +127,7 @@ func MakeSentryHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 	)
 }
 
-// decodeHealthRequest decodes the health check request.
+// decodeHealthCheckRequest decodes the health check request.
 func decodeHealthCheckRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
 	var data []byte
 
@@ -159,10 +161,10 @@ func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, res interf
 	return nil
 }
 
-// healthCheckErrorHandler encodes the flatbuffer flaki reply when there is an error.
+// healthCheckErrorHandler encodes the health check reply when there is an error.
 func healthCheckErrorHandler(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
 
-	w.Write([]byte("TODO"))
+	w.Write([]byte("500 Internal Server Error"))
 }

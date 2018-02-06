@@ -132,7 +132,7 @@ func main() {
 		var err error
 		flakiGen, err = flaki_gen.New(flaki_gen.ComponentID(flakiComponentID), flaki_gen.NodeID(flakiNodeID))
 		if err != nil {
-			logger.Log("msg", "could not create Flaki", "error", err)
+			logger.Log("msg", "could not create Flaki generator", "error", err)
 			return
 		}
 	}
@@ -199,7 +199,7 @@ func main() {
 
 		tracer, closer, err = jaegerConfig.New(componentName)
 		if err != nil {
-			logger.Log("error", err)
+			logger.Log("msg", "could not create Jaeger tracer", "error", err)
 			return
 		}
 		defer closer.Close()
@@ -207,20 +207,18 @@ func main() {
 	}
 
 	// Flaki service.
-	logger = log.With(logger, "svc", "flaki")
-
 	var flakiModule flaki.Module
 	{
 		flakiModule = flaki.NewModule(flakiGen)
 		flakiModule = flaki.MakeModuleInstrumentingMW(influxMetrics.NewCounter("number_id"))(flakiModule)
-		flakiModule = flaki.MakeModuleLoggingMW(log.With(logger, "mw", "module"))(flakiModule)
+		flakiModule = flaki.MakeModuleLoggingMW(log.With(logger, "svc", "flaki", "mw", "module"))(flakiModule)
 		flakiModule = flaki.MakeModuleTracingMW(tracer)(flakiModule)
 	}
 
 	var flakiComponent flaki.Component
 	{
 		flakiComponent = flaki.NewComponent(flakiModule)
-		flakiComponent = flaki.MakeComponentLoggingMW(log.With(logger, "mw", "component"))(flakiComponent)
+		flakiComponent = flaki.MakeComponentLoggingMW(log.With(logger, "svc", "flaki", "mw", "component"))(flakiComponent)
 		flakiComponent = flaki.MakeComponentTracingMW(tracer)(flakiComponent)
 		flakiComponent = flaki.MakeComponentTrackingMW(sentryClient)(flakiComponent)
 
@@ -231,20 +229,18 @@ func main() {
 	flakiEndpoints.MakeNextIDEndpoint(
 		flakiComponent,
 		middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint")),
-		middleware.MakeEndpointLoggingMW(log.With(logger, "mw", "endpoint", "method", "NextID")),
+		middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextID")),
 		middleware.MakeEndpointTracingMW(tracer, "nextid_endpoint"),
 	)
 
 	flakiEndpoints.MakeNextValidIDEndpoint(
 		flakiComponent,
 		middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint")),
-		middleware.MakeEndpointLoggingMW(log.With(logger, "mw", "endpoint", "method", "NextValidID")),
+		middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextValidID")),
 		middleware.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint"),
 	)
 
 	// Health service.
-	logger = log.With(logger, "svc", "health")
-
 	var influxHM = health.NewInfluxHealthModule(influxMetrics)
 	var jaegerHM = health.NewJaegerHealthModule(tracer)
 	var redisHM = health.NewRedisHealthModule(redisConn)
@@ -260,26 +256,26 @@ func main() {
 	healthEndpoints.MakeInfluxHealthCheckEndpoint(
 		healthComponent,
 		middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("influx_health_endpoint")),
-		middleware.MakeEndpointLoggingMW(log.With(logger, "mw", "endpoint", "unit", "influx_health")),
+		middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "influx")),
 		middleware.MakeEndpointTracingMW(tracer, "influx_health_endpoint"),
 	)
 	healthEndpoints.MakeRedisHealthCheckEndpoint(
 		healthComponent,
 		middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("redis_health_endpoint")),
-		middleware.MakeEndpointLoggingMW(log.With(logger, "mw", "endpoint", "unit", "redis_health")),
+		middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "redis")),
 		middleware.MakeEndpointTracingMW(tracer, "redis_health_endpoint"),
 	)
 	healthEndpoints.MakeJaegerHealthCheckEndpoint(
 		healthComponent,
 		middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("jaeger_health_endpoint")),
-		middleware.MakeEndpointLoggingMW(log.With(logger, "mw", "endpoint", "unit", "jaeger_health")),
+		middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "jaeger")),
 		middleware.MakeEndpointTracingMW(tracer, "jaeger_health_endpoint"),
 	)
 	healthEndpoints.MakeSentryHealthCheckEndpoint(
 		healthComponent,
-		middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("redis_health_endpoint")),
-		middleware.MakeEndpointLoggingMW(log.With(logger, "mw", "endpoint", "unit", "jaeger_health")),
-		middleware.MakeEndpointTracingMW(tracer, "jaeger_health_endpoint"),
+		middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("sentry_health_endpoint")),
+		middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "sentry")),
+		middleware.MakeEndpointTracingMW(tracer, "sentry_health_endpoint"),
 	)
 
 	// GRPC server.

@@ -20,7 +20,7 @@ type RedisHealthModule struct {
 	redis Redis
 }
 
-// NewRedisHealthModule returns the influx health module.
+// NewRedisHealthModule returns the redis health module.
 func NewRedisHealthModule(redis Redis) *RedisHealthModule {
 	return &RedisHealthModule{redis: redis}
 }
@@ -38,13 +38,16 @@ func redisPingCheck(redis Redis) RedisHealthReport {
 	var duration = time.Since(now)
 
 	var status = "OK"
+	var error = ""
 	if err != nil {
 		status = "KO"
+		error = err.Error()
 	}
 
 	return RedisHealthReport{
 		Name:     "ping",
 		Duration: duration.String(),
 		Status:   status,
+		Error:    error,
 	}
 }

@@ -46,24 +46,30 @@ func sentryPingCheck(sentry Sentry) SentryHealthReport {
 
 	// Get Sentry health status.
 	var now = time.Now()
-	var status = getSentryStatus(healthURL)
+	var status, err = getSentryStatus(healthURL)
 	var duration = time.Since(now)
+
+	var error = ""
+	if err != nil {
+		error = err.Error()
+	}
 
 	return SentryHealthReport{
 		Name:     "ping",
 		Duration: duration.String(),
 		Status:   status,
+		Error:    error,
 	}
 }
 
-func getSentryStatus(url string) string {
+func getSentryStatus(url string) (string, error) {
 	// Query sentry health endpoint.
 	var res *http.Response
 	{
 		var err error
 		res, err = http.DefaultClient.Get(url)
 		if err != nil {
-			return "KO"
+			return "KO", err
 		}
 		if res != nil {
 			defer res.Body.Close()
@@ -72,7 +78,7 @@ func getSentryStatus(url string) string {
 
 	// Chesk response status.
 	if res.StatusCode != http.StatusOK {
-		return "KO"
+		return "KO", fmt.Errorf("http response status code: %v", res.Status)
 	}
 
 	// Chesk response body. The sentry health endpoint returns "ok" when there is no issue.
@@ -81,13 +87,13 @@ func getSentryStatus(url string) string {
 		var err error
 		response, err = ioutil.ReadAll(res.Body)
 		if err != nil {
-			return "KO"
+			return "KO", err
 		}
 	}
 
 	if strings.Compare(string(response), "ok") == 0 {
-		return "OK"
+		return "OK", nil
 	}
 
-	return "KO"
+	return "KO", fmt.Errorf("response should be 'ok' but is: %v", string(response))
 }
