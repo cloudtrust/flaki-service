@@ -3,7 +3,6 @@ package health
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
@@ -129,14 +128,7 @@ func MakeSentryHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 
 // decodeHealthCheckRequest decodes the health check request.
 func decodeHealthCheckRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
-	var data []byte
-
-	data, err = ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return nil, nil
 }
 
 // encodeHealthCheckReply encodes the health check reply.
