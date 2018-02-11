@@ -25,12 +25,30 @@ func MakeModuleInstrumentingMW(counter metrics.Counter) func(Module) Module {
 
 // moduleInstrumentingMW implements Module.
 func (m *moduleInstrumentingMW) NextID(ctx context.Context) (string, error) {
-	m.counter.With("correlation_id", ctx.Value("correlation_id").(string)).Add(1)
-	return m.next.NextID(ctx)
+	var id, err = m.next.NextID(ctx)
+
+	// If there is no correlation ID, use the newly generated ID.
+	var corrID = id
+	if ctx.Value("correlation_id") != nil {
+		corrID = ctx.Value("correlation_id").(string)
+	}
+
+	m.counter.With("correlation_id", corrID).Add(1)
+
+	return id, err
 }
 
 // moduleInstrumentingMW implements Module.
 func (m *moduleInstrumentingMW) NextValidID(ctx context.Context) string {
-	m.counter.With("correlation_id", ctx.Value("correlation_id").(string)).Add(1)
-	return m.next.NextValidID(ctx)
+	var id = m.next.NextValidID(ctx)
+
+	// If there is no correlation ID, use the newly generated ID.
+	var corrID = id
+	if ctx.Value("correlation_id") != nil {
+		corrID = ctx.Value("correlation_id").(string)
+	}
+
+	m.counter.With("correlation_id", corrID).Add(1)
+
+	return id
 }

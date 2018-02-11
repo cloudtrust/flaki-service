@@ -64,7 +64,7 @@ LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.Environment=${ENV}"
 
 #export CGO_ENABLED="0"
 
-go build -ldflags "$LD_FLAGS" -o ../bin/flaki_service
+go build -ldflags "$LD_FLAGS" -o ../bin/flakid
 echo "Build commit '${GIT_COMMIT}' for '${ENV}' environment."
 ls -hl ../bin/
 

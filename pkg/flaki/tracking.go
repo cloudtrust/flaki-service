@@ -31,7 +31,11 @@ func MakeComponentTrackingMW(client Sentry) func(Component) Component {
 func (m *trackingComponentMW) NextID(ctx context.Context) (string, error) {
 	var id, err = m.next.NextID(ctx)
 	if err != nil {
-		m.client.CaptureError(err, map[string]string{"correlation_id": ctx.Value("correlation_id").(string)})
+		var tags = map[string]string{}
+		if id := ctx.Value("correlation_id"); id != nil {
+			tags["correlation_id"] = id.(string)
+		}
+		m.client.CaptureError(err, tags)
 	}
 	return id, err
 }

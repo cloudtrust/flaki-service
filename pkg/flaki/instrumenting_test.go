@@ -12,59 +12,62 @@ import (
 )
 
 func TestInstrumentingMW(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockModule = &mockModule{fail: false, id: flakiID}
 	var mockCounter = &mockCounter{}
-	var mockFlaki = &mockFlaki{}
 
 	// Context with correlation ID.
-	rand.Seed(time.Now().UnixNano())
-	var id = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 
-	var m = NewModule(mockFlaki)
-	m = MakeModuleInstrumentingMW(mockCounter)(m)
+	var m = MakeModuleInstrumentingMW(mockCounter)(mockModule)
 
 	// NextID.
-	mockCounter.Called = false
-	mockCounter.CorrelationID = ""
+	mockCounter.called = false
+	mockCounter.correlationID = ""
 	m.NextID(ctx)
-	assert.True(t, mockCounter.Called)
-	assert.Equal(t, id, mockCounter.CorrelationID)
+	assert.True(t, mockCounter.called)
+	assert.Equal(t, corrID, mockCounter.correlationID)
 
 	// NextValidID.
-	mockCounter.Called = false
-	mockCounter.CorrelationID = ""
+	mockCounter.called = false
+	mockCounter.correlationID = ""
 	m.NextValidID(ctx)
-	assert.True(t, mockCounter.Called)
-	assert.Equal(t, id, mockCounter.CorrelationID)
+	assert.True(t, mockCounter.called)
+	assert.Equal(t, corrID, mockCounter.correlationID)
 
 	// NextID without correlation ID.
-	var f = func() {
-		m.NextID(context.Background())
-	}
-	assert.Panics(t, f)
+	mockCounter.called = false
+	mockCounter.correlationID = ""
+	m.NextID(context.Background())
+	assert.True(t, mockCounter.called)
+	assert.Equal(t, flakiID, mockCounter.correlationID)
 
 	// NextValidID without correlation ID.
-	f = func() {
-		m.NextValidID(context.Background())
-	}
-	assert.Panics(t, f)
+	mockCounter.called = false
+	mockCounter.correlationID = ""
+	m.NextValidID(context.Background())
+	assert.True(t, mockCounter.called)
+	assert.Equal(t, flakiID, mockCounter.correlationID)
 }
 
 // Mock counter.
 type mockCounter struct {
-	Called        bool
-	CorrelationID string
+	called        bool
+	correlationID string
 }
 
-func (h *mockCounter) With(labelValues ...string) metrics.Counter {
+func (c *mockCounter) With(labelValues ...string) metrics.Counter {
 	for i, kv := range labelValues {
 		if kv == "correlation_id" {
-			h.CorrelationID = labelValues[i+1]
+			c.correlationID = labelValues[i+1]
 		}
 	}
-	return h
+	return c
 }
 
-func (h *mockCounter) Add(delta float64) {
-	h.Called = true
+func (c *mockCounter) Add(delta float64) {
+	c.called = true
 }

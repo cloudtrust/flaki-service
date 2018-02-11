@@ -13,14 +13,12 @@ import (
 
 func TestNextID(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
+
 	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockFlaki = &mockFlaki{fail: false, id: expectedID}
+	var m = NewModule(mockFlaki)
 
-	var flakiService = NewModule(&mockFlaki{
-		id:   expectedID,
-		fail: false,
-	})
-
-	var id, err = flakiService.NextID(context.Background())
+	var id, err = m.NextID(context.Background())
 	assert.Nil(t, err)
 	assert.Equal(t, expectedID, id)
 }
@@ -28,27 +26,25 @@ func TestNextID(t *testing.T) {
 func TestNextIDFail(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
-	var flakiService = NewModule(&mockFlaki{
-		id:   strconv.FormatUint(rand.Uint64(), 10),
-		fail: true,
-	})
+	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockFlaki = &mockFlaki{fail: true, id: expectedID}
+	var m = NewModule(mockFlaki)
 
 	// When an error is returned, the id is the zero string.
-	var id, err = flakiService.NextID(context.Background())
+	var id, err = m.NextID(context.Background())
 	assert.NotNil(t, err)
 	assert.Zero(t, id)
 }
 
 func TestNextValidID(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	var expected = strconv.FormatUint(rand.Uint64(), 10)
 
-	var flakiService = NewModule(&mockFlaki{
-		id: expected,
-	})
+	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockFlaki = &mockFlaki{id: expectedID}
+	var m = NewModule(mockFlaki)
 
-	var id = flakiService.NextValidID(context.Background())
-	assert.Equal(t, expected, id)
+	var id = m.NextValidID(context.Background())
+	assert.Equal(t, expectedID, id)
 }
 
 // Mock Flaki.
@@ -66,4 +62,25 @@ func (f *mockFlaki) NextIDString() (string, error) {
 
 func (f *mockFlaki) NextValidIDString() string {
 	return f.id
+}
+
+// Mock Flaki module.
+type mockModule struct {
+	id                string
+	fail              bool
+	nextIDCalled      bool
+	nextValidIDCalled bool
+}
+
+func (m *mockModule) NextID(context.Context) (string, error) {
+	m.nextIDCalled = true
+	if m.fail {
+		return "", fmt.Errorf("fail")
+	}
+	return m.id, nil
+}
+
+func (m *mockModule) NextValidID(context.Context) string {
+	m.nextValidIDCalled = true
+	return m.id
 }

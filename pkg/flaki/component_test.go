@@ -13,25 +13,22 @@ import (
 
 func TestNewBasicService(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	var mockModule = &mockModule{}
 
-	var srv = NewComponent(mockModule)
-
-	// NextID
 	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	mockModule.id = expectedID
+	var mockModule = &mockModule{fail: false, id: expectedID}
+	var c = NewComponent(mockModule)
+
+	// NextID.
 	mockModule.nextIDCalled = false
-	mockModule.fail = false
-	var id, err = srv.NextID(context.Background())
+	var id, err = c.NextID(context.Background())
 	assert.Nil(t, err)
 	assert.Equal(t, expectedID, id)
 	assert.True(t, mockModule.nextIDCalled)
 
 	// NextID error.
-	mockModule.id = strconv.FormatUint(rand.Uint64(), 10)
 	mockModule.nextIDCalled = false
 	mockModule.fail = true
-	id, err = srv.NextID(context.Background())
+	id, err = c.NextID(context.Background())
 	assert.NotNil(t, err)
 	assert.Zero(t, id)
 	assert.True(t, mockModule.nextIDCalled)
@@ -40,28 +37,28 @@ func TestNewBasicService(t *testing.T) {
 	expectedID = strconv.FormatUint(rand.Uint64(), 10)
 	mockModule.id = expectedID
 	mockModule.nextValidIDCalled = false
-	id = srv.NextValidID(context.Background())
+	id = c.NextValidID(context.Background())
 	assert.Equal(t, expectedID, id)
 	assert.True(t, mockModule.nextValidIDCalled)
 }
 
-// Mock Flaki module.
-type mockModule struct {
+// Mock component.
+type mockComponent struct {
 	id                string
+	fail              bool
 	nextIDCalled      bool
 	nextValidIDCalled bool
-	fail              bool
 }
 
-func (m *mockModule) NextID(context.Context) (string, error) {
-	m.nextIDCalled = true
-	if m.fail {
+func (c *mockComponent) NextID(context.Context) (string, error) {
+	c.nextIDCalled = true
+	if c.fail {
 		return "", fmt.Errorf("fail")
 	}
-	return m.id, nil
+	return c.id, nil
 }
 
-func (m *mockModule) NextValidID(context.Context) string {
-	m.nextValidIDCalled = true
-	return m.id
+func (c *mockComponent) NextValidID(context.Context) string {
+	c.nextValidIDCalled = true
+	return c.id
 }

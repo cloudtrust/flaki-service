@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -224,25 +225,26 @@ func main() {
 
 	}
 
-	var flakiEndpoints = flaki.NewEndpoints(middleware.MakeEndpointCorrelationIDMW(flakiGen))
+	var nextIDEndpoint = flaki.MakeNextIDEndpoint(flakiComponent)
 	{
-		flakiEndpoints.MakeNextIDEndpoint(
-			flakiComponent,
-			middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint")),
-			middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextID")),
-			middleware.MakeEndpointTracingMW(tracer, "nextid_endpoint"),
-		)
+		nextIDEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint"))(nextIDEndpoint)
+		nextIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextID"))(nextIDEndpoint)
+		nextIDEndpoint = middleware.MakeEndpointTracingMW(tracer, "nextid_endpoint")(nextIDEndpoint)
+	}
 
-		flakiEndpoints.MakeNextValidIDEndpoint(
-			flakiComponent,
-			middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint")),
-			middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextValidID")),
-			middleware.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint"),
-		)
+	var nextValidIDEndpoint = flaki.MakeNextValidIDEndpoint(flakiComponent)
+	{
+		nextValidIDEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint"))(nextValidIDEndpoint)
+		nextValidIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextValidID"))(nextValidIDEndpoint)
+		nextValidIDEndpoint = middleware.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint")(nextValidIDEndpoint)
+	}
+
+	var flakiEndpoints = flaki.Endpoints{
+		NextIDEndpoint:      nextValidIDEndpoint,
+		NextValidIDEndpoint: nextValidIDEndpoint,
 	}
 
 	// Health service.
-
 	var healthComponent *health.HealthService
 	{
 		var influxHM = health.NewInfluxHealthModule(influxMetrics)
@@ -253,7 +255,7 @@ func main() {
 		healthComponent = health.NewHealthService(influxHM, jaegerHM, redisHM, sentryHM)
 	}
 
-	var healthEndpoints = health.NewEndpoints(middleware.MakeEndpointCorrelationIDMW(flakiGen))
+	var healthEndpoints = health.NewEndpoints()
 	{
 		healthEndpoints.MakeInfluxHealthCheckEndpoint(
 			healthComponent,
@@ -342,7 +344,7 @@ func main() {
 		route.Handle("/nextvalidid", nextValidIDHandler)
 
 		// Version.
-		route.Handle("/", http.HandlerFunc(flaki.MakeVersion(componentName, Version, Environment, GitCommit)))
+		route.Handle("/", http.HandlerFunc(MakeVersion(componentName, Version, Environment, GitCommit)))
 
 		// Health checks.
 		var healthSubroute = route.PathPrefix("/health").Subrouter()
@@ -395,12 +397,40 @@ func main() {
 	logger.Log("error", <-errc)
 }
 
-func config(logger log.Logger) map[string]interface{} {
+type info struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Env     string `json:"environment"`
+	Commit  string `json:"commit"`
+}
 
+// MakeVersion makes a HTTP handler that returns information about the version of the service.
+func MakeVersion(componentName, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		var infos = info{
+			Name:    componentName,
+			Version: version,
+			Env:     environment,
+			Commit:  gitCommit,
+		}
+
+		var j, err = json.Marshal(infos)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+			w.Write(j)
+		}
+	}
+}
+
+func config(logger log.Logger) map[string]interface{} {
 	logger.Log("msg", "load configuration and command args")
 
 	// Component default.
-	viper.SetDefault("config-file", "./conf/DEV/flaki_service.yml")
+	viper.SetDefault("config-file", "./conf/DEV/flakid.yml")
 	viper.SetDefault("component-name", "flaki-service")
 	viper.SetDefault("component-http-address", "0.0.0.0:8888")
 	viper.SetDefault("component-grpc-address", "0.0.0.0:5555")

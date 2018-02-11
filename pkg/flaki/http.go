@@ -2,7 +2,6 @@ package flaki
 
 import (
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -30,35 +29,6 @@ func MakeHTTPNextValidIDHandler(e endpoint.Endpoint) *http_transport.Server {
 		http_transport.ServerErrorEncoder(httpErrorHandler),
 		http_transport.ServerBefore(fetchHTTPCorrelationID),
 	)
-}
-
-type info struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	Env     string `json:"environment"`
-	Commit  string `json:"commit"`
-}
-
-// MakeVersion makes a HTTP handler that returns information about the version of the service.
-func MakeVersion(componentName, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		var infos = info{
-			Name:    componentName,
-			Version: version,
-			Env:     environment,
-			Commit:  gitCommit,
-		}
-
-		var j, err = json.Marshal(infos)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusOK)
-			w.Write(j)
-		}
-	}
 }
 
 // fetchHTTPCorrelationID reads the correlation id from the http header "X-Correlation-ID".

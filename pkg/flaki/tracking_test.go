@@ -12,43 +12,46 @@ import (
 )
 
 func TestComponentTrackingMW(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var mockComponent = &mockComponent{fail: true}
 	var mockSentry = &mockSentry{}
 
-	var m = MakeComponentTrackingMW(mockSentry)(&mockComponent{fail: true})
-
 	// Context with correlation ID.
-	rand.Seed(time.Now().UnixNano())
-	var id = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+
+	var m = MakeComponentTrackingMW(mockSentry)(mockComponent)
 
 	// NextID.
-	mockSentry.Called = false
-	mockSentry.CorrelationID = ""
+	mockSentry.called = false
+	mockSentry.correlationID = ""
 	m.NextID(ctx)
-	assert.True(t, mockSentry.Called)
-	assert.Equal(t, id, mockSentry.CorrelationID)
+	assert.True(t, mockSentry.called)
+	assert.Equal(t, corrID, mockSentry.correlationID)
 
 	// NextValidID never returns an error.
-	mockSentry.Called = false
-	mockSentry.CorrelationID = ""
+	mockSentry.called = false
+	mockSentry.correlationID = ""
 	m.NextValidID(ctx)
-	assert.False(t, mockSentry.Called)
+	assert.False(t, mockSentry.called)
 
 	// NextID without correlation ID.
-	var f = func() {
-		m.NextID(context.Background())
-	}
-	assert.Panics(t, f)
+	mockSentry.called = false
+	mockSentry.correlationID = ""
+	m.NextID(context.Background())
+	assert.True(t, mockSentry.called)
+	assert.Zero(t, mockSentry.correlationID)
 }
 
 // Mock Sentry.
 type mockSentry struct {
-	Called        bool
-	CorrelationID string
+	called        bool
+	correlationID string
 }
 
 func (client *mockSentry) CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string {
-	client.Called = true
-	client.CorrelationID = tags["correlation_id"]
+	client.called = true
+	client.correlationID = tags["correlation_id"]
 	return ""
 }

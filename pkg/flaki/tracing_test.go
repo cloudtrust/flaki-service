@@ -13,94 +13,101 @@ import (
 )
 
 func TestComponentTracingMW(t *testing.T) {
-	var mockSpan = &mockSpan{}
-	var mockTracer = &mockTracer{Span: mockSpan}
-	var mockComponent = &mockComponent{}
-
-	// Context with correlation ID and span.
 	rand.Seed(time.Now().UnixNano())
-	var id = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockComponent = &mockComponent{fail: false, id: flakiID}
+	var mockSpan = &mockSpan{}
+	var mockTracer = &mockTracer{span: mockSpan}
+
+	// Context with correlation ID.
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
 
 	var m = MakeComponentTracingMW(mockTracer)(mockComponent)
 
 	// NextID.
-	mockTracer.Called = false
-	mockTracer.Span.CorrelationID = ""
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
 	m.NextID(ctx)
-	assert.True(t, mockTracer.Called)
-	assert.Equal(t, id, mockTracer.Span.CorrelationID)
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, corrID, mockTracer.span.correlationID)
 
 	// NextValidID.
-	mockTracer.Called = false
-	mockTracer.Span.CorrelationID = ""
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
 	m.NextValidID(ctx)
-	assert.True(t, mockTracer.Called)
-	assert.Equal(t, id, mockTracer.Span.CorrelationID)
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, corrID, mockTracer.span.correlationID)
 
 	// NextID without correlation ID.
-	var f = func() {
-		m.NextID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
-	}
-	assert.Panics(t, f)
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
+	m.NextID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, flakiID, mockTracer.span.correlationID)
 
 	// NextValidID without correlation ID.
-	f = func() {
-		m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
-	}
-	assert.Panics(t, f)
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
+	m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, flakiID, mockTracer.span.correlationID)
 }
 func TestModuleTracingMW(t *testing.T) {
-	var mockSpan = &mockSpan{}
-	var mockTracer = &mockTracer{Span: mockSpan}
-	var mockFlaki = &mockFlaki{}
-
-	// Context with correlation ID and span.
 	rand.Seed(time.Now().UnixNano())
-	var id = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockModule = &mockModule{fail: false, id: flakiID}
+	var mockSpan = &mockSpan{}
+	var mockTracer = &mockTracer{span: mockSpan}
+
+	// Context with correlation ID.
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
 
-	var srv = NewModule(mockFlaki)
-	srv = MakeModuleTracingMW(mockTracer)(srv)
+	var m = MakeModuleTracingMW(mockTracer)(mockModule)
 
 	// NextID.
-	mockTracer.Called = false
-	mockTracer.Span.CorrelationID = ""
-	srv.NextID(ctx)
-	assert.True(t, mockTracer.Called)
-	assert.Equal(t, id, mockTracer.Span.CorrelationID)
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
+	m.NextID(ctx)
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, corrID, mockTracer.span.correlationID)
 
 	// NextValidID.
-	mockTracer.Called = false
-	mockTracer.Span.CorrelationID = ""
-	srv.NextValidID(ctx)
-	assert.True(t, mockTracer.Called)
-	assert.Equal(t, id, mockTracer.Span.CorrelationID)
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
+	m.NextValidID(ctx)
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, corrID, mockTracer.span.correlationID)
 
 	// NextID without correlation ID.
-	var f = func() {
-		srv.NextID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
-	}
-	assert.Panics(t, f)
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
+	m.NextID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, flakiID, mockTracer.span.correlationID)
 
 	// NextValidID without correlation ID.
-	f = func() {
-		srv.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
-	}
-	assert.Panics(t, f)
+	mockTracer.called = false
+	mockTracer.span.correlationID = ""
+	m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
+	assert.True(t, mockTracer.called)
+	assert.Equal(t, flakiID, mockTracer.span.correlationID)
 }
 
 // Mock Tracer.
 type mockTracer struct {
-	Called bool
-	Span   *mockSpan
+	called bool
+	span   *mockSpan
 }
 
 func (t *mockTracer) StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
-	t.Called = true
-	return t.Span
+	t.called = true
+	return t.span
 }
 func (t *mockTracer) Inject(sm opentracing.SpanContext, format interface{}, carrier interface{}) error {
 	return nil
@@ -111,12 +118,12 @@ func (t *mockTracer) Extract(format interface{}, carrier interface{}) (opentraci
 
 // Mock Span.
 type mockSpan struct {
-	CorrelationID string
+	correlationID string
 }
 
 func (s *mockSpan) SetTag(key string, value interface{}) opentracing.Span {
 	if key == "correlation_id" {
-		s.CorrelationID = value.(string)
+		s.correlationID = value.(string)
 	}
 	return s
 }

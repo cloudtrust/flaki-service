@@ -25,18 +25,34 @@ func MakeComponentLoggingMW(log log.Logger) func(Component) Component {
 
 // componentLoggingMW implements Component.
 func (m *componentLoggingMW) NextID(ctx context.Context) (string, error) {
-	defer func(begin time.Time) {
-		m.logger.Log("method", "NextID", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
-	}(time.Now())
-	return m.next.NextID(ctx)
+	var begin = time.Now()
+	var id, err = m.next.NextID(ctx)
+
+	// If there is no correlation ID, use the newly generated ID.
+	var corrID = id
+	if ctx.Value("correlation_id") != nil {
+		corrID = ctx.Value("correlation_id").(string)
+	}
+
+	m.logger.Log("method", "NextID", "correlation_id", corrID, "took", time.Since(begin))
+
+	return id, err
 }
 
 // componentLoggingMW implements Component.
 func (m *componentLoggingMW) NextValidID(ctx context.Context) string {
-	defer func(begin time.Time) {
-		m.logger.Log("method", "NextValidID", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
-	}(time.Now())
-	return m.next.NextValidID(ctx)
+	var begin = time.Now()
+	var id = m.next.NextValidID(ctx)
+
+	// If there is no correlation ID, use the newly generated ID.
+	var corrID = id
+	if ctx.Value("correlation_id") != nil {
+		corrID = ctx.Value("correlation_id").(string)
+	}
+
+	m.logger.Log("method", "NextValidID", "correlation_id", corrID, "took", time.Since(begin))
+
+	return id
 }
 
 // Logging middleware at module level.
@@ -57,16 +73,32 @@ func MakeModuleLoggingMW(log log.Logger) func(Module) Module {
 
 // moduleLoggingMW implements Module.
 func (m *moduleLoggingMW) NextID(ctx context.Context) (string, error) {
-	defer func(begin time.Time) {
-		m.logger.Log("method", "NextID", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
-	}(time.Now())
-	return m.next.NextID(ctx)
+	var begin = time.Now()
+	var id, err = m.next.NextID(ctx)
+
+	// If there is no correlation ID, use the newly generated ID.
+	var corrID = id
+	if ctx.Value("correlation_id") != nil {
+		corrID = ctx.Value("correlation_id").(string)
+	}
+
+	m.logger.Log("method", "NextID", "correlation_id", corrID, "took", time.Since(begin))
+
+	return id, err
 }
 
 // moduleLoggingMW implements Module.
 func (m *moduleLoggingMW) NextValidID(ctx context.Context) string {
-	defer func(begin time.Time) {
-		m.logger.Log("method", "NextValidID", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
-	}(time.Now())
-	return m.next.NextValidID(ctx)
+	var begin = time.Now()
+	var id = m.next.NextValidID(ctx)
+
+	// If there is no correlation ID, use the newly generated ID.
+	var corrID = id
+	if ctx.Value("correlation_id") != nil {
+		corrID = ctx.Value("correlation_id").(string)
+	}
+
+	m.logger.Log("method", "NextValidID", "correlation_id", corrID, "took", time.Since(begin))
+
+	return id
 }

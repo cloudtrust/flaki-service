@@ -4,28 +4,42 @@ import (
 	"context"
 )
 
-// HealthService contains the health checks.
-type HealthService struct {
-	influx *InfluxHealthModule
-	jaeger *JaegerHealthModule
-	redis  *RedisHealthModule
-	sentry *SentryHealthModule
+const (
+	OK = iota + 1
+	KO
+	DEGRADED
+	DEACTIVATED
+)
+
+// Component is the health component interface.
+type Component interface {
+	InfluxHealthChecks(context.Context) HealthReports
+	JaegerHealthChecks(context.Context) HealthReports
+	RedisHealthChecks(context.Context) HealthReports
+	SentryHealthChecks(context.Context) HealthReports
 }
 
-// NewHealthService returns the health service.
-func NewHealthService(influxM *InfluxHealthModule, jaegerM *JaegerHealthModule,
-	redisM *RedisHealthModule, sentryM *SentryHealthModule) *HealthService {
-	return &HealthService{
-		influx: influxM,
-		jaeger: jaegerM,
-		redis:  redisM,
-		sentry: sentryM,
+// Component is the Health component.
+type component struct {
+	influx InfluxModule
+	jaeger JaegerModule
+	redis  RedisModule
+	sentry SentryModule
+}
+
+// NewComponent returns the health component.
+func NewComponent(influx InfluxModule, jaeger JaegerModule, redis RedisModule, sentry SentryModule) Component {
+	return &component{
+		influx: influx,
+		jaeger: jaeger,
+		redis:  redis,
+		sentry: sentry,
 	}
 }
 
 // InfluxHealthChecks uses the health component to test the Influx health.
-func (s *HealthService) InfluxHealthChecks(ctx context.Context) HealthReports {
-	var reports = s.influx.HealthChecks(ctx)
+func (c *component) InfluxHealthChecks(ctx context.Context) HealthReports {
+	var reports = c.influx.HealthChecks(ctx)
 	var hr = HealthReports{}
 	for _, r := range reports {
 		hr.Reports = append(hr.Reports, HealthReport(r))
@@ -34,8 +48,8 @@ func (s *HealthService) InfluxHealthChecks(ctx context.Context) HealthReports {
 }
 
 // JaegerHealthChecks uses the health component to test the Jaeger health.
-func (s *HealthService) JaegerHealthChecks(ctx context.Context) HealthReports {
-	var reports = s.jaeger.HealthChecks(ctx)
+func (c *component) JaegerHealthChecks(ctx context.Context) HealthReports {
+	var reports = c.jaeger.HealthChecks(ctx)
 	var hr = HealthReports{}
 	for _, r := range reports {
 		hr.Reports = append(hr.Reports, HealthReport(r))
@@ -44,8 +58,8 @@ func (s *HealthService) JaegerHealthChecks(ctx context.Context) HealthReports {
 }
 
 // RedisHealthChecks uses the health component to test the Redis health.
-func (s *HealthService) RedisHealthChecks(ctx context.Context) HealthReports {
-	var reports = s.redis.HealthChecks(ctx)
+func (c *component) RedisHealthChecks(ctx context.Context) HealthReports {
+	var reports = c.redis.HealthChecks(ctx)
 	var hr = HealthReports{}
 	for _, r := range reports {
 		hr.Reports = append(hr.Reports, HealthReport(r))
@@ -54,8 +68,8 @@ func (s *HealthService) RedisHealthChecks(ctx context.Context) HealthReports {
 }
 
 // SentryHealthChecks uses the health component to test the Sentry health.
-func (s *HealthService) SentryHealthChecks(ctx context.Context) HealthReports {
-	var reports = s.sentry.HealthChecks(ctx)
+func (c *component) SentryHealthChecks(ctx context.Context) HealthReports {
+	var reports = c.sentry.HealthChecks(ctx)
 	var hr = HealthReports{}
 	for _, r := range reports {
 		hr.Reports = append(hr.Reports, HealthReport(r))

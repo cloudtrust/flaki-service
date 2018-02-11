@@ -2,7 +2,6 @@ package flaki
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -11,48 +10,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewEndpoints(t *testing.T) {
-	// Context with correlation ID.
+func TestNextIDEndpoint(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	var ctx = context.WithValue(context.Background(), "correlation_id", 0)
 
-	var endpoints = NewEndpoints()
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockComponent = &mockComponent{fail: false, id: flakiID}
+
+	// Context with correlation ID.
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+
+	var e = MakeNextIDEndpoint(mockComponent)
 
 	// NextID.
-	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	endpoints = endpoints.MakeNextIDEndpoint(&mockComponent{
-		id:   expectedID,
-		fail: false,
-	},
-	)
-	var id, err = endpoints.NextID(ctx)
+	var id, err = e(ctx, nil)
 	assert.Nil(t, err)
-	assert.Equal(t, expectedID, id)
+	assert.Equal(t, flakiID, id)
+}
+
+func TestNextValidIDEndpoint(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockComponent = &mockComponent{id: flakiID}
+
+	// Context with correlation ID.
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+
+	var e = MakeNextValidIDEndpoint(mockComponent)
 
 	// NextValidID.
-	expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	endpoints = endpoints.MakeNextValidIDEndpoint(&mockComponent{
-		id:   expectedID,
-		fail: false,
-	},
-	)
-	id = endpoints.NextValidID(ctx)
-	assert.Equal(t, expectedID, id)
-}
-
-// Mock component.
-type mockComponent struct {
-	id   string
-	fail bool
-}
-
-func (s *mockComponent) NextID(context.Context) (string, error) {
-	if s.fail {
-		return "", fmt.Errorf("fail")
-	}
-	return s.id, nil
-}
-
-func (s *mockComponent) NextValidID(context.Context) string {
-	return s.id
+	var id, err = e(ctx, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, flakiID, id)
 }

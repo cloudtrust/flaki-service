@@ -11,93 +11,101 @@ import (
 )
 
 func TestComponentLoggingMW(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockComponent = &mockComponent{fail: false, id: flakiID}
 	var mockLogger = &mockLogger{}
 
-	var m = MakeComponentLoggingMW(mockLogger)(&mockModule{fail: false})
-
 	// Context with correlation ID.
-	rand.Seed(time.Now().UnixNano())
-	var id = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+
+	var m = MakeComponentLoggingMW(mockLogger)(mockComponent)
 
 	// NextID.
-	mockLogger.Called = false
-	mockLogger.CorrelationID = ""
+	mockLogger.called = false
+	mockLogger.correlationID = ""
 	m.NextID(ctx)
-	assert.True(t, mockLogger.Called)
-	assert.Equal(t, id, mockLogger.CorrelationID)
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, corrID, mockLogger.correlationID)
 
 	// NextValidID.
-	mockLogger.Called = false
-	mockLogger.CorrelationID = ""
+	mockLogger.called = false
+	mockLogger.correlationID = ""
 	m.NextValidID(ctx)
-	assert.True(t, mockLogger.Called)
-	assert.Equal(t, id, mockLogger.CorrelationID)
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, corrID, mockLogger.correlationID)
 
 	// NextID without correlation ID.
-	var f = func() {
-		m.NextID(context.Background())
-	}
-	assert.Panics(t, f)
+	mockLogger.called = false
+	mockLogger.correlationID = ""
+	m.NextID(context.Background())
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, flakiID, mockLogger.correlationID)
 
 	// NextValidID without correlation ID.
-	f = func() {
-		m.NextValidID(context.Background())
-	}
-	assert.Panics(t, f)
+	mockLogger.called = false
+	mockLogger.correlationID = ""
+	m.NextValidID(context.Background())
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, flakiID, mockLogger.correlationID)
 }
 
 func TestModuleLoggingMW(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockModule = &mockModule{fail: false, id: flakiID}
 	var mockLogger = &mockLogger{}
-	var mockFlaki = &mockFlaki{}
 
 	// Context with correlation ID.
-	rand.Seed(time.Now().UnixNano())
-	var id = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", id)
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 
-	var m = NewModule(mockFlaki)
-	m = MakeModuleLoggingMW(mockLogger)(m)
+	var m = MakeModuleLoggingMW(mockLogger)(mockModule)
 
 	// NextID.
-	mockLogger.Called = false
-	mockLogger.CorrelationID = ""
+	mockLogger.called = false
+	mockLogger.correlationID = ""
 	m.NextID(ctx)
-	assert.True(t, mockLogger.Called)
-	assert.Equal(t, id, mockLogger.CorrelationID)
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, corrID, mockLogger.correlationID)
 
 	// NextValidID.
-	mockLogger.Called = false
-	mockLogger.CorrelationID = ""
+	mockLogger.called = false
+	mockLogger.correlationID = ""
 	m.NextValidID(ctx)
-	assert.True(t, mockLogger.Called)
-	assert.Equal(t, id, mockLogger.CorrelationID)
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, corrID, mockLogger.correlationID)
 
 	// NextID without correlation ID.
-	var f = func() {
-		m.NextID(context.Background())
-	}
-	assert.Panics(t, f)
+	mockLogger.called = false
+	mockLogger.correlationID = ""
+	m.NextID(context.Background())
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, flakiID, mockLogger.correlationID)
 
 	// NextValidID without correlation ID.
-	f = func() {
-		m.NextValidID(context.Background())
-	}
-	assert.Panics(t, f)
+	mockLogger.called = false
+	mockLogger.correlationID = ""
+	m.NextValidID(context.Background())
+	assert.True(t, mockLogger.called)
+	assert.Equal(t, flakiID, mockLogger.correlationID)
 }
 
 // Mock Logger.
 type mockLogger struct {
-	Called        bool
-	CorrelationID string
+	called        bool
+	correlationID string
 }
 
 func (l *mockLogger) Log(keyvals ...interface{}) error {
-	l.Called = true
+	l.called = true
 
 	for i, kv := range keyvals {
 		if kv == "correlation_id" {
-			l.CorrelationID = keyvals[i+1].(string)
+			l.correlationID = keyvals[i+1].(string)
 		}
 	}
 	return nil

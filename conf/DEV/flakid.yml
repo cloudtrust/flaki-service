@@ -7,12 +7,11 @@ component-grpc-address: 0.0.0.0:5555
 flaki-node-id: 0
 flaki-component-id: 0
 
-# Redis
+# Redis configs
 redis-url: 127.0.0.1:6379
 redis-password: redis
 redis-database: 0
 redis-write-interval-ms: 1000
-
 
 # Influx DB configs
 influx-url: 127.0.0.1:8086

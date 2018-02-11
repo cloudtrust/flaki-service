@@ -9,10 +9,14 @@ import (
 	"time"
 )
 
+type SentryModule interface {
+	HealthChecks(context.Context) []SentryHealthReport
+}
+
 type SentryHealthReport struct {
 	Name     string
 	Duration string
-	Status   string
+	Status   int
 	Error    string
 }
 
@@ -20,19 +24,19 @@ type Sentry interface {
 	URL() string
 }
 
-type SentryHealthModule struct {
+type sentryModule struct {
 	sentry Sentry
 }
 
-// NewSentryHealthModule returns the sentry health module.
-func NewSentryHealthModule(sentry Sentry) *SentryHealthModule {
-	return &SentryHealthModule{sentry: sentry}
+// NewSentryModule returns the sentry health module.
+func NewSentryModule(sentry Sentry) SentryModule {
+	return &sentryModule{sentry: sentry}
 }
 
 // HealthChecks executes all health checks for Sentry.
-func (s *SentryHealthModule) HealthChecks(context.Context) []SentryHealthReport {
+func (m *sentryModule) HealthChecks(context.Context) []SentryHealthReport {
 	var reports = []SentryHealthReport{}
-	reports = append(reports, sentryPingCheck(s.sentry))
+	reports = append(reports, sentryPingCheck(m.sentry))
 	return reports
 }
 
@@ -62,14 +66,14 @@ func sentryPingCheck(sentry Sentry) SentryHealthReport {
 	}
 }
 
-func getSentryStatus(url string) (string, error) {
+func getSentryStatus(url string) (int, error) {
 	// Query sentry health endpoint.
 	var res *http.Response
 	{
 		var err error
 		res, err = http.DefaultClient.Get(url)
 		if err != nil {
-			return "KO", err
+			return KO, err
 		}
 		if res != nil {
 			defer res.Body.Close()
@@ -78,7 +82,7 @@ func getSentryStatus(url string) (string, error) {
 
 	// Chesk response status.
 	if res.StatusCode != http.StatusOK {
-		return "KO", fmt.Errorf("http response status code: %v", res.Status)
+		return KO, fmt.Errorf("http response status code: %v", res.Status)
 	}
 
 	// Chesk response body. The sentry health endpoint returns "ok" when there is no issue.
@@ -87,13 +91,13 @@ func getSentryStatus(url string) (string, error) {
 		var err error
 		response, err = ioutil.ReadAll(res.Body)
 		if err != nil {
-			return "KO", err
+			return KO, err
 		}
 	}
 
 	if strings.Compare(string(response), "ok") == 0 {
-		return "OK", nil
+		return OK, nil
 	}
 
-	return "KO", fmt.Errorf("response should be 'ok' but is: %v", string(response))
+	return KO, fmt.Errorf("response should be 'ok' but is: %v", string(response))
 }

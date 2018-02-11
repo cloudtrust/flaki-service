@@ -31,7 +31,7 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var influxReport HealthReports
 		{
 			var err error
-			influxReport, err = es.InfluxHealthChecks(context.Background())
+			influxReport, err = es.InfluxHealthCheck(context.Background(), nil).(HealthReports)
 			if err != nil {
 				report["influx"] = "KO"
 			} else {
@@ -41,7 +41,7 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var jaegerReport HealthReports
 		{
 			var err error
-			jaegerReport, err = es.JaegerHealthChecks(context.Background())
+			jaegerReport, err = es.JaegerHealthCheck(context.Background())
 			if err != nil {
 				report["jaeger"] = "KO"
 			} else {
@@ -51,7 +51,7 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var redisReport HealthReports
 		{
 			var err error
-			redisReport, err = es.RedisHealthChecks(context.Background())
+			redisReport, err = es.RedisHealthCheck(context.Background())
 			if err != nil {
 				report["redis"] = "KO"
 			} else {
@@ -61,7 +61,7 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var sentryReport HealthReports
 		{
 			var err error
-			sentryReport, err = es.SentryHealthChecks(context.Background())
+			sentryReport, err = es.SentryHealthCheck(context.Background())
 			if err != nil {
 				report["sentry"] = "KO"
 			} else {
@@ -83,11 +83,11 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 // reportsStatus returs 'OK' if all tests passed.
 func reportsStatus(reports HealthReports) string {
 	for _, r := range reports.Reports {
-		if r.Status != "OK" {
-			return "KO"
+		if r.Status != OK {
+			return KO
 		}
 	}
-	return "OK"
+	return OK
 }
 
 // MakeInfluxHealthCheckHandler makes a HTTP handler for the Influx HealthCheck endpoint.
