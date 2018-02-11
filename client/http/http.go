@@ -91,7 +91,7 @@ func nextID(logger log.Logger, tracer opentracing.Tracer) {
 
 		req.Header.Set("Content-Type", "application/octet-stream")
 
-		//req.Header.Set("X-Correlation-ID", "1")
+		req.Header.Set("X-Correlation-ID", "1")
 		httpNextIDResp, err = http.DefaultClient.Do(req)
 
 		if err != nil {

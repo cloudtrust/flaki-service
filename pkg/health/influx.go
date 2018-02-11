@@ -12,7 +12,7 @@ type InfluxModule interface {
 type InfluxHealthReport struct {
 	Name     string
 	Duration string
-	Status   int
+	Status   HealthStatus
 	Error    string
 }
 

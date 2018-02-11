@@ -14,14 +14,14 @@ type HealthReports struct {
 }
 
 type HealthReport struct {
-	Name     string `json:"name"`
-	Duration string `json:"duration"`
-	Status   string `json:"status"`
-	Error    string `json:"error,omitempty"`
+	Name     string       `json:"name"`
+	Duration string       `json:"duration"`
+	Status   HealthStatus `json:"status"`
+	Error    string       `json:"error,omitempty"`
 }
 
 // MakeHealthChecksHandler makes a HTTP handler for all health checks.
-func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Request) {
+func MakeHealthChecksHandler(es Endpoints) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
@@ -31,9 +31,11 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var influxReport HealthReports
 		{
 			var err error
-			influxReport, err = es.InfluxHealthCheck(context.Background(), nil).(HealthReports)
+			var x interface{}
+			x, err = es.InfluxHealthCheck(context.Background(), nil)
+			influxReport = x.(HealthReports)
 			if err != nil {
-				report["influx"] = "KO"
+				report["influx"] = string(KO)
 			} else {
 				report["influx"] = reportsStatus(influxReport)
 			}
@@ -41,9 +43,11 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var jaegerReport HealthReports
 		{
 			var err error
-			jaegerReport, err = es.JaegerHealthCheck(context.Background())
+			var x interface{}
+			x, err = es.InfluxHealthCheck(context.Background(), nil)
+			jaegerReport = x.(HealthReports)
 			if err != nil {
-				report["jaeger"] = "KO"
+				report["jaeger"] = string(KO)
 			} else {
 				report["jaeger"] = reportsStatus(jaegerReport)
 			}
@@ -51,9 +55,11 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var redisReport HealthReports
 		{
 			var err error
-			redisReport, err = es.RedisHealthCheck(context.Background())
+			var x interface{}
+			x, err = es.InfluxHealthCheck(context.Background(), nil)
+			redisReport = x.(HealthReports)
 			if err != nil {
-				report["redis"] = "KO"
+				report["redis"] = string(KO)
 			} else {
 				report["redis"] = reportsStatus(redisReport)
 			}
@@ -61,9 +67,11 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 		var sentryReport HealthReports
 		{
 			var err error
-			sentryReport, err = es.SentryHealthCheck(context.Background())
+			var x interface{}
+			x, err = es.InfluxHealthCheck(context.Background(), nil)
+			sentryReport = x.(HealthReports)
 			if err != nil {
-				report["sentry"] = "KO"
+				report["sentry"] = string(KO)
 			} else {
 				report["sentry"] = reportsStatus(sentryReport)
 			}
@@ -84,10 +92,10 @@ func MakeHealthChecksHandler(es *Endpoints) func(http.ResponseWriter, *http.Requ
 func reportsStatus(reports HealthReports) string {
 	for _, r := range reports.Reports {
 		if r.Status != OK {
-			return KO
+			return string(KO)
 		}
 	}
-	return OK
+	return string(OK)
 }
 
 // MakeInfluxHealthCheckHandler makes a HTTP handler for the Influx HealthCheck endpoint.

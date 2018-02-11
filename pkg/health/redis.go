@@ -12,7 +12,7 @@ type RedisModule interface {
 type RedisHealthReport struct {
 	Name     string
 	Duration string
-	Status   int
+	Status   HealthStatus
 	Error    string
 }
 

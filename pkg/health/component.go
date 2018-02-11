@@ -4,12 +4,24 @@ import (
 	"context"
 )
 
+type HealthStatus int
+
 const (
-	OK = iota + 1
+	OK HealthStatus = iota + 1
 	KO
-	DEGRADED
-	DEACTIVATED
+	Degraded
+	Deactivated
 )
+
+func (s HealthStatus) String() string {
+	var names = []string{"ok", "ko", "degraded", "deactivated"}
+
+	if s < OK || s > Deactivated {
+		return "nknown"
+	}
+
+	return names[s]
+}
 
 // Component is the health component interface.
 type Component interface {

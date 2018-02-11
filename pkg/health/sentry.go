@@ -16,7 +16,7 @@ type SentryModule interface {
 type SentryHealthReport struct {
 	Name     string
 	Duration string
-	Status   int
+	Status   HealthStatus
 	Error    string
 }
 
@@ -66,7 +66,7 @@ func sentryPingCheck(sentry Sentry) SentryHealthReport {
 	}
 }
 
-func getSentryStatus(url string) (int, error) {
+func getSentryStatus(url string) (HealthStatus, error) {
 	// Query sentry health endpoint.
 	var res *http.Response
 	{

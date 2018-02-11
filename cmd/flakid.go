@@ -245,42 +245,46 @@ func main() {
 	}
 
 	// Health service.
-	var healthComponent *health.HealthService
+	var healthComponent health.Component
 	{
-		var influxHM = health.NewInfluxHealthModule(influxMetrics)
-		var jaegerHM = health.NewJaegerHealthModule(tracer)
-		var redisHM = health.NewRedisHealthModule(redisConn)
-		var sentryHM = health.NewSentryHealthModule(sentryClient)
+		var influxHM = health.NewInfluxModule(influxMetrics)
+		var jaegerHM = health.NewJaegerModule(tracer)
+		var redisHM = health.NewRedisModule(redisConn)
+		var sentryHM = health.NewSentryModule(sentryClient)
 
-		healthComponent = health.NewHealthService(influxHM, jaegerHM, redisHM, sentryHM)
+		healthComponent = health.NewComponent(influxHM, jaegerHM, redisHM, sentryHM)
 	}
 
-	var healthEndpoints = health.NewEndpoints()
+	var influxHealthEndpoint = health.MakeInfluxHealthCheckEndpoint(healthComponent)
 	{
-		healthEndpoints.MakeInfluxHealthCheckEndpoint(
-			healthComponent,
-			middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("influx_health_endpoint")),
-			middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "influx")),
-			middleware.MakeEndpointTracingMW(tracer, "influx_health_endpoint"),
-		)
-		healthEndpoints.MakeRedisHealthCheckEndpoint(
-			healthComponent,
-			middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("redis_health_endpoint")),
-			middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "redis")),
-			middleware.MakeEndpointTracingMW(tracer, "redis_health_endpoint"),
-		)
-		healthEndpoints.MakeJaegerHealthCheckEndpoint(
-			healthComponent,
-			middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("jaeger_health_endpoint")),
-			middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "jaeger")),
-			middleware.MakeEndpointTracingMW(tracer, "jaeger_health_endpoint"),
-		)
-		healthEndpoints.MakeSentryHealthCheckEndpoint(
-			healthComponent,
-			middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("sentry_health_endpoint")),
-			middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "sentry")),
-			middleware.MakeEndpointTracingMW(tracer, "sentry_health_endpoint"),
-		)
+		influxHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("influx_health_endpoint"))(influxHealthEndpoint)
+		influxHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "influx"))(influxHealthEndpoint)
+		influxHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "influx_health_endpoint")(influxHealthEndpoint)
+	}
+	var jaegerHealthEndpoint = health.MakeJaegerHealthCheckEndpoint(healthComponent)
+	{
+		jaegerHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("jaeger_health_endpoint"))(jaegerHealthEndpoint)
+		jaegerHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "jaeger"))(jaegerHealthEndpoint)
+		jaegerHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "jaeger_health_endpoint")(jaegerHealthEndpoint)
+	}
+	var redisHealthEndpoint = health.MakeRedisHealthCheckEndpoint(healthComponent)
+	{
+		redisHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("redis_health_endpoint"))(redisHealthEndpoint)
+		redisHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "redis"))(redisHealthEndpoint)
+		redisHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "redis_health_endpoint")(redisHealthEndpoint)
+	}
+	var sentryHealthEndpoint = health.MakeSentryHealthCheckEndpoint(healthComponent)
+	{
+		sentryHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("sentry_health_endpoint"))(sentryHealthEndpoint)
+		sentryHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "sentry"))(sentryHealthEndpoint)
+		sentryHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "sentry_health_endpoint")(sentryHealthEndpoint)
+	}
+
+	var healthEndpoints = health.Endpoints{
+		InfluxHealthCheck: influxHealthEndpoint,
+		JaegerHealthCheck: jaegerHealthEndpoint,
+		RedisHealthCheck:  redisHealthEndpoint,
+		SentryHealthCheck: sentryHealthEndpoint,
 	}
 
 	// GRPC server.
@@ -352,16 +356,16 @@ func main() {
 		var healthChecksHandler = health.MakeHealthChecksHandler(healthEndpoints)
 		healthSubroute.Handle("", http.HandlerFunc(healthChecksHandler))
 
-		var influxHealthCheckHandler = health.MakeInfluxHealthCheckHandler(healthEndpoints.InfluxHealthCheckEndpoint)
+		var influxHealthCheckHandler = health.MakeInfluxHealthCheckHandler(healthEndpoints.InfluxHealthCheck)
 		healthSubroute.Handle("/influx", influxHealthCheckHandler)
 
-		var jaegerHealthCheckHandler = health.MakeJaegerHealthCheckHandler(healthEndpoints.JaegerHealthCheckEndpoint)
+		var jaegerHealthCheckHandler = health.MakeJaegerHealthCheckHandler(healthEndpoints.JaegerHealthCheck)
 		healthSubroute.Handle("/jaeger", jaegerHealthCheckHandler)
 
-		var redisHealthCheckHandler = health.MakeRedisHealthCheckHandler(healthEndpoints.RedisHealthCheckEndpoint)
+		var redisHealthCheckHandler = health.MakeRedisHealthCheckHandler(healthEndpoints.RedisHealthCheck)
 		healthSubroute.Handle("/redis", redisHealthCheckHandler)
 
-		var sentryHealthCheckHandler = health.MakeSentryHealthCheckHandler(healthEndpoints.SentryHealthCheckEndpoint)
+		var sentryHealthCheckHandler = health.MakeSentryHealthCheckHandler(healthEndpoints.SentryHealthCheck)
 		healthSubroute.Handle("/sentry", sentryHealthCheckHandler)
 
 		// Debug.

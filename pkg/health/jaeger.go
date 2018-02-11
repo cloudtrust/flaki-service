@@ -12,7 +12,7 @@ type JaegerModule interface {
 type JaegerHealthReport struct {
 	Name     string
 	Duration string
-	Status   int
+	Status   HealthStatus
 	Error    string
 }
 
