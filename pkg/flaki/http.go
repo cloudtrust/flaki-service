@@ -42,10 +42,8 @@ func fetchHTTPCorrelationID(ctx context.Context, r *http.Request) context.Contex
 }
 
 // decodeHTTPRequest decodes the flatbuffer flaki request.
-func decodeHTTPRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
-	var data []byte
-
-	data, err = ioutil.ReadAll(r.Body)
+func decodeHTTPRequest(_ context.Context, req *http.Request) (interface{}, error) {
+	var data, err = ioutil.ReadAll(req.Body)
 
 	if err != nil {
 		return nil, err
@@ -79,7 +77,6 @@ func httpErrorHandler(ctx context.Context, err error, w http.ResponseWriter) {
 	var errStr = b.CreateString(err.Error())
 
 	fb.FlakiReplyStart(b)
-	fb.FlakiReplyAddId(b, 0)
 	fb.FlakiReplyAddError(b, errStr)
 	b.Finish(fb.FlakiReplyEnd(b))
 

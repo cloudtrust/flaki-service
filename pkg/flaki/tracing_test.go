@@ -1,16 +1,60 @@
 package flaki
 
 import (
+	"bytes"
 	"context"
 	"math/rand"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	flatbuffers "github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
 	olog "github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestHTTPTracingMW(t *testing.T) {
+	var mockSpan = &mockSpan{}
+	var mockTracer = &mockTracer{span: mockSpan}
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+	}
+
+	var m = MakeHTTPTracingMW(mockTracer, "component", "operation")(http.HandlerFunc(handler))
+
+	// Flatbuffer request.
+	var b = flatbuffers.NewBuilder(0)
+	fb.EmptyRequestStart(b)
+	b.Finish(fb.EmptyRequestEnd(b))
+
+	// HTTP request.
+	var req = httptest.NewRequest("POST", "http://cloudtrust.io/nextid", bytes.NewReader(b.FinishedBytes()))
+	var w = httptest.NewRecorder()
+
+	mockTracer.called = false
+	m.ServeHTTP(w, req)
+	assert.True(t, mockTracer.called)
+}
+
+func TestGRPCTracingMW(t *testing.T) {
+	var mockSpan = &mockSpan{}
+	var mockTracer = &mockTracer{called: false, span: mockSpan}
+	var mockGRPCHandler = &mockGRPCHandler{}
+
+	var m = MakeGRPCTracingMW(mockTracer, "component", "operation")(mockGRPCHandler)
+
+	// Flatbuffer request.
+	var b = flatbuffers.NewBuilder(0)
+	fb.EmptyRequestStart(b)
+	b.Finish(fb.EmptyRequestEnd(b))
+
+	mockTracer.called = false
+	m.ServeGRPC(context.Background(), b.FinishedBytes())
+	assert.True(t, mockTracer.called)
+}
 
 func TestComponentTracingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
@@ -54,7 +98,18 @@ func TestComponentTracingMW(t *testing.T) {
 	m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
 	assert.True(t, mockTracer.called)
 	assert.Equal(t, flakiID, mockTracer.span.correlationID)
+
+	// NextID without tracer.
+	mockTracer.called = false
+	m.NextID(context.Background())
+	assert.False(t, mockTracer.called)
+
+	// NextValidID without tracer.
+	mockTracer.called = false
+	m.NextValidID(context.Background())
+	assert.False(t, mockTracer.called)
 }
+
 func TestModuleTracingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
@@ -97,6 +152,27 @@ func TestModuleTracingMW(t *testing.T) {
 	m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")))
 	assert.True(t, mockTracer.called)
 	assert.Equal(t, flakiID, mockTracer.span.correlationID)
+
+	// NextID without tracer.
+	mockTracer.called = false
+	m.NextID(context.Background())
+	assert.False(t, mockTracer.called)
+
+	// NextValidID without tracer.
+	mockTracer.called = false
+	m.NextValidID(context.Background())
+	assert.False(t, mockTracer.called)
+}
+
+// Mock GRPC Handler.
+
+type mockGRPCHandler struct {
+	called bool
+}
+
+func (h *mockGRPCHandler) ServeGRPC(ctx context.Context, request interface{}) (context.Context, interface{}, error) {
+	h.called = true
+	return ctx, nil, nil
 }
 
 // Mock Tracer.

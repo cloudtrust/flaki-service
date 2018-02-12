@@ -101,12 +101,10 @@ func encodeGRPCReply(_ context.Context, res interface{}) (interface{}, error) {
 
 // grpcErrorHandler encodes the flatbuffer flaki reply when there is an error.
 func grpcErrorHandler(err error) *flatbuffers.Builder {
-
 	var b = flatbuffers.NewBuilder(0)
 	var errStr = b.CreateString(err.Error())
 
 	fb.FlakiReplyStart(b)
-	fb.FlakiReplyAddId(b, 0)
 	fb.FlakiReplyAddError(b, errStr)
 	b.Finish(fb.FlakiReplyEnd(b))
 

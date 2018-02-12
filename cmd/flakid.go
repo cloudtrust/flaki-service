@@ -213,7 +213,8 @@ func main() {
 	var flakiModule flaki.Module
 	{
 		flakiModule = flaki.NewModule(flakiGen)
-		flakiModule = flaki.MakeModuleInstrumentingMW(influxMetrics.NewCounter("flaki_module_ctr"), influxMetrics.NewHistogram("flaki_module"))(flakiModule)
+		flakiModule = flaki.MakeModuleInstrumentingCounterMW(influxMetrics.NewCounter("flaki_module_ctr"))(flakiModule)
+		flakiModule = flaki.MakeModuleInstrumentingMW(influxMetrics.NewHistogram("flaki_module"))(flakiModule)
 		flakiModule = flaki.MakeModuleLoggingMW(log.With(flakiLogger, "mw", "module"))(flakiModule)
 		flakiModule = flaki.MakeModuleTracingMW(tracer)(flakiModule)
 	}
@@ -321,14 +322,14 @@ func main() {
 		var nextIDHandler grpc_transport.Handler
 		{
 			nextIDHandler = flaki.MakeGRPCNextIDHandler(flakiEndpoints.NextIDEndpoint)
-			nextIDHandler = flaki.MakeGRPCTracingMW(tracer, "grpc_server_nextid")(nextIDHandler)
+			nextIDHandler = flaki.MakeGRPCTracingMW(tracer, componentName, "grpc_server_nextid")(nextIDHandler)
 		}
 
 		// NextValidID.
 		var nextValidIDHandler grpc_transport.Handler
 		{
 			nextValidIDHandler = flaki.MakeGRPCNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint)
-			nextValidIDHandler = flaki.MakeGRPCTracingMW(tracer, "grpc_server_nextvalidid")(nextValidIDHandler)
+			nextValidIDHandler = flaki.MakeGRPCTracingMW(tracer, componentName, "grpc_server_nextvalidid")(nextValidIDHandler)
 		}
 
 		var grpcServer = flaki.NewGRPCServer(nextIDHandler, nextValidIDHandler)
@@ -349,7 +350,7 @@ func main() {
 		var nextIDHandler http.Handler
 		{
 			nextIDHandler = flaki.MakeHTTPNextIDHandler(flakiEndpoints.NextIDEndpoint)
-			nextIDHandler = flaki.MakeHTTPTracingMW(tracer, "http_server_nextid")(nextIDHandler)
+			nextIDHandler = flaki.MakeHTTPTracingMW(tracer, componentName, "http_server_nextid")(nextIDHandler)
 		}
 		route.Handle("/nextid", nextIDHandler)
 
@@ -357,7 +358,7 @@ func main() {
 		var nextValidIDHandler http.Handler
 		{
 			nextValidIDHandler = flaki.MakeHTTPNextValidIDHandler(flakiEndpoints.NextValidIDEndpoint)
-			nextValidIDHandler = flaki.MakeHTTPTracingMW(tracer, "http_server_nextvalidid")(nextValidIDHandler)
+			nextValidIDHandler = flaki.MakeHTTPTracingMW(tracer, componentName, "http_server_nextvalidid")(nextValidIDHandler)
 		}
 		route.Handle("/nextvalidid", nextValidIDHandler)
 

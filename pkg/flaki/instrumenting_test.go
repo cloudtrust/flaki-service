@@ -11,7 +11,91 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInstrumentingMW(t *testing.T) {
+func TestComponentInstrumentingMW(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockComponent = &mockComponent{fail: false, id: flakiID}
+	var mockHistogram = &mockHistogram{}
+
+	// Context with correlation ID.
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+
+	var m = MakeComponentInstrumentingMW(mockHistogram)(mockComponent)
+
+	// NextID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextID(ctx)
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, corrID, mockHistogram.correlationID)
+
+	// NextValidID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextValidID(ctx)
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, corrID, mockHistogram.correlationID)
+
+	// NextID without correlation ID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextID(context.Background())
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, flakiID, mockHistogram.correlationID)
+
+	// NextValidID without correlation ID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextValidID(context.Background())
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, flakiID, mockHistogram.correlationID)
+}
+
+func TestModuleInstrumentingMW(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var mockModule = &mockModule{fail: false, id: flakiID}
+	var mockHistogram = &mockHistogram{}
+
+	// Context with correlation ID.
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+
+	var m = MakeModuleInstrumentingMW(mockHistogram)(mockModule)
+
+	// NextID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextID(ctx)
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, corrID, mockHistogram.correlationID)
+
+	// NextValidID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextValidID(ctx)
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, corrID, mockHistogram.correlationID)
+
+	// NextID without correlation ID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextID(context.Background())
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, flakiID, mockHistogram.correlationID)
+
+	// NextValidID without correlation ID.
+	mockHistogram.called = false
+	mockHistogram.correlationID = ""
+	m.NextValidID(context.Background())
+	assert.True(t, mockHistogram.called)
+	assert.Equal(t, flakiID, mockHistogram.correlationID)
+}
+
+func TestModuleInstrumentingCounterMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
@@ -22,7 +106,7 @@ func TestInstrumentingMW(t *testing.T) {
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 
-	var m = MakeModuleInstrumentingMW(mockCounter)(mockModule)
+	var m = MakeModuleInstrumentingCounterMW(mockCounter)(mockModule)
 
 	// NextID.
 	mockCounter.called = false
@@ -70,4 +154,22 @@ func (c *mockCounter) With(labelValues ...string) metrics.Counter {
 
 func (c *mockCounter) Add(delta float64) {
 	c.called = true
+}
+
+// Mock histogram.
+type mockHistogram struct {
+	called        bool
+	correlationID string
+}
+
+func (h *mockHistogram) With(labelValues ...string) metrics.Histogram {
+	for i, kv := range labelValues {
+		if kv == "correlation_id" {
+			h.correlationID = labelValues[i+1]
+		}
+	}
+	return h
+}
+func (h *mockHistogram) Observe(value float64) {
+	h.called = true
 }

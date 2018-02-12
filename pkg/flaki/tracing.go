@@ -12,7 +12,7 @@ import (
 
 // MakeHTTPTracingMW try to extract an existing span from the HTTP headers. It it exists, we
 // continue the span, if not we create a new one.
-func MakeHTTPTracingMW(tracer opentracing.Tracer, operationName string) func(http.Handler) http.Handler {
+func MakeHTTPTracingMW(tracer opentracing.Tracer, componentName, operationName string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -27,7 +27,7 @@ func MakeHTTPTracingMW(tracer opentracing.Tracer, operationName string) func(htt
 			defer span.Finish()
 
 			// Set tags.
-			otag.Component.Set(span, "flaki-service")
+			otag.Component.Set(span, componentName)
 			span.SetTag("transport", "http")
 			otag.SpanKindRPCServer.Set(span)
 
@@ -37,19 +37,21 @@ func MakeHTTPTracingMW(tracer opentracing.Tracer, operationName string) func(htt
 }
 
 type grpcTracingMW struct {
-	next          grpc_transport.Handler
 	tracer        opentracing.Tracer
+	componentName string
 	operationName string
+	next          grpc_transport.Handler
 }
 
 // MakeGRPCTracingMW try to extract an existing span from the HTTP headers. It it exists, we
 // continue the span, if not we create a new one.
-func MakeGRPCTracingMW(tracer opentracing.Tracer, operationName string) func(grpc_transport.Handler) grpc_transport.Handler {
+func MakeGRPCTracingMW(tracer opentracing.Tracer, componentName, operationName string) func(grpc_transport.Handler) grpc_transport.Handler {
 	return func(next grpc_transport.Handler) grpc_transport.Handler {
 		return &grpcTracingMW{
-			next:          next,
 			tracer:        tracer,
+			componentName: componentName,
 			operationName: operationName,
+			next:          next,
 		}
 	}
 }
@@ -75,7 +77,7 @@ func (m *grpcTracingMW) ServeGRPC(ctx context.Context, req interface{}) (context
 	defer span.Finish()
 
 	// Set tags.
-	otag.Component.Set(span, "flaki-service")
+	otag.Component.Set(span, m.componentName)
 	span.SetTag("transport", "grpc")
 	otag.SpanKindRPCServer.Set(span)
 
