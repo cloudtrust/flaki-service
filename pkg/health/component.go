@@ -4,20 +4,21 @@ import (
 	"context"
 )
 
-type HealthStatus int
+// Status is the status of the health check.
+type Status int
 
 const (
-	OK HealthStatus = iota + 1
+	OK Status = iota
 	KO
 	Degraded
 	Deactivated
 )
 
-func (s HealthStatus) String() string {
-	var names = []string{"ok", "ko", "degraded", "deactivated"}
+func (s Status) String() string {
+	var names = []string{"OK", "KO", "Degraded", "Deactivated"}
 
 	if s < OK || s > Deactivated {
-		return "nknown"
+		return "Unknown"
 	}
 
 	return names[s]
@@ -31,7 +32,18 @@ type Component interface {
 	SentryHealthChecks(context.Context) HealthReports
 }
 
-// Component is the Health component.
+type HealthReports struct {
+	Reports []HealthReport
+}
+
+type HealthReport struct {
+	Name     string
+	Duration string
+	Status   Status
+	Error    string
+}
+
+// component is the Health component.
 type component struct {
 	influx InfluxModule
 	jaeger JaegerModule

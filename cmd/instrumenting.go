@@ -54,7 +54,7 @@ func (m *NoopMetrics) NewGauge(name string) metrics.Gauge         { return &Noop
 func (m *NoopMetrics) NewHistogram(name string) metrics.Histogram { return &NoopHistogram{} }
 func (m *NoopMetrics) WriteLoop(c <-chan time.Time)               {}
 func (m *NoopMetrics) Ping(timeout time.Duration) (time.Duration, string, error) {
-	return time.Duration(0), "Noop", nil
+	return time.Duration(0), "NOOP", nil
 }
 
 // NoopCounter is a Counter that does nothing.

@@ -13,7 +13,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
-	opentracing_tag "github.com/opentracing/opentracing-go/ext"
+	otag "github.com/opentracing/opentracing-go/ext"
 	jaeger_client "github.com/uber/jaeger-client-go/config"
 )
 
@@ -51,7 +51,7 @@ func main() {
 		var closer io.Closer
 		var err error
 
-		tracer, closer, err = jaegerConfig.New("flaki-service")
+		tracer, closer, err = jaegerConfig.New("flaki-client")
 		if err != nil {
 			logger.Log("error", err)
 			return
@@ -70,7 +70,7 @@ func nextID(logger log.Logger, tracer opentracing.Tracer) {
 	b.Finish(fb.EmptyRequestEnd(b))
 
 	var span = tracer.StartSpan("http")
-	opentracing_tag.HTTPMethod.Set(span, "http-client")
+	otag.HTTPMethod.Set(span, "http-client")
 	defer span.Finish()
 
 	// http NextID
@@ -120,7 +120,7 @@ func nextValidID(logger log.Logger, tracer opentracing.Tracer) {
 	b.Finish(fb.EmptyRequestEnd(b))
 
 	var span = tracer.StartSpan("http")
-	opentracing_tag.HTTPMethod.Set(span, "http-client")
+	otag.HTTPMethod.Set(span, "http-client")
 	defer span.Finish()
 
 	// http NextValidID

@@ -2,7 +2,6 @@ package health
 
 import (
 	"context"
-	"time"
 )
 
 type JaegerModule interface {
@@ -12,7 +11,7 @@ type JaegerModule interface {
 type JaegerHealthReport struct {
 	Name     string
 	Duration string
-	Status   HealthStatus
+	Status   Status
 	Error    string
 }
 
@@ -37,12 +36,10 @@ func (m *jaegerModule) HealthChecks(context.Context) []JaegerHealthReport {
 }
 
 func jaegerPingCheck(jaeger Jaeger) JaegerHealthReport {
-	var duration = time.Duration(1 * time.Second)
-	var status = KO
 	return JaegerHealthReport{
 		Name:     "ping",
-		Duration: duration.String(),
-		Status:   status,
-		Error:    "Not implemented",
+		Duration: "N/A",
+		Status:   KO,
+		Error:    "Not yet implemented",
 	}
 }

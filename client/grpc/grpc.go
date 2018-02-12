@@ -10,7 +10,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
-	opentracing_tag "github.com/opentracing/opentracing-go/ext"
+	otag "github.com/opentracing/opentracing-go/ext"
 	jaeger_client "github.com/uber/jaeger-client-go/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -50,7 +50,7 @@ func main() {
 		var closer io.Closer
 		var err error
 
-		tracer, closer, err = jaegerConfig.New("flaki-service")
+		tracer, closer, err = jaegerConfig.New("flaki-client")
 		if err != nil {
 			logger.Log("error", err)
 			return
@@ -73,7 +73,7 @@ func main() {
 	var flakiClient = fb.NewFlakiClient(clienConn)
 
 	var span = tracer.StartSpan("grpc_client")
-	opentracing_tag.SpanKindRPCClient.Set(span)
+	otag.SpanKindRPCClient.Set(span)
 	defer span.Finish()
 
 	nextID(flakiClient, logger, tracer, span)
@@ -87,7 +87,7 @@ func nextID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tracer,
 	b.Finish(fb.EmptyRequestEnd(b))
 
 	var span = tracer.StartSpan("grpc_client_nextid", opentracing.ChildOf(parentSpan.Context()))
-	opentracing_tag.SpanKindRPCClient.Set(span)
+	otag.SpanKindRPCClient.Set(span)
 	defer span.Finish()
 
 	// Propagate the opentracing span.
@@ -122,7 +122,7 @@ func nextValidID(client fb.FlakiClient, logger log.Logger, tracer opentracing.Tr
 	b.Finish(fb.EmptyRequestEnd(b))
 
 	var span = tracer.StartSpan("grpc_client_nextvalidid", opentracing.ChildOf(parentSpan.Context()))
-	opentracing_tag.SpanKindRPCClient.Set(span)
+	otag.SpanKindRPCClient.Set(span)
 	defer span.Finish()
 
 	// Propagate the opentracing span.

@@ -12,7 +12,7 @@ type RedisModule interface {
 type RedisHealthReport struct {
 	Name     string
 	Duration string
-	Status   HealthStatus
+	Status   Status
 	Error    string
 }
 
@@ -37,6 +37,15 @@ func (m *redisModule) HealthChecks(context.Context) []RedisHealthReport {
 }
 
 func redisPingCheck(redis Redis) RedisHealthReport {
+	// If redis is deactivated.
+	if redis == nil {
+		return RedisHealthReport{
+			Name:     "ping",
+			Duration: "N/A",
+			Status:   Deactivated,
+		}
+	}
+
 	var now = time.Now()
 	var _, err = redis.Do("PING")
 	var duration = time.Since(now)

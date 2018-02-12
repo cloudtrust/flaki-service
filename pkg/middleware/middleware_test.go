@@ -11,7 +11,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	opentracing "github.com/opentracing/opentracing-go"
-	opentracing_log "github.com/opentracing/opentracing-go/log"
+	olog "github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -177,7 +177,7 @@ func (s *mockSpan) Finish()                                                     
 func (s *mockSpan) FinishWithOptions(opts opentracing.FinishOptions)            {}
 func (s *mockSpan) Context() opentracing.SpanContext                            { return nil }
 func (s *mockSpan) SetOperationName(operationName string) opentracing.Span      { return s }
-func (s *mockSpan) LogFields(fields ...opentracing_log.Field)                   {}
+func (s *mockSpan) LogFields(fields ...olog.Field)                              {}
 func (s *mockSpan) LogKV(alternatingKeyValues ...interface{})                   {}
 func (s *mockSpan) SetBaggageItem(restrictedKey, value string) opentracing.Span { return s }
 func (s *mockSpan) BaggageItem(restrictedKey string) string                     { return "" }

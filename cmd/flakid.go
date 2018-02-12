@@ -19,6 +19,7 @@ import (
 	"github.com/cloudtrust/flaki-service/pkg/middleware"
 	"github.com/garyburd/redigo/redis"
 	sentry "github.com/getsentry/raven-go"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	gokit_influx "github.com/go-kit/kit/metrics/influx"
@@ -149,7 +150,6 @@ func main() {
 	if sentryEnabled {
 		var logger = log.With(logger, "unit", "sentry")
 		var err error
-		logger.Log("sentry_dsn", sentryDSN)
 		sentryClient, err = sentry.New(sentryDSN)
 		if err != nil {
 			logger.Log("msg", "could not create Sentry client", "error", err)
@@ -208,43 +208,49 @@ func main() {
 	}
 
 	// Flaki service.
+	var flakiLogger = log.With(logger, "svc", "flaki")
+
 	var flakiModule flaki.Module
 	{
 		flakiModule = flaki.NewModule(flakiGen)
-		flakiModule = flaki.MakeModuleInstrumentingMW(influxMetrics.NewCounter("number_id"))(flakiModule)
-		flakiModule = flaki.MakeModuleLoggingMW(log.With(logger, "svc", "flaki", "mw", "module"))(flakiModule)
+		flakiModule = flaki.MakeModuleInstrumentingMW(influxMetrics.NewCounter("flaki_module_ctr"), influxMetrics.NewHistogram("flaki_module"))(flakiModule)
+		flakiModule = flaki.MakeModuleLoggingMW(log.With(flakiLogger, "mw", "module"))(flakiModule)
 		flakiModule = flaki.MakeModuleTracingMW(tracer)(flakiModule)
 	}
 
 	var flakiComponent flaki.Component
 	{
 		flakiComponent = flaki.NewComponent(flakiModule)
-		flakiComponent = flaki.MakeComponentLoggingMW(log.With(logger, "svc", "flaki", "mw", "component"))(flakiComponent)
+		flakiComponent = flaki.MakeComponentInstrumentingMW(influxMetrics.NewHistogram("flaki_component"))(flakiComponent)
+		flakiComponent = flaki.MakeComponentLoggingMW(log.With(flakiLogger, "mw", "component"))(flakiComponent)
 		flakiComponent = flaki.MakeComponentTracingMW(tracer)(flakiComponent)
 		flakiComponent = flaki.MakeComponentTrackingMW(sentryClient)(flakiComponent)
-
 	}
 
-	var nextIDEndpoint = flaki.MakeNextIDEndpoint(flakiComponent)
+	var nextIDEndpoint endpoint.Endpoint
 	{
+		nextIDEndpoint = flaki.MakeNextIDEndpoint(flakiComponent)
 		nextIDEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint"))(nextIDEndpoint)
-		nextIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextID"))(nextIDEndpoint)
+		nextIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextID"))(nextIDEndpoint)
 		nextIDEndpoint = middleware.MakeEndpointTracingMW(tracer, "nextid_endpoint")(nextIDEndpoint)
 	}
 
-	var nextValidIDEndpoint = flaki.MakeNextValidIDEndpoint(flakiComponent)
+	var nextValidIDEndpoint endpoint.Endpoint
 	{
+		nextValidIDEndpoint = flaki.MakeNextValidIDEndpoint(flakiComponent)
 		nextValidIDEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint"))(nextValidIDEndpoint)
-		nextValidIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "flaki", "mw", "endpoint", "unit", "NextValidID"))(nextValidIDEndpoint)
+		nextValidIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextValidID"))(nextValidIDEndpoint)
 		nextValidIDEndpoint = middleware.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint")(nextValidIDEndpoint)
 	}
 
 	var flakiEndpoints = flaki.Endpoints{
-		NextIDEndpoint:      nextValidIDEndpoint,
+		NextIDEndpoint:      nextIDEndpoint,
 		NextValidIDEndpoint: nextValidIDEndpoint,
 	}
 
 	// Health service.
+	var healthLogger = log.With(logger, "svc", "health")
+
 	var healthComponent health.Component
 	{
 		var influxHM = health.NewInfluxModule(influxMetrics)
@@ -255,29 +261,37 @@ func main() {
 		healthComponent = health.NewComponent(influxHM, jaegerHM, redisHM, sentryHM)
 	}
 
-	var influxHealthEndpoint = health.MakeInfluxHealthCheckEndpoint(healthComponent)
+	var influxHealthEndpoint endpoint.Endpoint
 	{
+		influxHealthEndpoint = health.MakeInfluxHealthCheckEndpoint(healthComponent)
 		influxHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("influx_health_endpoint"))(influxHealthEndpoint)
-		influxHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "influx"))(influxHealthEndpoint)
+		influxHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "influx"))(influxHealthEndpoint)
 		influxHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "influx_health_endpoint")(influxHealthEndpoint)
+		influxHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(influxHealthEndpoint)
 	}
-	var jaegerHealthEndpoint = health.MakeJaegerHealthCheckEndpoint(healthComponent)
+	var jaegerHealthEndpoint endpoint.Endpoint
 	{
+		jaegerHealthEndpoint = health.MakeJaegerHealthCheckEndpoint(healthComponent)
 		jaegerHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("jaeger_health_endpoint"))(jaegerHealthEndpoint)
-		jaegerHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "jaeger"))(jaegerHealthEndpoint)
+		jaegerHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "jaeger"))(jaegerHealthEndpoint)
 		jaegerHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "jaeger_health_endpoint")(jaegerHealthEndpoint)
+		jaegerHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(jaegerHealthEndpoint)
 	}
-	var redisHealthEndpoint = health.MakeRedisHealthCheckEndpoint(healthComponent)
+	var redisHealthEndpoint endpoint.Endpoint
 	{
+		redisHealthEndpoint = health.MakeRedisHealthCheckEndpoint(healthComponent)
 		redisHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("redis_health_endpoint"))(redisHealthEndpoint)
-		redisHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "redis"))(redisHealthEndpoint)
+		redisHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "redis"))(redisHealthEndpoint)
 		redisHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "redis_health_endpoint")(redisHealthEndpoint)
+		redisHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(redisHealthEndpoint)
 	}
-	var sentryHealthEndpoint = health.MakeSentryHealthCheckEndpoint(healthComponent)
+	var sentryHealthEndpoint endpoint.Endpoint
 	{
+		sentryHealthEndpoint = health.MakeSentryHealthCheckEndpoint(healthComponent)
 		sentryHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("sentry_health_endpoint"))(sentryHealthEndpoint)
-		sentryHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(logger, "svc", "health", "mw", "endpoint", "unit", "sentry"))(sentryHealthEndpoint)
+		sentryHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "sentry"))(sentryHealthEndpoint)
 		sentryHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "sentry_health_endpoint")(sentryHealthEndpoint)
+		sentryHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(sentryHealthEndpoint)
 	}
 
 	var healthEndpoints = health.Endpoints{
@@ -348,13 +362,12 @@ func main() {
 		route.Handle("/nextvalidid", nextValidIDHandler)
 
 		// Version.
-		route.Handle("/", http.HandlerFunc(MakeVersion(componentName, Version, Environment, GitCommit)))
+		route.Handle("/", http.HandlerFunc(makeVersion(componentName, Version, Environment, GitCommit)))
 
 		// Health checks.
 		var healthSubroute = route.PathPrefix("/health").Subrouter()
 
-		var healthChecksHandler = health.MakeHealthChecksHandler(healthEndpoints)
-		healthSubroute.Handle("", http.HandlerFunc(healthChecksHandler))
+		healthSubroute.Handle("", http.HandlerFunc(health.MakeHealthChecksHandler(healthEndpoints)))
 
 		var influxHealthCheckHandler = health.MakeInfluxHealthCheckHandler(healthEndpoints.InfluxHealthCheck)
 		healthSubroute.Handle("/influx", influxHealthCheckHandler)
@@ -408,8 +421,8 @@ type info struct {
 	Commit  string `json:"commit"`
 }
 
-// MakeVersion makes a HTTP handler that returns information about the version of the service.
-func MakeVersion(componentName, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
+// makeVersion makes a HTTP handler that returns information about the version of the service.
+func makeVersion(componentName, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
@@ -420,7 +433,7 @@ func MakeVersion(componentName, version, environment, gitCommit string) func(htt
 			Commit:  gitCommit,
 		}
 
-		var j, err = json.Marshal(infos)
+		var j, err = json.MarshalIndent(infos, "", "  ")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {

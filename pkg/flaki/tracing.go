@@ -104,13 +104,14 @@ func (m *componentTracingMW) NextID(ctx context.Context) (string, error) {
 		span = m.tracer.StartSpan("nextid_component", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
 
-		// If there is no correlation ID, use the newly generated ID.
 		var id, err = m.next.NextID(opentracing.ContextWithSpan(ctx, span))
-		var corrID = id
-		if ctx.Value("correlation_id") != nil {
-			corrID = ctx.Value("correlation_id").(string)
+
+		// If there is no correlation ID, use the newly generated ID.
+		var corrID = ctx.Value("correlation_id")
+		if corrID == nil {
+			corrID = id
 		}
-		span.SetTag("correlation_id", corrID)
+		span.SetTag("correlation_id", corrID.(string))
 
 		return id, err
 	}
@@ -124,13 +125,14 @@ func (m *componentTracingMW) NextValidID(ctx context.Context) string {
 		span = m.tracer.StartSpan("nextvalidid_component", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
 
-		// If there is no correlation ID, use the newly generated ID.
 		var id = m.next.NextValidID(opentracing.ContextWithSpan(ctx, span))
-		var corrID = id
-		if ctx.Value("correlation_id") != nil {
-			corrID = ctx.Value("correlation_id").(string)
+
+		// If there is no correlation ID, use the newly generated ID.
+		var corrID = ctx.Value("correlation_id")
+		if corrID == nil {
+			corrID = id
 		}
-		span.SetTag("correlation_id", corrID)
+		span.SetTag("correlation_id", corrID.(string))
 
 		return id
 	}
@@ -160,13 +162,14 @@ func (m *moduleTracingMW) NextID(ctx context.Context) (string, error) {
 		span = m.tracer.StartSpan("nextid_module", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
 
-		// If there is no correlation ID, use the newly generated ID.
 		var id, err = m.next.NextID(opentracing.ContextWithSpan(ctx, span))
-		var corrID = id
-		if ctx.Value("correlation_id") != nil {
-			corrID = ctx.Value("correlation_id").(string)
+
+		// If there is no correlation ID, use the newly generated ID.
+		var corrID = ctx.Value("correlation_id")
+		if corrID == nil {
+			corrID = id
 		}
-		span.SetTag("correlation_id", corrID)
+		span.SetTag("correlation_id", corrID.(string))
 
 		return id, err
 	}
@@ -180,13 +183,14 @@ func (m *moduleTracingMW) NextValidID(ctx context.Context) string {
 		span = m.tracer.StartSpan("nextvalidid_module", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
 
-		// If there is no correlation ID, use the newly generated ID.
 		var id = m.next.NextValidID(opentracing.ContextWithSpan(ctx, span))
-		var corrID = id
-		if ctx.Value("correlation_id") != nil {
-			corrID = ctx.Value("correlation_id").(string)
+
+		// If there is no correlation ID, use the newly generated ID.
+		var corrID = ctx.Value("correlation_id")
+		if corrID == nil {
+			corrID = id
 		}
-		span.SetTag("correlation_id", corrID)
+		span.SetTag("correlation_id", corrID.(string))
 
 		return id
 	}

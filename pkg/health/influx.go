@@ -12,7 +12,7 @@ type InfluxModule interface {
 type InfluxHealthReport struct {
 	Name     string
 	Duration string
-	Status   HealthStatus
+	Status   Status
 	Error    string
 }
 
@@ -37,7 +37,16 @@ func (m *influxModule) HealthChecks(context.Context) []InfluxHealthReport {
 }
 
 func influxPing(influx Influx) InfluxHealthReport {
-	var d, _, err = influx.Ping(time.Duration(5 * time.Second))
+	var d, s, err = influx.Ping(time.Duration(5 * time.Second))
+
+	// If influx is deactivated.
+	if s == "NOOP" {
+		return InfluxHealthReport{
+			Name:     "ping",
+			Duration: "N/A",
+			Status:   Deactivated,
+		}
+	}
 
 	var status = OK
 	var error = ""

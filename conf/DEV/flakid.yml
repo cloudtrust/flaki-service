@@ -24,7 +24,7 @@ influx-write-consistency: ""
 influx-write-interval-ms: 1000
 
 # Sentry configs
-sentry-dsn: ""
+sentry-dsn: https://9daea4ff2b3743fa8b18ed1a17d58051:c16ceab18b73411698f7ce11b469982c@sentry.io/270124
 
 # Jaeger configs
 jaeger-sampler-type: const

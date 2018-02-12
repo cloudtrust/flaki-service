@@ -16,7 +16,7 @@ type SentryModule interface {
 type SentryHealthReport struct {
 	Name     string
 	Duration string
-	Status   HealthStatus
+	Status   Status
 	Error    string
 }
 
@@ -41,16 +41,20 @@ func (m *sentryModule) HealthChecks(context.Context) []SentryHealthReport {
 }
 
 func sentryPingCheck(sentry Sentry) SentryHealthReport {
-	// Build sentry health url from sentry dsn. The health url is <sentryURL>/_health
 	var dsn = sentry.URL()
-	var healthURL string
-	if idx := strings.LastIndex(dsn, "/api/"); idx != -1 {
-		healthURL = fmt.Sprintf("%s/_health", dsn[:idx])
+
+	// If sentry is deactivated.
+	if dsn == "" {
+		return SentryHealthReport{
+			Name:     "ping",
+			Duration: "N/A",
+			Status:   Deactivated,
+		}
 	}
 
 	// Get Sentry health status.
 	var now = time.Now()
-	var status, err = getSentryStatus(healthURL)
+	var status, err = getSentryStatus(dsn)
 	var duration = time.Since(now)
 
 	var error = ""
@@ -66,7 +70,14 @@ func sentryPingCheck(sentry Sentry) SentryHealthReport {
 	}
 }
 
-func getSentryStatus(url string) (HealthStatus, error) {
+func getSentryStatus(dsn string) (Status, error) {
+
+	// Build sentry health url from sentry dsn. The health url is <sentryURL>/_health
+	var url string
+	if idx := strings.LastIndex(dsn, "/api/"); idx != -1 {
+		url = fmt.Sprintf("%s/_health", dsn[:idx])
+	}
+
 	// Query sentry health endpoint.
 	var res *http.Response
 	{

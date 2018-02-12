@@ -161,7 +161,7 @@ correlation_id:<correlation_id>
 ```
 
 
-go list ./... | grep -v /vendor/ | grep -v /client | grep -v pkg/service/flatbuffer/fb | xargs go test
++go list ./... | grep -v /vendor/ | grep -v /client | grep -v pkg/flaki/flatbuffer/fb | xargs go test
 TODO make travis work with multiple packages
 https://github.com/mattn/goveralls/issues/20
 

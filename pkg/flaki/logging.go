@@ -29,12 +29,12 @@ func (m *componentLoggingMW) NextID(ctx context.Context) (string, error) {
 	var id, err = m.next.NextID(ctx)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = id
-	if ctx.Value("correlation_id") != nil {
-		corrID = ctx.Value("correlation_id").(string)
+	var corrID = ctx.Value("correlation_id")
+	if corrID == nil {
+		corrID = id
 	}
 
-	m.logger.Log("method", "NextID", "correlation_id", corrID, "took", time.Since(begin))
+	m.logger.Log("unit", "NextID", "correlation_id", corrID.(string), "took", time.Since(begin))
 
 	return id, err
 }
@@ -45,12 +45,12 @@ func (m *componentLoggingMW) NextValidID(ctx context.Context) string {
 	var id = m.next.NextValidID(ctx)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = id
-	if ctx.Value("correlation_id") != nil {
-		corrID = ctx.Value("correlation_id").(string)
+	var corrID = ctx.Value("correlation_id")
+	if corrID == nil {
+		corrID = id
 	}
 
-	m.logger.Log("method", "NextValidID", "correlation_id", corrID, "took", time.Since(begin))
+	m.logger.Log("unit", "NextValidID", "correlation_id", corrID.(string), "took", time.Since(begin))
 
 	return id
 }
@@ -77,12 +77,12 @@ func (m *moduleLoggingMW) NextID(ctx context.Context) (string, error) {
 	var id, err = m.next.NextID(ctx)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = id
-	if ctx.Value("correlation_id") != nil {
-		corrID = ctx.Value("correlation_id").(string)
+	var corrID = ctx.Value("correlation_id")
+	if corrID == nil {
+		corrID = id
 	}
 
-	m.logger.Log("method", "NextID", "correlation_id", corrID, "took", time.Since(begin))
+	m.logger.Log("unit", "NextID", "correlation_id", corrID.(string), "took", time.Since(begin))
 
 	return id, err
 }
@@ -93,12 +93,12 @@ func (m *moduleLoggingMW) NextValidID(ctx context.Context) string {
 	var id = m.next.NextValidID(ctx)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = id
-	if ctx.Value("correlation_id") != nil {
-		corrID = ctx.Value("correlation_id").(string)
+	var corrID = ctx.Value("correlation_id")
+	if corrID == nil {
+		corrID = id
 	}
 
-	m.logger.Log("method", "NextValidID", "correlation_id", corrID, "took", time.Since(begin))
+	m.logger.Log("unit", "NextValidID", "correlation_id", corrID.(string), "took", time.Since(begin))
 
 	return id
 }
