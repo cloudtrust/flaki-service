@@ -16,11 +16,6 @@ func (s *NoopSentry) CaptureError(err error, tags map[string]string, interfaces 
 	return ""
 }
 
-// CaptureErrorAndWait does nothing for the receiver NoopSentry.
-func (s *NoopSentry) CaptureErrorAndWait(err error, tags map[string]string, interfaces ...sentry.Interface) string {
-	return ""
-}
-
 // URL does nothing for the receiver NoopSentry.
 func (s *NoopSentry) URL() string {
 	return ""

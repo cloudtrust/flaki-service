@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -15,6 +16,52 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEndpointCorrelationIDMW(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var flakiEndpoint = flaki.Endpoints{
+		NextValidIDEndpoint: MakeMockEndpoint(flakiID, false),
+	}
+
+	// Context with correlation ID.
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+
+	var mockEndpoint = func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		var id = ctx.Value("correlation_id")
+		assert.Equal(t, corrID, id)
+		return nil, nil
+	}
+
+	var m = MakeEndpointCorrelationIDMW(flakiEndpoint)(mockEndpoint)
+	m(ctx, nil)
+
+	// Without correlation ID.
+	mockEndpoint = func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		var id = ctx.Value("correlation_id")
+		assert.Equal(t, flakiID, id)
+		return nil, nil
+	}
+
+	m = MakeEndpointCorrelationIDMW(flakiEndpoint)(mockEndpoint)
+	m(context.Background(), nil)
+
+	// Flaki returns error.
+	flakiEndpoint = flaki.Endpoints{
+		NextValidIDEndpoint: MakeMockEndpoint(flakiID, true),
+	}
+	mockEndpoint = func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		// Should not be called.
+		assert.True(t, false)
+		return nil, nil
+	}
+
+	m = MakeEndpointCorrelationIDMW(flakiEndpoint)(mockEndpoint)
+	var i, err = m(context.Background(), nil)
+	assert.Zero(t, i.(string))
+	assert.NotNil(t, err)
+}
 func TestEndpointLoggingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
@@ -99,6 +146,11 @@ func TestEndpointTracingMW(t *testing.T) {
 	m(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")), nil)
 	assert.True(t, mockTracer.called)
 	assert.Equal(t, flakiID, mockTracer.span.correlationID)
+
+	// Without tracer.
+	mockTracer.called = false
+	m(context.Background(), nil)
+	assert.False(t, mockTracer.called)
 }
 
 func MakeMockEndpoint(id string, fail bool) endpoint.Endpoint {
