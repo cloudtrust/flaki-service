@@ -15,4 +15,3 @@ rpc_service Flaki {
 }
 
 root_type FlakiReply;
-

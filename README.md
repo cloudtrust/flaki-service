@@ -160,9 +160,21 @@ Note: In Jaeger UI, to search traces with a given correlation ID you must copy t
 correlation_id:<correlation_id>
 ```
 
+## Tests
 
-+go list ./... | grep -v /vendor/ | grep -v /client | grep -v pkg/flaki/flatbuffer/fb | xargs go test
-TODO make travis work with multiple packages
-https://github.com/mattn/goveralls/issues/20
+The unit tests don't cover:
+- http client example (```./client/http/http.go```)
+- grpc client example (```./client/grpc/grpc.go```)
+- flakid  (```./cmd/flakid.go```)
+
+The first two are provided as example.
+
+The ```flakid.go``` is mosttly just the main function doing all the wiring, it is difficult to test it with unit tests. It is covered by our integration tests.
+
+## Limitations
+
+The Redis connection does not handle errors well: if there is a problem, it is closed forever. We will implement our own redis client later, because we need load-balancing and circuit-breaking.
+
+
 
 
