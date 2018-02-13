@@ -257,7 +257,7 @@ func main() {
 		var influxHM = health.NewInfluxModule(influxMetrics)
 		var jaegerHM = health.NewJaegerModule(tracer)
 		var redisHM = health.NewRedisModule(redisConn)
-		var sentryHM = health.NewSentryModule(sentryClient)
+		var sentryHM = health.NewSentryModule(sentryClient, http.DefaultClient)
 
 		healthComponent = health.NewComponent(influxHM, jaegerHM, redisHM, sentryHM)
 	}

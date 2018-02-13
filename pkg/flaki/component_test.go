@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewBasicService(t *testing.T) {
+func TestNewComponent(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	var expectedID = strconv.FormatUint(rand.Uint64(), 10)

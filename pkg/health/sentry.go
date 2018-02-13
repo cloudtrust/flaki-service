@@ -24,23 +24,31 @@ type Sentry interface {
 	URL() string
 }
 
+type httpClient interface {
+	Get(string) (*http.Response, error)
+}
+
 type sentryModule struct {
-	sentry Sentry
+	sentry     Sentry
+	httpClient httpClient
 }
 
 // NewSentryModule returns the sentry health module.
-func NewSentryModule(sentry Sentry) SentryModule {
-	return &sentryModule{sentry: sentry}
+func NewSentryModule(sentry Sentry, httpClient httpClient) SentryModule {
+	return &sentryModule{
+		sentry:     sentry,
+		httpClient: httpClient,
+	}
 }
 
 // HealthChecks executes all health checks for Sentry.
 func (m *sentryModule) HealthChecks(context.Context) []SentryHealthReport {
 	var reports = []SentryHealthReport{}
-	reports = append(reports, sentryPingCheck(m.sentry))
+	reports = append(reports, sentryPingCheck(m.sentry, m.httpClient))
 	return reports
 }
 
-func sentryPingCheck(sentry Sentry) SentryHealthReport {
+func sentryPingCheck(sentry Sentry, httpClient httpClient) SentryHealthReport {
 	var dsn = sentry.URL()
 
 	// If sentry is deactivated.
@@ -54,7 +62,7 @@ func sentryPingCheck(sentry Sentry) SentryHealthReport {
 
 	// Get Sentry health status.
 	var now = time.Now()
-	var status, err = getSentryStatus(dsn)
+	var status, err = getSentryStatus(dsn, httpClient)
 	var duration = time.Since(now)
 
 	var error = ""
@@ -70,7 +78,7 @@ func sentryPingCheck(sentry Sentry) SentryHealthReport {
 	}
 }
 
-func getSentryStatus(dsn string) (Status, error) {
+func getSentryStatus(dsn string, httpClient httpClient) (Status, error) {
 
 	// Build sentry health url from sentry dsn. The health url is <sentryURL>/_health
 	var url string
@@ -82,7 +90,7 @@ func getSentryStatus(dsn string) (Status, error) {
 	var res *http.Response
 	{
 		var err error
-		res, err = http.DefaultClient.Get(url)
+		res, err = httpClient.Get(url)
 		if err != nil {
 			return KO, err
 		}

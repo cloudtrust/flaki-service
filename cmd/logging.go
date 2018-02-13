@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/json"
-
-	"github.com/garyburd/redigo/redis"
 )
 
 type logstashLog struct {
@@ -14,15 +12,24 @@ type logstashLog struct {
 }
 
 type redisWriter struct {
-	con redis.Conn
+	redis Redis
 }
 
-func NewLogstashRedisWriter(con redis.Conn) *redisWriter {
+// Redis is the redis client interface.
+type Redis interface {
+	Send(commandName string, args ...interface{}) error
+	Flush() error
+	Close() error
+}
+
+// NewLogstashRedisWriter returns a writer that writes logs into a redis DB.
+func NewLogstashRedisWriter(redis Redis) *redisWriter {
 	return &redisWriter{
-		con: con,
+		redis: redis,
 	}
 }
 
+// Write writes logs into a redis DB.
 func (w *redisWriter) Write(p []byte) (int, error) {
 	// The current logs are json formatted by the go-kit JSONLogger.
 	var logs = decodeJSON(p)
@@ -33,7 +40,7 @@ func (w *redisWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 
-	err = w.con.Send("RPUSH", "flaki-service", logstashLog)
+	err = w.redis.Send("RPUSH", "flaki-service", logstashLog)
 	if err != nil {
 		return 0, err
 	}
@@ -48,8 +55,8 @@ func decodeJSON(d []byte) map[string]string {
 
 func logstashEncode(m map[string]string) ([]byte, error) {
 
-	var timestamp = m["time"]
-	delete(m, "time")
+	var timestamp = m["ts"]
+	delete(m, "ts")
 	var msg = m["msg"]
 	delete(m, "msg")
 
