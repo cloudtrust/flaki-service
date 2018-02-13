@@ -3,7 +3,9 @@ package health
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/go-kit/kit/endpoint"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -104,4 +106,20 @@ func TestSentryHealthCheckEndpoint(t *testing.T) {
 	assert.NotZero(t, hr.Duration)
 	assert.Equal(t, KO, hr.Status)
 	assert.Equal(t, "fail", hr.Error)
+}
+
+func MakeMockHealthEndpoint(name string, fail bool) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		var r = HealthReport{
+			Name:     name,
+			Duration: time.Duration(1 * time.Second).String(),
+			Status:   OK,
+			Error:    "",
+		}
+		if fail {
+			r.Status = KO
+			r.Error = "fail"
+		}
+		return HealthReports{Reports: []HealthReport{r}}, nil
+	}
 }
