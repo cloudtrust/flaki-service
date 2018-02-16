@@ -8,9 +8,13 @@ import (
 type Status int
 
 const (
+	// OK is the status for a successful health check.
 	OK Status = iota
+	// KO is the status for an unsuccessful health check.
 	KO
+	// Degraded is the status for a degraded service, e.g. the service still works, but the metrics DB is KO.
 	Degraded
+	// Deactivated is the status for a service that is deactivated, e.g. we can disable error tracking, instrumenting, tracing,...
 	Deactivated
 )
 
@@ -32,10 +36,12 @@ type Component interface {
 	SentryHealthChecks(context.Context) HealthReports
 }
 
+// HealthReports contains the results of all health tests for a given module.
 type HealthReports struct {
 	Reports []HealthReport
 }
 
+// HealthReport contains the result of one health test.
 type HealthReport struct {
 	Name     string
 	Duration string
