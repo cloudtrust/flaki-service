@@ -5,14 +5,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHealthChecks(t *testing.T) {
-	var mockInfluxModule = &mockInfluxModule{fail: false}
-	var mockJaegerModule = &mockJaegerModule{fail: false}
-	var mockRedisModule = &mockRedisModule{fail: false}
-	var mockSentryModule = &mockSentryModule{fail: false}
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var mockInfluxModule = NewMockInfluxModule(mockCtrl)
+	var mockJaegerModule = NewMockJaegerModule(mockCtrl)
+	var mockRedisModule = NewMockRedisModule(mockCtrl)
+	var mockSentryModule = NewMockSentryModule(mockCtrl)
+
+	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]influxHealthReport{{Name: "influx", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
+	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]jaegerHealthReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
+	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return([]redisHealthReport{{Name: "redis", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
+	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return([]sentryHealthReport{{Name: "sentry", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
 
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule)
 
@@ -45,10 +54,18 @@ func TestHealthChecks(t *testing.T) {
 	assert.Zero(t, sr.Error)
 }
 func TestHealthChecksFail(t *testing.T) {
-	var mockInfluxModule = &mockInfluxModule{fail: true}
-	var mockJaegerModule = &mockJaegerModule{fail: true}
-	var mockRedisModule = &mockRedisModule{fail: true}
-	var mockSentryModule = &mockSentryModule{fail: true}
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var mockInfluxModule = NewMockInfluxModule(mockCtrl)
+	var mockJaegerModule = NewMockJaegerModule(mockCtrl)
+	var mockRedisModule = NewMockRedisModule(mockCtrl)
+	var mockSentryModule = NewMockSentryModule(mockCtrl)
+
+	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]influxHealthReport{{Name: "influx", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
+	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]jaegerHealthReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
+	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return([]redisHealthReport{{Name: "redis", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
+	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return([]sentryHealthReport{{Name: "sentry", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
 
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule)
 

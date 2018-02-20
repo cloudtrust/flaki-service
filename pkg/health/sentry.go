@@ -9,32 +9,35 @@ import (
 	"time"
 )
 
+// SentryModule is the health check module for sentry.
 type SentryModule interface {
-	HealthChecks(context.Context) []SentryHealthReport
+	HealthChecks(context.Context) []sentryHealthReport
 }
 
-type SentryHealthReport struct {
+type sentryModule struct {
+	sentry     Sentry
+	httpClient HTTPClient
+}
+
+type sentryHealthReport struct {
 	Name     string
 	Duration string
 	Status   Status
 	Error    string
 }
 
+// Sentry is the interface of the sentry client.
 type Sentry interface {
 	URL() string
 }
 
-type httpClient interface {
+// HTTPClient is the interface of the http client.
+type HTTPClient interface {
 	Get(string) (*http.Response, error)
 }
 
-type sentryModule struct {
-	sentry     Sentry
-	httpClient httpClient
-}
-
 // NewSentryModule returns the sentry health module.
-func NewSentryModule(sentry Sentry, httpClient httpClient) SentryModule {
+func NewSentryModule(sentry Sentry, httpClient HTTPClient) SentryModule {
 	return &sentryModule{
 		sentry:     sentry,
 		httpClient: httpClient,
@@ -42,18 +45,18 @@ func NewSentryModule(sentry Sentry, httpClient httpClient) SentryModule {
 }
 
 // HealthChecks executes all health checks for Sentry.
-func (m *sentryModule) HealthChecks(context.Context) []SentryHealthReport {
-	var reports = []SentryHealthReport{}
+func (m *sentryModule) HealthChecks(context.Context) []sentryHealthReport {
+	var reports = []sentryHealthReport{}
 	reports = append(reports, sentryPingCheck(m.sentry, m.httpClient))
 	return reports
 }
 
-func sentryPingCheck(sentry Sentry, httpClient httpClient) SentryHealthReport {
+func sentryPingCheck(sentry Sentry, httpClient HTTPClient) sentryHealthReport {
 	var dsn = sentry.URL()
 
 	// If sentry is deactivated.
 	if dsn == "" {
-		return SentryHealthReport{
+		return sentryHealthReport{
 			Name:     "ping",
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -70,7 +73,7 @@ func sentryPingCheck(sentry Sentry, httpClient httpClient) SentryHealthReport {
 		error = err.Error()
 	}
 
-	return SentryHealthReport{
+	return sentryHealthReport{
 		Name:     "ping",
 		Duration: duration.String(),
 		Status:   status,
@@ -78,7 +81,7 @@ func sentryPingCheck(sentry Sentry, httpClient httpClient) SentryHealthReport {
 	}
 }
 
-func getSentryStatus(dsn string, httpClient httpClient) (Status, error) {
+func getSentryStatus(dsn string, httpClient HTTPClient) (Status, error) {
 
 	// Build sentry health url from sentry dsn. The health url is <sentryURL>/_health
 	var url string

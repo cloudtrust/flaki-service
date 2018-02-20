@@ -162,6 +162,9 @@ correlation_id:<correlation_id>
 
 ## Tests
 
+The mocks are generated with [gomock](https://github.com/golang/mock).
+```mockgen -destination=mock.go -package=health github.com/cloudtrust/flaki-service/pkg/health Sentry,SentryModule,Redis,RedisModule,Influx,InfluxModule,Jaeger,JaegerModule,Component```
+
 The unit tests don't cover:
 - http client example (```./client/http/http.go```)
 - grpc client example (```./client/grpc/grpc.go```)

@@ -5,23 +5,25 @@ import (
 	"time"
 )
 
+// InfluxModule is the health check module for influx.
 type InfluxModule interface {
-	HealthChecks(context.Context) []InfluxHealthReport
+	HealthChecks(context.Context) []influxHealthReport
 }
 
-type InfluxHealthReport struct {
+type influxModule struct {
+	influx Influx
+}
+
+type influxHealthReport struct {
 	Name     string
 	Duration string
 	Status   Status
 	Error    string
 }
 
+// Influx is the interface of the influx client.
 type Influx interface {
 	Ping(timeout time.Duration) (time.Duration, string, error)
-}
-
-type influxModule struct {
-	influx Influx
 }
 
 // NewInfluxModule returns the influx health module.
@@ -29,19 +31,19 @@ func NewInfluxModule(influx Influx) InfluxModule {
 	return &influxModule{influx: influx}
 }
 
-// HealthChecks executes all health checks for Influx.
-func (m *influxModule) HealthChecks(context.Context) []InfluxHealthReport {
-	var reports = []InfluxHealthReport{}
+// HealthChecks executes all health checks for influx.
+func (m *influxModule) HealthChecks(context.Context) []influxHealthReport {
+	var reports = []influxHealthReport{}
 	reports = append(reports, influxPing(m.influx))
 	return reports
 }
 
-func influxPing(influx Influx) InfluxHealthReport {
-	var d, s, err = influx.Ping(time.Duration(5 * time.Second))
+func influxPing(influx Influx) influxHealthReport {
+	var d, s, err = influx.Ping(5 * time.Second)
 
 	// If influx is deactivated.
 	if s == "NOOP" {
-		return InfluxHealthReport{
+		return influxHealthReport{
 			Name:     "ping",
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -55,7 +57,7 @@ func influxPing(influx Influx) InfluxHealthReport {
 		error = err.Error()
 	}
 
-	return InfluxHealthReport{
+	return influxHealthReport{
 		Name:     "ping",
 		Duration: d.String(),
 		Status:   status,
