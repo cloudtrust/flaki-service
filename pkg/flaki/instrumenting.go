@@ -1,5 +1,7 @@
 package flaki
 
+//go:generate mockgen -destination=./mock/instrumenting.go -package=mock -mock_names=Counter=Counter,Histogram=Histogram github.com/go-kit/kit/metrics Counter,Histogram
+
 import (
 	"context"
 	"time"

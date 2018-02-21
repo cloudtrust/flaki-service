@@ -7,16 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/metrics"
-	"github.com/stretchr/testify/assert"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+	"github.com/golang/mock/gomock"
 )
 
 func TestComponentInstrumentingMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockHistogram = mock.NewHistogram(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockComponent = &mockComponent{fail: false, id: flakiID}
-	var mockHistogram = &mockHistogram{}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -25,40 +27,38 @@ func TestComponentInstrumentingMW(t *testing.T) {
 	var m = MakeComponentInstrumentingMW(mockHistogram)(mockComponent)
 
 	// NextID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockComponent.EXPECT().NextID(ctx).Return(flakiID, nil).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", corrID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m.NextID(ctx)
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, corrID, mockHistogram.correlationID)
-
-	// NextValidID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
-	m.NextValidID(ctx)
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, corrID, mockHistogram.correlationID)
 
 	// NextID without correlation ID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockComponent.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", flakiID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m.NextID(context.Background())
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, flakiID, mockHistogram.correlationID)
+
+	// NextValidID.
+	mockComponent.EXPECT().NextValidID(ctx).Return(flakiID).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", corrID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
+	m.NextValidID(ctx)
 
 	// NextValidID without correlation ID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockComponent.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", flakiID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m.NextValidID(context.Background())
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, flakiID, mockHistogram.correlationID)
 }
 
 func TestModuleInstrumentingMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockModule = mock.NewModule(mockCtrl)
+	var mockHistogram = mock.NewHistogram(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockModule = &mockModule{fail: false, id: flakiID}
-	var mockHistogram = &mockHistogram{}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -67,40 +67,38 @@ func TestModuleInstrumentingMW(t *testing.T) {
 	var m = MakeModuleInstrumentingMW(mockHistogram)(mockModule)
 
 	// NextID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockModule.EXPECT().NextID(ctx).Return(flakiID, nil).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", corrID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m.NextID(ctx)
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, corrID, mockHistogram.correlationID)
-
-	// NextValidID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
-	m.NextValidID(ctx)
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, corrID, mockHistogram.correlationID)
 
 	// NextID without correlation ID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockModule.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", flakiID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m.NextID(context.Background())
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, flakiID, mockHistogram.correlationID)
+
+	// NextValidID.
+	mockModule.EXPECT().NextValidID(ctx).Return(flakiID).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", corrID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
+	m.NextValidID(ctx)
 
 	// NextValidID without correlation ID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockModule.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
+	mockHistogram.EXPECT().With("correlation_id", flakiID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m.NextValidID(context.Background())
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, flakiID, mockHistogram.correlationID)
 }
 
 func TestModuleInstrumentingCounterMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockModule = mock.NewModule(mockCtrl)
+	var mockCounter = mock.NewCounter(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockModule = &mockModule{fail: false, id: flakiID}
-	var mockCounter = &mockCounter{}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -109,67 +107,26 @@ func TestModuleInstrumentingCounterMW(t *testing.T) {
 	var m = MakeModuleInstrumentingCounterMW(mockCounter)(mockModule)
 
 	// NextID.
-	mockCounter.called = false
-	mockCounter.correlationID = ""
+	mockModule.EXPECT().NextID(ctx).Return(flakiID, nil).Times(1)
+	mockCounter.EXPECT().With("correlation_id", corrID).Return(mockCounter).Times(1)
+	mockCounter.EXPECT().Add(float64(1)).Return().Times(1)
 	m.NextID(ctx)
-	assert.True(t, mockCounter.called)
-	assert.Equal(t, corrID, mockCounter.correlationID)
-
-	// NextValidID.
-	mockCounter.called = false
-	mockCounter.correlationID = ""
-	m.NextValidID(ctx)
-	assert.True(t, mockCounter.called)
-	assert.Equal(t, corrID, mockCounter.correlationID)
 
 	// NextID without correlation ID.
-	mockCounter.called = false
-	mockCounter.correlationID = ""
+	mockModule.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
+	mockCounter.EXPECT().With("correlation_id", flakiID).Return(mockCounter).Times(1)
+	mockCounter.EXPECT().Add(float64(1)).Return().Times(1)
 	m.NextID(context.Background())
-	assert.True(t, mockCounter.called)
-	assert.Equal(t, flakiID, mockCounter.correlationID)
+
+	// NextValidID.
+	mockModule.EXPECT().NextValidID(ctx).Return(flakiID).Times(1)
+	mockCounter.EXPECT().With("correlation_id", corrID).Return(mockCounter).Times(1)
+	mockCounter.EXPECT().Add(float64(1)).Return().Times(1)
+	m.NextValidID(ctx)
 
 	// NextValidID without correlation ID.
-	mockCounter.called = false
-	mockCounter.correlationID = ""
+	mockModule.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
+	mockCounter.EXPECT().With("correlation_id", flakiID).Return(mockCounter).Times(1)
+	mockCounter.EXPECT().Add(float64(1)).Return().Times(1)
 	m.NextValidID(context.Background())
-	assert.True(t, mockCounter.called)
-	assert.Equal(t, flakiID, mockCounter.correlationID)
-}
-
-// Mock counter.
-type mockCounter struct {
-	called        bool
-	correlationID string
-}
-
-func (c *mockCounter) With(labelValues ...string) metrics.Counter {
-	for i, kv := range labelValues {
-		if kv == "correlation_id" {
-			c.correlationID = labelValues[i+1]
-		}
-	}
-	return c
-}
-
-func (c *mockCounter) Add(delta float64) {
-	c.called = true
-}
-
-// Mock histogram.
-type mockHistogram struct {
-	called        bool
-	correlationID string
-}
-
-func (h *mockHistogram) With(labelValues ...string) metrics.Histogram {
-	for i, kv := range labelValues {
-		if kv == "correlation_id" {
-			h.correlationID = labelValues[i+1]
-		}
-	}
-	return h
-}
-func (h *mockHistogram) Observe(value float64) {
-	h.called = true
 }

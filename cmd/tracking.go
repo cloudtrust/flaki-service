@@ -4,6 +4,7 @@ import (
 	sentry "github.com/getsentry/raven-go"
 )
 
+// Sentry is the interface of the NOOP Sentry.
 type Sentry interface {
 	URL() string
 }

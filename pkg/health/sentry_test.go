@@ -1,4 +1,4 @@
-package health
+package health_test
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	. "github.com/cloudtrust/flaki-service/pkg/health"
+	"github.com/cloudtrust/flaki-service/pkg/health/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,7 +15,7 @@ import (
 func TestSentryHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockSentry = NewMockSentry(mockCtrl)
+	var mockSentry = mock.NewSentry(mockCtrl)
 
 	mockSentry.EXPECT().URL().Return("https://a:b@sentry.io/api/1/store/").Times(1)
 
@@ -35,7 +37,7 @@ func TestSentryHealthChecks(t *testing.T) {
 func TestNoopSentryHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockSentry = NewMockSentry(mockCtrl)
+	var mockSentry = mock.NewSentry(mockCtrl)
 
 	mockSentry.EXPECT().URL().Return("").Times(1)
 

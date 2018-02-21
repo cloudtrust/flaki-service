@@ -9,22 +9,21 @@ import (
 	"time"
 
 	"github.com/cloudtrust/flaki-service/pkg/flaki"
+	"github.com/cloudtrust/flaki-service/pkg/middleware/mock"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/metrics"
+	"github.com/golang/mock/gomock"
 	opentracing "github.com/opentracing/opentracing-go"
-	olog "github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEndpointCorrelationIDMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
-
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var flakiEndpoint = flaki.Endpoints{
 		NextValidIDEndpoint: MakeMockEndpoint(flakiID, false),
 	}
 
 	// Context with correlation ID.
+	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 
@@ -63,11 +62,13 @@ func TestEndpointCorrelationIDMW(t *testing.T) {
 	assert.NotNil(t, err)
 }
 func TestEndpointLoggingMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockLogger = mock.NewLogger(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var mockEndpoint = MakeMockEndpoint(flakiID, false)
-	var mockLogger = &mockLogger{}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -76,26 +77,22 @@ func TestEndpointLoggingMW(t *testing.T) {
 	var m = MakeEndpointLoggingMW(mockLogger)(mockEndpoint)
 
 	// With correlation ID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockLogger.EXPECT().Log("correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
 	m(ctx, nil)
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, corrID, mockLogger.correlationID)
 
 	// Without correlation ID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockLogger.EXPECT().Log("correlation_id", flakiID, "took", gomock.Any()).Return(nil).Times(1)
 	m(context.Background(), nil)
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, flakiID, mockLogger.correlationID)
 }
 
 func TestEndpointInstrumentingMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockHistogram = mock.NewHistogram(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var mockEndpoint = MakeMockEndpoint(flakiID, false)
-	var mockHistogram = &mockHistogram{}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -104,53 +101,54 @@ func TestEndpointInstrumentingMW(t *testing.T) {
 	var m = MakeEndpointInstrumentingMW(mockHistogram)(mockEndpoint)
 
 	// With correlation ID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockHistogram.EXPECT().With("correlation_id", corrID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m(ctx, nil)
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, corrID, mockHistogram.correlationID)
 
 	// Without correlation ID.
-	mockHistogram.called = false
-	mockHistogram.correlationID = ""
+	mockHistogram.EXPECT().With("correlation_id", flakiID).Return(mockHistogram).Times(1)
+	mockHistogram.EXPECT().Observe(gomock.Any()).Return().Times(1)
 	m(context.Background(), nil)
-	assert.True(t, mockHistogram.called)
-	assert.Equal(t, flakiID, mockHistogram.correlationID)
 }
 
 func TestEndpointTracingMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockTracer = mock.NewTracer(mockCtrl)
+	var mockSpan = mock.NewSpan(mockCtrl)
+	var mockSpanContext = mock.NewSpanContext(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var mockEndpoint = MakeMockEndpoint(flakiID, false)
-	var mockSpan = &mockSpan{}
-	var mockTracer = &mockTracer{span: mockSpan}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-	ctx = opentracing.ContextWithSpan(ctx, mockTracer.StartSpan("flaki"))
+	ctx = opentracing.ContextWithSpan(ctx, mockSpan)
 
-	var m = MakeEndpointTracingMW(mockTracer, "flaki")(mockEndpoint)
+	var m = MakeEndpointTracingMW(mockTracer, "operationName")(mockEndpoint)
 
 	// With correlation ID.
-	mockTracer.called = false
-	mockTracer.span.correlationID = ""
+	mockTracer.EXPECT().StartSpan("operationName", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", corrID).Return(mockSpan).Times(1)
 	m(ctx, nil)
-	assert.True(t, mockTracer.called)
-	assert.Equal(t, corrID, mockTracer.span.correlationID)
 
 	// Without correlation ID.
-	mockTracer.called = false
-	mockTracer.span.correlationID = ""
-	m(opentracing.ContextWithSpan(context.Background(), mockTracer.StartSpan("flaki")), nil)
-	assert.True(t, mockTracer.called)
-	assert.Equal(t, flakiID, mockTracer.span.correlationID)
+	mockTracer.EXPECT().StartSpan("operationName", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", flakiID).Return(mockSpan).Times(1)
+	m(opentracing.ContextWithSpan(context.Background(), mockSpan), nil)
 
 	// Without tracer.
-	mockTracer.called = false
+	mockTracer.EXPECT().StartSpan("operationName", gomock.Any()).Times(0)
+	mockSpan.EXPECT().Context().Times(0)
+	mockSpan.EXPECT().Finish().Times(0)
+	mockSpan.EXPECT().SetTag("correlation_id", flakiID).Times(0)
 	m(context.Background(), nil)
-	assert.False(t, mockTracer.called)
 }
 
 func MakeMockEndpoint(id string, fail bool) endpoint.Endpoint {
@@ -161,79 +159,3 @@ func MakeMockEndpoint(id string, fail bool) endpoint.Endpoint {
 		return id, nil
 	}
 }
-
-// Mock Logger.
-type mockLogger struct {
-	called        bool
-	correlationID string
-}
-
-func (l *mockLogger) Log(keyvals ...interface{}) error {
-	l.called = true
-
-	for i, kv := range keyvals {
-		if kv == "correlation_id" {
-			l.correlationID = keyvals[i+1].(string)
-		}
-	}
-	return nil
-}
-
-// Mock histogram.
-type mockHistogram struct {
-	called        bool
-	correlationID string
-}
-
-func (h *mockHistogram) With(labelValues ...string) metrics.Histogram {
-	for i, kv := range labelValues {
-		if kv == "correlation_id" {
-			h.correlationID = labelValues[i+1]
-		}
-	}
-	return h
-}
-func (h *mockHistogram) Observe(value float64) {
-	h.called = true
-}
-
-// Mock Tracer.
-type mockTracer struct {
-	called bool
-	span   *mockSpan
-}
-
-func (t *mockTracer) StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
-	t.called = true
-	return t.span
-}
-func (t *mockTracer) Inject(sm opentracing.SpanContext, format interface{}, carrier interface{}) error {
-	return nil
-}
-func (t *mockTracer) Extract(format interface{}, carrier interface{}) (opentracing.SpanContext, error) {
-	return nil, nil
-}
-
-// Mock Span.
-type mockSpan struct {
-	correlationID string
-}
-
-func (s *mockSpan) SetTag(key string, value interface{}) opentracing.Span {
-	if key == "correlation_id" {
-		s.correlationID = value.(string)
-	}
-	return s
-}
-func (s *mockSpan) Finish()                                                     {}
-func (s *mockSpan) FinishWithOptions(opts opentracing.FinishOptions)            {}
-func (s *mockSpan) Context() opentracing.SpanContext                            { return nil }
-func (s *mockSpan) SetOperationName(operationName string) opentracing.Span      { return s }
-func (s *mockSpan) LogFields(fields ...olog.Field)                              {}
-func (s *mockSpan) LogKV(alternatingKeyValues ...interface{})                   {}
-func (s *mockSpan) SetBaggageItem(restrictedKey, value string) opentracing.Span { return s }
-func (s *mockSpan) BaggageItem(restrictedKey string) string                     { return "" }
-func (s *mockSpan) Tracer() opentracing.Tracer                                  { return nil }
-func (s *mockSpan) LogEvent(event string)                                       {}
-func (s *mockSpan) LogEventWithPayload(event string, payload interface{})       {}
-func (s *mockSpan) Log(data opentracing.LogData)                                {}

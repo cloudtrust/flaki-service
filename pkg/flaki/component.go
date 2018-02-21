@@ -1,5 +1,7 @@
 package flaki
 
+//go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=Component=Component github.com/cloudtrust/flaki-service/pkg/flaki Component
+
 import (
 	"context"
 )

@@ -1,5 +1,7 @@
 package health
 
+//go:generate mockgen -destination=./mock/redis.go -package=mock -mock_names=RedisModule=RedisModule,Redis=Redis  github.com/cloudtrust/flaki-service/pkg/health RedisModule,Redis
+
 import (
 	"context"
 	"time"
@@ -7,14 +9,15 @@ import (
 
 // RedisModule is the health check module for redis.
 type RedisModule interface {
-	HealthChecks(context.Context) []redisHealthReport
+	HealthChecks(context.Context) []RedisHealthReport
 }
 
 type redisModule struct {
 	redis Redis
 }
 
-type redisHealthReport struct {
+// RedisHealthReport is the health report returned by the redis module.
+type RedisHealthReport struct {
 	Name     string
 	Duration string
 	Status   Status
@@ -32,16 +35,16 @@ func NewRedisModule(redis Redis) RedisModule {
 }
 
 // HealthChecks executes all health checks for Redis.
-func (m *redisModule) HealthChecks(context.Context) []redisHealthReport {
-	var reports = []redisHealthReport{}
+func (m *redisModule) HealthChecks(context.Context) []RedisHealthReport {
+	var reports = []RedisHealthReport{}
 	reports = append(reports, redisPingCheck(m.redis))
 	return reports
 }
 
-func redisPingCheck(redis Redis) redisHealthReport {
+func redisPingCheck(redis Redis) RedisHealthReport {
 	// If redis is deactivated.
 	if redis == nil {
-		return redisHealthReport{
+		return RedisHealthReport{
 			Name:     "ping",
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -59,7 +62,7 @@ func redisPingCheck(redis Redis) redisHealthReport {
 		error = err.Error()
 	}
 
-	return redisHealthReport{
+	return RedisHealthReport{
 		Name:     "ping",
 		Duration: duration.String(),
 		Status:   status,

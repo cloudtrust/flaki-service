@@ -1,10 +1,12 @@
-package health
+package health_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
+	. "github.com/cloudtrust/flaki-service/pkg/health"
+	"github.com/cloudtrust/flaki-service/pkg/health/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -12,7 +14,7 @@ import (
 func TestRedisHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockRedis = NewMockRedis(mockCtrl)
+	var mockRedis = mock.NewRedis(mockCtrl)
 
 	mockRedis.EXPECT().Do("PING").Return(nil, nil).Times(1)
 

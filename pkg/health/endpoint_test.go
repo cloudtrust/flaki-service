@@ -1,10 +1,12 @@
-package health
+package health_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	. "github.com/cloudtrust/flaki-service/pkg/health"
+	"github.com/cloudtrust/flaki-service/pkg/health/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -12,7 +14,7 @@ import (
 func TestInfluxHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var e = MakeInfluxHealthCheckEndpoint(mockComponent)
 
@@ -42,7 +44,7 @@ func TestInfluxHealthCheckEndpoint(t *testing.T) {
 func TestJaegerHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var e = MakeJaegerHealthCheckEndpoint(mockComponent)
 
@@ -72,7 +74,7 @@ func TestJaegerHealthCheckEndpoint(t *testing.T) {
 func TestRedisHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var e = MakeRedisHealthCheckEndpoint(mockComponent)
 
@@ -101,7 +103,7 @@ func TestRedisHealthCheckEndpoint(t *testing.T) {
 func TestSentryHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var e = MakeSentryHealthCheckEndpoint(mockComponent)
 

@@ -1,5 +1,7 @@
 package flaki
 
+//go:generate mockgen -destination=./mock/tracking.go -package=mock -mock_names=Sentry=Sentry  github.com/cloudtrust/flaki-service/pkg/flaki Sentry
+
 import (
 	"context"
 

@@ -7,15 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+	"github.com/golang/mock/gomock"
 )
 
 func TestComponentLoggingMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockLogger = mock.NewLogger(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockComponent = &mockComponent{fail: false, id: flakiID}
-	var mockLogger = &mockLogger{}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -24,40 +27,34 @@ func TestComponentLoggingMW(t *testing.T) {
 	var m = MakeComponentLoggingMW(mockLogger)(mockComponent)
 
 	// NextID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockComponent.EXPECT().NextID(ctx).Return(flakiID, nil).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextID", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
 	m.NextID(ctx)
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, corrID, mockLogger.correlationID)
-
-	// NextValidID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
-	m.NextValidID(ctx)
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, corrID, mockLogger.correlationID)
 
 	// NextID without correlation ID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockComponent.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextID", "correlation_id", flakiID, "took", gomock.Any()).Return(nil).Times(1)
 	m.NextID(context.Background())
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, flakiID, mockLogger.correlationID)
+
+	// NextValidID.
+	mockComponent.EXPECT().NextValidID(ctx).Return(flakiID).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextValidID", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
+	m.NextValidID(ctx)
 
 	// NextValidID without correlation ID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockComponent.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextValidID", "correlation_id", flakiID, "took", gomock.Any()).Return(nil).Times(1)
 	m.NextValidID(context.Background())
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, flakiID, mockLogger.correlationID)
 }
 
 func TestModuleLoggingMW(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockLogger = mock.NewLogger(mockCtrl)
+	var mockModule = mock.NewModule(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockModule = &mockModule{fail: false, id: flakiID}
-	var mockLogger = &mockLogger{}
 
 	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -66,47 +63,22 @@ func TestModuleLoggingMW(t *testing.T) {
 	var m = MakeModuleLoggingMW(mockLogger)(mockModule)
 
 	// NextID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockModule.EXPECT().NextID(ctx).Return(flakiID, nil).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextID", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
 	m.NextID(ctx)
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, corrID, mockLogger.correlationID)
-
-	// NextValidID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
-	m.NextValidID(ctx)
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, corrID, mockLogger.correlationID)
 
 	// NextID without correlation ID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockModule.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextID", "correlation_id", flakiID, "took", gomock.Any()).Return(nil).Times(1)
 	m.NextID(context.Background())
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, flakiID, mockLogger.correlationID)
+
+	// NextValidID.
+	mockModule.EXPECT().NextValidID(ctx).Return(flakiID).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextValidID", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
+	m.NextValidID(ctx)
 
 	// NextValidID without correlation ID.
-	mockLogger.called = false
-	mockLogger.correlationID = ""
+	mockModule.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextValidID", "correlation_id", flakiID, "took", gomock.Any()).Return(nil).Times(1)
 	m.NextValidID(context.Background())
-	assert.True(t, mockLogger.called)
-	assert.Equal(t, flakiID, mockLogger.correlationID)
-}
-
-// Mock Logger.
-type mockLogger struct {
-	called        bool
-	correlationID string
-}
-
-func (l *mockLogger) Log(keyvals ...interface{}) error {
-	l.called = true
-
-	for i, kv := range keyvals {
-		if kv == "correlation_id" {
-			l.correlationID = keyvals[i+1].(string)
-		}
-	}
-	return nil
 }

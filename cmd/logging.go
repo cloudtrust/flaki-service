@@ -1,5 +1,7 @@
 package main
 
+//go:generate mockgen -source=logging.go -destination=./mock/logging.go -package=mock -mock_names=Redis=Redis github.com/cloudtrust/flaki-service/cmd Redis
+
 import (
 	"encoding/json"
 )
@@ -11,26 +13,27 @@ type logstashLog struct {
 	Message         string            `json:"@message, omitempty"`
 }
 
-type redisWriter struct {
+// RedisWriter is the writer that writes logs to redis in logstash format.
+type RedisWriter struct {
 	redis Redis
+	key   string
 }
 
 // Redis is the redis client interface.
 type Redis interface {
 	Send(commandName string, args ...interface{}) error
-	Flush() error
-	Close() error
 }
 
 // NewLogstashRedisWriter returns a writer that writes logs into a redis DB.
-func NewLogstashRedisWriter(redis Redis) *redisWriter {
-	return &redisWriter{
+func NewLogstashRedisWriter(redis Redis, key string) *RedisWriter {
+	return &RedisWriter{
 		redis: redis,
+		key:   key,
 	}
 }
 
 // Write writes logs into a redis DB.
-func (w *redisWriter) Write(p []byte) (int, error) {
+func (w *RedisWriter) Write(p []byte) (int, error) {
 	// The current logs are json formatted by the go-kit JSONLogger.
 	var logs = decodeJSON(p)
 
@@ -40,7 +43,7 @@ func (w *redisWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 
-	err = w.redis.Send("RPUSH", "flaki-service", logstashLog)
+	err = w.redis.Send("RPUSH", w.key, logstashLog)
 	if err != nil {
 		return 0, err
 	}

@@ -1,5 +1,7 @@
 package health
 
+//go:generate mockgen -destination=./mock/sentry.go -package=mock -mock_names=SentryModule=SentryModule,Sentry=Sentry  github.com/cloudtrust/flaki-service/pkg/health SentryModule,Sentry
+
 import (
 	"context"
 	"fmt"
@@ -11,7 +13,7 @@ import (
 
 // SentryModule is the health check module for sentry.
 type SentryModule interface {
-	HealthChecks(context.Context) []sentryHealthReport
+	HealthChecks(context.Context) []SentryHealthReport
 }
 
 type sentryModule struct {
@@ -19,7 +21,8 @@ type sentryModule struct {
 	httpClient HTTPClient
 }
 
-type sentryHealthReport struct {
+// SentryHealthReport is the health report returned by the sentry module.
+type SentryHealthReport struct {
 	Name     string
 	Duration string
 	Status   Status
@@ -45,18 +48,18 @@ func NewSentryModule(sentry Sentry, httpClient HTTPClient) SentryModule {
 }
 
 // HealthChecks executes all health checks for Sentry.
-func (m *sentryModule) HealthChecks(context.Context) []sentryHealthReport {
-	var reports = []sentryHealthReport{}
+func (m *sentryModule) HealthChecks(context.Context) []SentryHealthReport {
+	var reports = []SentryHealthReport{}
 	reports = append(reports, sentryPingCheck(m.sentry, m.httpClient))
 	return reports
 }
 
-func sentryPingCheck(sentry Sentry, httpClient HTTPClient) sentryHealthReport {
+func sentryPingCheck(sentry Sentry, httpClient HTTPClient) SentryHealthReport {
 	var dsn = sentry.URL()
 
 	// If sentry is deactivated.
 	if dsn == "" {
-		return sentryHealthReport{
+		return SentryHealthReport{
 			Name:     "ping",
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -73,7 +76,7 @@ func sentryPingCheck(sentry Sentry, httpClient HTTPClient) sentryHealthReport {
 		error = err.Error()
 	}
 
-	return sentryHealthReport{
+	return SentryHealthReport{
 		Name:     "ping",
 		Duration: duration.String(),
 		Status:   status,

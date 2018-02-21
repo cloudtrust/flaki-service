@@ -1,4 +1,4 @@
-package health
+package health_test
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/cloudtrust/flaki-service/pkg/health"
+	"github.com/cloudtrust/flaki-service/pkg/health/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +19,7 @@ import (
 func TestInfluxHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var h = MakeInfluxHealthCheckHandler(MakeInfluxHealthCheckEndpoint(mockComponent))
 
@@ -51,7 +53,7 @@ func TestInfluxHealthCheckHandler(t *testing.T) {
 func TestJaegerHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var h = MakeJaegerHealthCheckHandler(MakeJaegerHealthCheckEndpoint(mockComponent))
 
@@ -86,7 +88,7 @@ func TestJaegerHealthCheckHandler(t *testing.T) {
 func TestRedisHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var h = MakeRedisHealthCheckHandler(MakeRedisHealthCheckEndpoint(mockComponent))
 
@@ -121,7 +123,7 @@ func TestRedisHealthCheckHandler(t *testing.T) {
 func TestSentryHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var h = MakeSentryHealthCheckHandler(MakeSentryHealthCheckEndpoint(mockComponent))
 
@@ -156,7 +158,7 @@ func TestSentryHealthCheckHandler(t *testing.T) {
 func TestHealthChecksHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	// Health success.
 	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
@@ -199,7 +201,7 @@ func TestHealthChecksHandler(t *testing.T) {
 func TestHealthChecksHandlerFail(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = NewMockComponent(mockCtrl)
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	// Health fail.
 	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "influx", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)

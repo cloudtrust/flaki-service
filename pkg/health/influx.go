@@ -1,5 +1,7 @@
 package health
 
+//go:generate mockgen -destination=./mock/influx.go -package=mock -mock_names=InfluxModule=InfluxModule,Influx=Influx  github.com/cloudtrust/flaki-service/pkg/health InfluxModule,Influx
+
 import (
 	"context"
 	"time"
@@ -7,14 +9,15 @@ import (
 
 // InfluxModule is the health check module for influx.
 type InfluxModule interface {
-	HealthChecks(context.Context) []influxHealthReport
+	HealthChecks(context.Context) []InfluxHealthReport
 }
 
 type influxModule struct {
 	influx Influx
 }
 
-type influxHealthReport struct {
+// InfluxHealthReport is the health report returned by the influx module.
+type InfluxHealthReport struct {
 	Name     string
 	Duration string
 	Status   Status
@@ -32,18 +35,18 @@ func NewInfluxModule(influx Influx) InfluxModule {
 }
 
 // HealthChecks executes all health checks for influx.
-func (m *influxModule) HealthChecks(context.Context) []influxHealthReport {
-	var reports = []influxHealthReport{}
+func (m *influxModule) HealthChecks(context.Context) []InfluxHealthReport {
+	var reports = []InfluxHealthReport{}
 	reports = append(reports, influxPing(m.influx))
 	return reports
 }
 
-func influxPing(influx Influx) influxHealthReport {
+func influxPing(influx Influx) InfluxHealthReport {
 	var d, s, err = influx.Ping(5 * time.Second)
 
 	// If influx is deactivated.
 	if s == "NOOP" {
-		return influxHealthReport{
+		return InfluxHealthReport{
 			Name:     "ping",
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -57,7 +60,7 @@ func influxPing(influx Influx) influxHealthReport {
 		error = err.Error()
 	}
 
-	return influxHealthReport{
+	return InfluxHealthReport{
 		Name:     "ping",
 		Duration: d.String(),
 		Status:   status,

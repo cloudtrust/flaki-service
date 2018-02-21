@@ -1,4 +1,4 @@
-package health
+package health_test
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/cloudtrust/flaki-service/pkg/health"
+	"github.com/cloudtrust/flaki-service/pkg/health/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,7 +15,7 @@ import (
 func TestInfluxHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockInflux = NewMockInflux(mockCtrl)
+	var mockInflux = mock.NewInflux(mockCtrl)
 
 	var m = NewInfluxModule(mockInflux)
 
@@ -36,7 +38,7 @@ func TestInfluxHealthChecks(t *testing.T) {
 func TestNoopInfluxHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockInflux = NewMockInflux(mockCtrl)
+	var mockInflux = mock.NewInflux(mockCtrl)
 
 	var m = NewInfluxModule(mockInflux)
 
