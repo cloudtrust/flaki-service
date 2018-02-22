@@ -1,0 +1,4 @@
+check process flaki matching "flaki"
+  start program = "/usr/bin/systemctl start flaki.service"
+  stop program = "/usr/bin/systemctl stop flaki.service"
+  if failed port 8888 protocol HTTP request /version with timeout 10 seconds then restart

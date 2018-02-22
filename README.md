@@ -15,6 +15,18 @@ Build the service for the environment \<env>:
 ```
 Note: \<env> is used for versioning. 
 
+## Container
+If you want to run the flaki-service in a docker container:
+```bash
+mkdir build_context
+cp dockerfiles/cloudtrust-flaki.dockerfile build_context/
+cd build_context
+
+#Build the dockerfile for DEV environment
+docker build --build-arg branch=master -t cloudtrust-flaki:f27 -t cloudtrust-flaki:latest -f cloudtrust-flaki.dockerfile .
+```
+
+
 ## Configuration
 Configuration is done with a YAML file. An example is provided in ```./conf/DEV/flaki_service.yml```.
 
