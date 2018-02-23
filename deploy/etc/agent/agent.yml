@@ -1,5 +1,5 @@
 # storage type: "elasticsearch" for ElasticSearch backing store, "cassandra" for Cassandra backing store, "memory" for an in-memory store.
-span-storage.type: memory
+span-storage.type: cassandra
 # Minimal allowed log Level
 log-level: info
 # Frequency of service dependency calculations

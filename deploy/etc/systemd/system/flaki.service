@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=flaki
 Group=flaki
-ExecStart=/etc/flaki/flakiService --config-file /etc/flaki/flaki_service.yml
+ExecStart=/etc/flaki/flakid --config-file /etc/flaki/flakid.yml
 
 [Install]
 WantedBy=multi-user.target
