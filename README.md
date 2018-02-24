@@ -19,32 +19,24 @@ Note: \<env> is used for versioning.
 If you want to run the flaki-service in a docker container:
 ```bash
 mkdir build_context
+cp bin/flakid build_context/
 cp dockerfiles/cloudtrust-flaki.dockerfile build_context/
 cd build_context
 
+# For the tracing, you also need to put the jaeger "agent-linux" executable in the build_context.
+
 #Build the dockerfile for DEV environment
-
-docker build --build-arg flaki_service_git_tag=alpha -t cloudtrust-flaki-service -f cloudtrust-flaki-service.dockerfile .
+docker build --build-arg flaki_service_git_tag=<git_tag> -t cloudtrust-flaki-service -f cloudtrust-flaki.dockerfile .
 docker create --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -p 5555:5555 -p 8888:8888 --name flaki-service-1 cloudtrust-flaki-service
-
 ```
 
-
 ## Configuration
-Configuration is done with a YAML file. An example is provided in ```./conf/DEV/flaki_service.yml```.
-
-The following units can be configured: 
-- component
-- flaki
-- redis
-- influx
-- sentry
-- jaeger
-- debug
-
+Configuration is done with a YAML file, e.g. ```./conf/DEV/flakid.yml```.
 Default configurations are provided, that is if an entry is not present in the configuration file, it will be set to its default value.
 
-The following sections describe more precisely the available options.
+The documentation for the [Redis](https://cloudtrust.github.io/doc/chapter-godevel/logging.html), [Influx](https://cloudtrust.github.io/doc/chapter-godevel/instrumenting.html), [Sentry](https://cloudtrust.github.io/doc/chapter-godevel/tracking.html), [Jaeger](https://cloudtrust.github.io/doc/chapter-godevel/tracing.html) and [Debug](https://cloudtrust.github.io/doc/chapter-godevel/debugging.html) configuration are common to all microservices and is provided in the Cloudtrust Gitbook.
+
+The configurations specific to the flaki-service are described in the next sections.
 
 ### Component
 For the component, the following parameters are available:
@@ -65,62 +57,6 @@ If two Flaki instance have the same component ID and same node ID, there will be
 
 More information on the Flaki unique ID generator are availaible on its [repository](https://github.com/cloudtrust/flaki).
 
-### Redis
-The logs can be formatted in [Logstash](https://www.elastic.co/products/logstash) format and send to a [Redis](https://redis.io/) server. The goal is to process them with the [Elastic Stack](https://www.elastic.co/products).
-
-By default the Redis configuration is empty, which mean we do not use Redis. The loggers only log to stdout. 
-If the Redis configuration keys are present in the configuration file, the logs are duplicated to stdout and Redis.
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-redis-url | Redis server URL | ""
-redis-password | Redis password | ""
-redis-database | Redis database | 0
-
-### InfluxDB
-The service can record metrics and send them to an [Influx](https://www.influxdata.com/time-series-platform/influxdb/) time series DB.
-
-By default the influx configuration is empty, which mean that the metrics are disabled. To activate them, provides configuration for infux in the configuration file.
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-influx-url | Influx URL | ""
-influx-username | InfluxDB username | ""
-influx-password | InfluxDB password | ""
-influx-database | InfluxDB database name | ""
-influx-precision | Write precision of the points | ""
-influx-retention-policy | Retention policy of the points | ""
-influx-write-consistency | Number of servers required to confirm write | ""
-influx-write-interval-ms | Flush interval in milliseconds | 1000
-
-### Sentry
-[Sentry](https://sentry.io/welcome/) is an open source error tracking system. It helps monitoring crashes and errors in real time.
-By default, the error tracking is deactivated. To set it up, add the sentry-dsn to the configuration file.
-
-Note: To obtain the sentry Data Source Name (DSN) you need to set up a project in Sentry (see [documenation](https://docs.sentry.io/quickstart/#configure-the-dsn)). 
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-sentry-dsn | Sentry Data Source Name | ""
-
-### Jaeger
-[Jaeger](https://jaeger.readthedocs.io/en/latest/) is a distributed tracing system. It is disabled by default, to enable it provide configuration in the configuration file.
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-jaeger-sampler-type |  | ""
-jaeger-sampler-param |  | 0
-jaeger-sampler-url |  | ""
-jaeger-reporter-logspan |  | false
-jaeger-write-interval-ms | Flush interval in milliseconds | 1000
-
-### Debug
-Key | Description | Default value 
---- | ----------- | ------------- 
-pprof-route-enabled | whether the pprof debug routes are enabled | true
-
-The golang pprof package serves runtime profiling data via the HTTP server (see [documentation](https://golang.org/pkg/net/http/pprof/)). If ```pprof-route-enabled``` is true, we enable the HTTP pprof routes.
-
 ## Usage
 Launch the flaki service:
 ```bash
@@ -129,9 +65,9 @@ Launch the flaki service:
 It is recommended to always provides an absolute path to the configuration file when the service is started, even though absolute and relative paths are supported.
 If no configuration file is passed, the service will try to load the default config file at ```./conf/DEV/flaki_service.yml```, and if it fails it launches the service with the default parameters.
 
-### gRPC
-
-### HTTP
+### gRPC and HTTP clients
+To obtain IDs using gRPC or HTTP, you need to implement your own clients. There is an example in the directory `client`.
+There are two methods available to get IDs: NextID and NextValidID. Both take a Flatbuffer `EmptyRequest` and reply with a Flatbuffer `FlakiReply` containing the unique ID and an error. The Flatbuffer schema is `pkg/flaki/flatbuffer/flaki.fbs`.
 
 ### Health
 The service exposes HTTP routes to monitor the application health.
@@ -177,9 +113,7 @@ correlation_id:<correlation_id>
 
 ## Tests
 
-The mocks are generated with [gomock](https://github.com/golang/mock).
-
-```mockgen -destination=mock.go -package=health github.com/cloudtrust/flaki-service/pkg/health Sentry,SentryModule,Redis,RedisModule,Influx,InfluxModule,Jaeger,JaegerModule,Component```
+Gomock is used to automatically genarate mocks. See the Cloudtrust [Gitbook](https://cloudtrust.github.io/doc/chapter-godevel/testing.html) for more information.
 
 The unit tests don't cover:
 - http client example (```./client/http/http.go```)
@@ -188,12 +122,8 @@ The unit tests don't cover:
 
 The first two are provided as example.
 
-The ```flakid.go``` is mosttly just the main function doing all the wiring, it is difficult to test it with unit tests. It is covered by our integration tests.
+The ```flakid.go``` is mostly just the main function doing all the wiring, it is difficult to test it with unit tests. It is covered by our integration tests.
 
 ## Limitations
 
 The Redis connection does not handle errors well: if there is a problem, it is closed forever. We will implement our own redis client later, because we need load-balancing and circuit-breaking.
-
-
-
-
