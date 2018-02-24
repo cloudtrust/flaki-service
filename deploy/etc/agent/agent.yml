@@ -5,7 +5,7 @@ log-level: info
 # Frequency of service dependency calculations
 dependency-storage.data-frequency: 24h
 # comma-separated string representing host:ports of a static list of collectors to connect to directly (e.g. when not using service discovery)
-collector.host-port: 127.0.0.1:14268
+collector.host-port: 10.244.18.1:14267
 # if using service discovery, the min number of connections to maintain to the backend (default 3)
 discovery.min-peers: 3
 # host:port of the http server (e.g. for /sampling point and /baggage endpoint) (default ":5778")

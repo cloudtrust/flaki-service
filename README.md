@@ -23,7 +23,10 @@ cp dockerfiles/cloudtrust-flaki.dockerfile build_context/
 cd build_context
 
 #Build the dockerfile for DEV environment
-docker build --build-arg branch=master -t cloudtrust-flaki:f27 -t cloudtrust-flaki:latest -f cloudtrust-flaki.dockerfile .
+
+docker build --build-arg flaki_service_git_tag=alpha -t cloudtrust-flaki-service -f cloudtrust-flaki-service.dockerfile .
+docker create --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -p 5555:5555 -p 8888:8888 --name flaki-service-1 cloudtrust-flaki-service
+
 ```
 
 

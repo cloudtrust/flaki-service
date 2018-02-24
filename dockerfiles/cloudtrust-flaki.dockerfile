@@ -42,3 +42,6 @@ RUN git checkout ${flaki_service_git_tag} && \
     systemctl enable monit.service
 
 EXPOSE 5555 8888
+
+# Agent config HTTP
+EXPOSE 5778
