@@ -4,6 +4,8 @@ package flaki
 
 import (
 	"context"
+
+	"github.com/pkg/errors"
 )
 
 // Component is the Flaki component interface.
@@ -17,7 +19,7 @@ type component struct {
 	module Module
 }
 
-// New returns a Flaki component.
+// NewComponent returns a Flaki component.
 func NewComponent(module Module) Component {
 	return &component{
 		module: module,
@@ -26,7 +28,11 @@ func NewComponent(module Module) Component {
 
 // NextID generates a unique string ID.
 func (c *component) NextID(ctx context.Context) (string, error) {
-	return c.module.NextID(ctx)
+	var id, err = c.module.NextID(ctx)
+	if err != nil {
+		return "", errors.Wrap(err, "module could not generate ID")
+	}
+	return id, nil
 }
 
 // NextValidID generates a unique string ID.

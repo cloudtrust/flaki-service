@@ -4,6 +4,8 @@ package flaki
 
 import (
 	"context"
+
+	"github.com/pkg/errors"
 )
 
 // Module is the interface of the flaki Module
@@ -32,7 +34,11 @@ func NewModule(flaki Flaki) Module {
 
 // NextID generates a unique string ID.
 func (m *module) NextID(_ context.Context) (string, error) {
-	return m.flaki.NextIDString()
+	var id, err = m.flaki.NextIDString()
+	if err != nil {
+		return "", errors.Wrap(err, "flaki could not generate ID")
+	}
+	return id, nil
 }
 
 // NextValidID generates a unique string ID.

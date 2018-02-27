@@ -2,14 +2,12 @@ package flaki
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
-	"github.com/go-kit/kit/endpoint"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -56,13 +54,4 @@ func TestNextValidIDEndpoint(t *testing.T) {
 	var id, err = e(ctx, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, flakiID, id)
-}
-
-func MakeMockEndpoint(id string, fail bool) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		if fail {
-			return "", fmt.Errorf("fail")
-		}
-		return id, nil
-	}
 }

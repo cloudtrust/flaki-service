@@ -9,6 +9,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/flatbuffers/go"
+	"github.com/pkg/errors"
 )
 
 // MakeHTTPNextIDHandler makes a HTTP handler for the NextID endpoint.
@@ -46,7 +47,7 @@ func decodeHTTPRequest(_ context.Context, req *http.Request) (interface{}, error
 	var data, err = ioutil.ReadAll(req.Body)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not decode HTTP request")
 	}
 
 	return fb.GetRootAsEmptyRequest(data, 0), nil

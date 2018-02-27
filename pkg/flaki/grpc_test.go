@@ -2,24 +2,26 @@ package flaki
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+	"github.com/golang/mock/gomock"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 )
 
 func TestNewGRPCServer(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
-	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockEndpoint = MakeMockEndpoint(flakiID, false)
-
-	var s = NewGRPCServer(MakeGRPCNextIDHandler(mockEndpoint), MakeGRPCNextValidIDHandler(mockEndpoint))
+	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
 
 	// Flatbuffer Request.
 	var b = flatbuffers.NewBuilder(0)
@@ -27,8 +29,12 @@ func TestNewGRPCServer(t *testing.T) {
 	b.Finish(fb.EmptyRequestEnd(b))
 	var emptyReq = fb.GetRootAsEmptyRequest(b.FinishedBytes(), 0)
 
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+
 	// NextID.
 	{
+		mockComponent.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
 		var data, err = s.NextID(context.Background(), emptyReq)
 		assert.Nil(t, err)
 		// Decode and check reply.
@@ -38,6 +44,7 @@ func TestNewGRPCServer(t *testing.T) {
 	}
 	// NextValidID.
 	{
+		mockComponent.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
 		var data, err = s.NextValidID(context.Background(), emptyReq)
 		assert.Nil(t, err)
 		// Decode and check reply.
@@ -48,12 +55,11 @@ func TestNewGRPCServer(t *testing.T) {
 }
 
 func TestGRPCErrorHandler(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
-	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockEndpoint = MakeMockEndpoint(flakiID, true)
-
-	var s = NewGRPCServer(MakeGRPCNextIDHandler(mockEndpoint), MakeGRPCNextValidIDHandler(mockEndpoint))
+	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
 
 	// Flatbuffer Request.
 	var b = flatbuffers.NewBuilder(0)
@@ -63,16 +69,8 @@ func TestGRPCErrorHandler(t *testing.T) {
 
 	// NextID.
 	{
+		mockComponent.EXPECT().NextID(context.Background()).Return("", fmt.Errorf("fail")).Times(1)
 		var data, err = s.NextID(context.Background(), emptyReq)
-		assert.Nil(t, err)
-		// Decode and check reply.
-		var r = fb.GetRootAsFlakiReply(data.FinishedBytes(), 0)
-		assert.Zero(t, string(r.Id()))
-		assert.NotZero(t, string(r.Error()))
-	}
-	// NextValidID.
-	{
-		var data, err = s.NextValidID(context.Background(), emptyReq)
 		assert.Nil(t, err)
 		// Decode and check reply.
 		var r = fb.GetRootAsFlakiReply(data.FinishedBytes(), 0)
@@ -82,22 +80,18 @@ func TestGRPCErrorHandler(t *testing.T) {
 }
 
 func TestFetchGRPCCorrelationID(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+
+	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
 
 	// Context with correlation ID.
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var md = metadata.New(map[string]string{"correlation_id": corrID})
 	var ctx = metadata.NewIncomingContext(context.Background(), md)
-
-	var endpoint = func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		var id = ctx.Value("correlation_id")
-		assert.NotNil(t, id)
-		assert.Equal(t, corrID, id.(string))
-
-		return "", nil
-	}
-
-	var s = NewGRPCServer(MakeGRPCNextIDHandler(endpoint), MakeGRPCNextValidIDHandler(endpoint))
 
 	// Flatbuffer Request.
 	var b = flatbuffers.NewBuilder(0)
@@ -105,6 +99,8 @@ func TestFetchGRPCCorrelationID(t *testing.T) {
 	b.Finish(fb.EmptyRequestEnd(b))
 	var emptyReq = fb.GetRootAsEmptyRequest(b.FinishedBytes(), 0)
 
+	mockComponent.EXPECT().NextID(context.WithValue(ctx, "correlation_id", corrID)).Return(flakiID, nil).Times(1)
 	s.NextID(ctx, emptyReq)
+	mockComponent.EXPECT().NextValidID(context.WithValue(ctx, "correlation_id", corrID)).Return(flakiID).Times(1)
 	s.NextValidID(ctx, emptyReq)
 }

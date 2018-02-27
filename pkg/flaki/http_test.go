@@ -3,6 +3,7 @@ package flaki
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -12,15 +13,20 @@ import (
 	"time"
 
 	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+	"github.com/golang/mock/gomock"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPNextIDHandler(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var nextIDHandler = MakeHTTPNextIDHandler(MakeMockEndpoint(flakiID, false))
+	var nextIDHandler = MakeHTTPNextIDHandler(MakeNextIDEndpoint(mockComponent))
 
 	// Flatbuffer request.
 	var b = flatbuffers.NewBuilder(0)
@@ -32,6 +38,7 @@ func TestHTTPNextIDHandler(t *testing.T) {
 	var w = httptest.NewRecorder()
 
 	// NextID.
+	mockComponent.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
 	nextIDHandler.ServeHTTP(w, req)
 	var resp = w.Result()
 	var body, err = ioutil.ReadAll(resp.Body)
@@ -44,10 +51,13 @@ func TestHTTPNextIDHandler(t *testing.T) {
 	assert.Zero(t, string(r.Error()))
 }
 func TestHTTPNextValidIDHandler(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
+	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var nextValidIDHandler = MakeHTTPNextValidIDHandler(MakeMockEndpoint(flakiID, false))
+	var nextValidIDHandler = MakeHTTPNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent))
 
 	// Flatbuffer request.
 	var b = flatbuffers.NewBuilder(0)
@@ -59,6 +69,7 @@ func TestHTTPNextValidIDHandler(t *testing.T) {
 	var w = httptest.NewRecorder()
 
 	// NextValidID.
+	mockComponent.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
 	nextValidIDHandler.ServeHTTP(w, req)
 	var resp = w.Result()
 	var body, err = ioutil.ReadAll(resp.Body)
@@ -72,10 +83,11 @@ func TestHTTPNextValidIDHandler(t *testing.T) {
 }
 
 func TestHTTPErrorHandler(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
-	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var nextIDHandler = MakeHTTPNextIDHandler(MakeMockEndpoint(flakiID, true))
+	var nextIDHandler = MakeHTTPNextIDHandler(MakeNextIDEndpoint(mockComponent))
 
 	// Flatbuffer request.
 	var b = flatbuffers.NewBuilder(0)
@@ -87,6 +99,7 @@ func TestHTTPErrorHandler(t *testing.T) {
 	var w = httptest.NewRecorder()
 
 	// NextID.
+	mockComponent.EXPECT().NextID(context.Background()).Return("", fmt.Errorf("fail")).Times(1)
 	nextIDHandler.ServeHTTP(w, req)
 	var resp = w.Result()
 	var body, err = ioutil.ReadAll(resp.Body)
@@ -96,21 +109,21 @@ func TestHTTPErrorHandler(t *testing.T) {
 	// Decode and check reply.
 	var r = fb.GetRootAsFlakiReply(body, 0)
 	assert.Zero(t, string(r.Id()))
-	assert.Equal(t, "fail", string(r.Error()))
+	assert.NotZero(t, string(r.Error()))
 }
 
 func TestFetchHTTPCorrelationID(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+
+	// Context with correlation ID.
 	rand.Seed(time.Now().UnixNano())
-
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
-	var endpoint = func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		var id = ctx.Value("correlation_id")
-		assert.NotNil(t, id)
-		assert.Equal(t, corrID, id.(string))
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 
-		return "", nil
-	}
-	var nextIDHandler = MakeHTTPNextIDHandler(endpoint)
+	var nextIDHandler = MakeHTTPNextIDHandler(MakeNextIDEndpoint(mockComponent))
 
 	// Flatbuffer request.
 	var b = flatbuffers.NewBuilder(0)
@@ -122,5 +135,6 @@ func TestFetchHTTPCorrelationID(t *testing.T) {
 	req.Header.Add("X-Correlation-ID", corrID)
 	var w = httptest.NewRecorder()
 
+	mockComponent.EXPECT().NextID(ctx).Return(flakiID, nil).Times(1)
 	nextIDHandler.ServeHTTP(w, req)
 }

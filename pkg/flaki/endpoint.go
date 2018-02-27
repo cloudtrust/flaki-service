@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/pkg/errors"
 )
 
 // Endpoints wraps a service behind a set of endpoints.
@@ -15,7 +16,11 @@ type Endpoints struct {
 // MakeNextIDEndpoint makes the NextIDEndpoint.
 func MakeNextIDEndpoint(c Component) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.NextID(ctx)
+		var id, err = c.NextID(ctx)
+		if err != nil {
+			return "", errors.Wrap(err, "component could not generate ID")
+		}
+		return id, nil
 	}
 }
 
