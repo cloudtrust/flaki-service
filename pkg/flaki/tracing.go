@@ -6,6 +6,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/go-kit/kit/endpoint"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	opentracing "github.com/opentracing/opentracing-go"
 	otag "github.com/opentracing/opentracing-go/ext"
@@ -17,7 +19,6 @@ import (
 func MakeHTTPTracingMW(tracer opentracing.Tracer, componentName, operationName string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 			var sc, err = tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
 
 			var span opentracing.Span
@@ -86,6 +87,34 @@ func (m *grpcTracingMW) ServeGRPC(ctx context.Context, req interface{}) (context
 	return m.next.ServeGRPC(opentracing.ContextWithSpan(ctx, span), req)
 }
 
+// MakeEndpointTracingMW makes a tracing middleware at endpoint level.
+func MakeEndpointTracingMW(tracer opentracing.Tracer, operationName string) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req interface{}) (interface{}, error) {
+			if span := opentracing.SpanFromContext(ctx); span != nil {
+				span = tracer.StartSpan(operationName, opentracing.ChildOf(span.Context()))
+				defer span.Finish()
+
+				var reply, err = next(opentracing.ContextWithSpan(ctx, span), req)
+
+				// If there is no correlation ID, use the newly generated ID.
+				var corrID = ctx.Value("correlation_id")
+				if corrID == nil {
+					if rep := reply.(*fb.FlakiReply); rep != nil {
+						corrID = string(rep.Id())
+					} else {
+						corrID = ""
+					}
+				}
+
+				span.SetTag("correlation_id", corrID.(string))
+				return reply, err
+			}
+			return next(ctx, req)
+		}
+	}
+}
+
 // Tracing middleware at component level.
 type componentTracingMW struct {
 	tracer opentracing.Tracer
@@ -103,45 +132,49 @@ func MakeComponentTracingMW(tracer opentracing.Tracer) func(Component) Component
 }
 
 // componentTracingMW implements Component.
-func (m *componentTracingMW) NextID(ctx context.Context) (string, error) {
+func (m *componentTracingMW) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		span = m.tracer.StartSpan("nextid_component", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
 
-		var id, err = m.next.NextID(opentracing.ContextWithSpan(ctx, span))
+		var reply, err = m.next.NextID(opentracing.ContextWithSpan(ctx, span), req)
 
 		// If there is no correlation ID, use the newly generated ID.
 		var corrID = ctx.Value("correlation_id")
 		if corrID == nil {
-			corrID = id
+			if reply != nil {
+				corrID = string(reply.Id())
+			} else {
+				corrID = ""
+			}
 		}
 		span.SetTag("correlation_id", corrID.(string))
 
-		return id, err
+		return reply, err
 	}
 
-	return m.next.NextID(ctx)
+	return m.next.NextID(ctx, req)
 }
 
 // componentTracingMW implements Component.
-func (m *componentTracingMW) NextValidID(ctx context.Context) string {
+func (m *componentTracingMW) NextValidID(ctx context.Context, req *fb.FlakiRequest) *fb.FlakiReply {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		span = m.tracer.StartSpan("nextvalidid_component", opentracing.ChildOf(span.Context()))
 		defer span.Finish()
 
-		var id = m.next.NextValidID(opentracing.ContextWithSpan(ctx, span))
+		var reply = m.next.NextValidID(opentracing.ContextWithSpan(ctx, span), req)
 
 		// If there is no correlation ID, use the newly generated ID.
 		var corrID = ctx.Value("correlation_id")
 		if corrID == nil {
-			corrID = id
+			corrID = string(reply.Id())
 		}
 		span.SetTag("correlation_id", corrID.(string))
 
-		return id
+		return reply
 	}
 
-	return m.next.NextValidID(ctx)
+	return m.next.NextValidID(ctx, req)
 }
 
 // Tracing middleware at module level.

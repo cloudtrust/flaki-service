@@ -18,25 +18,25 @@ func TestComponentTrackingMW(t *testing.T) {
 	var mockComponent = mock.NewComponent(mockCtrl)
 	var mockSentry = mock.NewSentry(mockCtrl)
 
-	// Context with correlation ID.
+	var m = MakeComponentTrackingMW(mockSentry)(mockComponent)
+
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-
-	var m = MakeComponentTrackingMW(mockSentry)(mockComponent)
+	var req = createFlakiRequest()
+	var reply = createFlakiReply(corrID)
 
 	// NextID.
-	mockComponent.EXPECT().NextID(ctx).Return("", fmt.Errorf("fail")).Times(1)
+	mockComponent.EXPECT().NextID(ctx, req).Return(nil, fmt.Errorf("fail")).Times(1)
 	mockSentry.EXPECT().CaptureError(fmt.Errorf("fail"), map[string]string{"correlation_id": corrID}).Return("").Times(1)
-	m.NextID(ctx)
-
-	// NextValidID never returns an error.
-	mockComponent.EXPECT().NextValidID(ctx).Return(corrID).Times(1)
-	mockSentry.EXPECT().CaptureError(gomock.Any(), gomock.Any()).Times(0)
-	m.NextValidID(ctx)
+	m.NextID(ctx, req)
 
 	// NextID without correlation ID.
-	mockComponent.EXPECT().NextID(context.Background()).Return("", fmt.Errorf("fail")).Times(1)
+	mockComponent.EXPECT().NextID(context.Background(), req).Return(nil, fmt.Errorf("fail")).Times(1)
 	mockSentry.EXPECT().CaptureError(fmt.Errorf("fail"), map[string]string{}).Times(1)
-	m.NextID(context.Background())
+	m.NextID(context.Background(), req)
+
+	// NextValidID never returns an error.
+	mockComponent.EXPECT().NextValidID(ctx, req).Return(reply).Times(1)
+	m.NextValidID(ctx, req)
 }

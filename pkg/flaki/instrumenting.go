@@ -6,13 +6,39 @@ import (
 	"context"
 	"time"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 )
+
+// MakeEndpointInstrumentingMW makes an Instrumenting middleware at endpoint level.
+func MakeEndpointInstrumentingMW(h metrics.Histogram) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req interface{}) (interface{}, error) {
+			var begin = time.Now()
+			var reply, err = next(ctx, req)
+			var duration = time.Since(begin)
+
+			// If there is no correlation ID, use the newly generated ID.
+			var corrID = ctx.Value("correlation_id")
+			if corrID == nil {
+				if rep := reply.(*fb.FlakiReply); rep != nil {
+					corrID = string(rep.Id())
+				} else {
+					corrID = ""
+				}
+			}
+
+			h.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+			return reply, err
+		}
+	}
+}
 
 // Instrumenting middleware at component level.
 type componentInstrumentingMW struct {
 	histogram metrics.Histogram
-	next      Module
+	next      Component
 }
 
 // MakeComponentInstrumentingMW makes an instrumenting middleware (at component level) that counts the number
@@ -27,33 +53,39 @@ func MakeComponentInstrumentingMW(histogram metrics.Histogram) func(Component) C
 }
 
 // componentInstrumentingMW implements Component.
-func (m *componentInstrumentingMW) NextID(ctx context.Context) (string, error) {
+func (m *componentInstrumentingMW) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
 	var begin = time.Now()
-	var id, err = m.next.NextID(ctx)
+	var reply, err = m.next.NextID(ctx, req)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
 	var corrID = ctx.Value("correlation_id")
 	if corrID == nil {
-		corrID = id
+		if reply != nil {
+			corrID = string(reply.Id())
+		} else {
+			corrID = ""
+		}
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(time.Since(begin).Seconds())
-	return id, err
+	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+	return reply, err
 }
 
 // componentInstrumentingMW implements Component.
-func (m *componentInstrumentingMW) NextValidID(ctx context.Context) string {
+func (m *componentInstrumentingMW) NextValidID(ctx context.Context, req *fb.FlakiRequest) *fb.FlakiReply {
 	var begin = time.Now()
-	var id = m.next.NextValidID(ctx)
+	var reply = m.next.NextValidID(ctx, req)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
 	var corrID = ctx.Value("correlation_id")
 	if corrID == nil {
-		corrID = id
+		corrID = string(reply.Id())
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(time.Since(begin).Seconds())
-	return id
+	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+	return reply
 }
 
 // Instrumenting middleware at module level.
@@ -77,6 +109,7 @@ func MakeModuleInstrumentingMW(histogram metrics.Histogram) func(Module) Module 
 func (m *moduleInstrumentingMW) NextID(ctx context.Context) (string, error) {
 	var begin = time.Now()
 	var id, err = m.next.NextID(ctx)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
 	var corrID = ctx.Value("correlation_id")
@@ -84,7 +117,7 @@ func (m *moduleInstrumentingMW) NextID(ctx context.Context) (string, error) {
 		corrID = id
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(time.Since(begin).Seconds())
+	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
 	return id, err
 }
 
@@ -92,6 +125,7 @@ func (m *moduleInstrumentingMW) NextID(ctx context.Context) (string, error) {
 func (m *moduleInstrumentingMW) NextValidID(ctx context.Context) string {
 	var begin = time.Now()
 	var id = m.next.NextValidID(ctx)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
 	var corrID = ctx.Value("correlation_id")
@@ -99,7 +133,7 @@ func (m *moduleInstrumentingMW) NextValidID(ctx context.Context) string {
 		corrID = id
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(time.Since(begin).Seconds())
+	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
 	return id
 }
 

@@ -29,8 +29,8 @@ func TestHTTPTracingMW(t *testing.T) {
 
 	// Flatbuffer request.
 	var b = flatbuffers.NewBuilder(0)
-	fb.EmptyRequestStart(b)
-	b.Finish(fb.EmptyRequestEnd(b))
+	fb.FlakiRequestStart(b)
+	b.Finish(fb.FlakiRequestEnd(b))
 
 	// HTTP request.
 	var req = httptest.NewRequest("POST", "http://cloudtrust.io/nextid", bytes.NewReader(b.FinishedBytes()))
@@ -54,17 +54,17 @@ func TestHTTPTracingMW(t *testing.T) {
 func TestGRPCTracingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
+	var mockGRPCHandler = mock.NewHandler(mockCtrl)
 	var mockTracer = mock.NewTracer(mockCtrl)
 	var mockSpan = mock.NewSpan(mockCtrl)
 	var mockSpanContext = mock.NewSpanContext(mockCtrl)
-	var mockGRPCHandler = mock.NewHandler(mockCtrl)
 
 	var m = MakeGRPCTracingMW(mockTracer, "componentName", "operationName")(mockGRPCHandler)
 
 	// Flatbuffer request.
 	var b = flatbuffers.NewBuilder(0)
-	fb.EmptyRequestStart(b)
-	b.Finish(fb.EmptyRequestEnd(b))
+	fb.FlakiRequestStart(b)
+	b.Finish(fb.FlakiRequestEnd(b))
 
 	// With existing tracer.
 	mockGRPCHandler.EXPECT().ServeGRPC(gomock.Any(), b.FinishedBytes()).Return(context.Background(), nil, nil).Times(1)
@@ -82,7 +82,60 @@ func TestGRPCTracingMW(t *testing.T) {
 	mockSpan.EXPECT().SetTag(gomock.Any(), gomock.Any()).Return(mockSpan).Times(3)
 	m.ServeGRPC(context.Background(), b.FinishedBytes())
 }
+func TestEndpointTracingMW(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockTracer = mock.NewTracer(mockCtrl)
+	var mockSpan = mock.NewSpan(mockCtrl)
+	var mockSpanContext = mock.NewSpanContext(mockCtrl)
 
+	var m = MakeEndpointTracingMW(mockTracer, "operationName")(MakeNextIDEndpoint(mockComponent))
+
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+	ctx = opentracing.ContextWithSpan(ctx, mockSpan)
+	var req = createFlakiRequest()
+	var reply = createFlakiReply(flakiID)
+
+	// NextID.
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(reply, nil).Times(1)
+	mockTracer.EXPECT().StartSpan("operationName", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", corrID).Return(mockSpan).Times(1)
+	m(ctx, req)
+
+	// NextID error.
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(nil, fmt.Errorf("fail")).Times(1)
+	mockTracer.EXPECT().StartSpan("operationName", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", corrID).Return(mockSpan).Times(1)
+	m(ctx, req)
+
+	// NextID without correlation ID.
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(reply, nil).Times(1)
+	mockTracer.EXPECT().StartSpan("operationName", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", flakiID).Return(mockSpan).Times(1)
+	m(opentracing.ContextWithSpan(context.Background(), mockSpan), req)
+
+	// NextID error without correlation ID.
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(nil, fmt.Errorf("fail")).Times(1)
+	mockTracer.EXPECT().StartSpan("operationName", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", "").Return(mockSpan).Times(1)
+	m(opentracing.ContextWithSpan(context.Background(), mockSpan), req)
+
+	// Without tracer.
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(reply, nil).Times(1)
+	m(context.Background(), req)
+}
 func TestComponentTracingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -91,63 +144,71 @@ func TestComponentTracingMW(t *testing.T) {
 	var mockSpan = mock.NewSpan(mockCtrl)
 	var mockSpanContext = mock.NewSpanContext(mockCtrl)
 
+	var m = MakeComponentTracingMW(mockTracer)(mockComponent)
+
 	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-
-	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 	ctx = opentracing.ContextWithSpan(ctx, mockSpan)
-
-	var m = MakeComponentTracingMW(mockTracer)(mockComponent)
+	var req = createFlakiRequest()
+	var reply = createFlakiReply(flakiID)
 
 	// NextID.
-	mockComponent.EXPECT().NextID(gomock.Any()).Return(flakiID, nil).Times(1)
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(reply, nil).Times(1)
 	mockTracer.EXPECT().StartSpan("nextid_component", gomock.Any()).Return(mockSpan).Times(1)
 	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
 	mockSpan.EXPECT().Finish().Return().Times(1)
 	mockSpan.EXPECT().SetTag("correlation_id", corrID).Return(mockSpan).Times(1)
-	m.NextID(ctx)
+	m.NextID(ctx, req)
+
+	// NextID error.
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(nil, fmt.Errorf("fail")).Times(1)
+	mockTracer.EXPECT().StartSpan("nextid_component", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", corrID).Return(mockSpan).Times(1)
+	m.NextID(ctx, req)
 
 	// NextID without correlation ID.
-	mockComponent.EXPECT().NextID(gomock.Any()).Return(flakiID, nil).Times(1)
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(reply, nil).Times(1)
 	mockTracer.EXPECT().StartSpan("nextid_component", gomock.Any()).Return(mockSpan).Times(1)
 	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
 	mockSpan.EXPECT().Finish().Return().Times(1)
 	mockSpan.EXPECT().SetTag("correlation_id", flakiID).Return(mockSpan).Times(1)
-	m.NextID(opentracing.ContextWithSpan(context.Background(), mockSpan))
+	m.NextID(opentracing.ContextWithSpan(context.Background(), mockSpan), req)
+
+	// NextID error without correlation ID.
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(nil, fmt.Errorf("fail")).Times(1)
+	mockTracer.EXPECT().StartSpan("nextid_component", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", "").Return(mockSpan).Times(1)
+	m.NextID(opentracing.ContextWithSpan(context.Background(), mockSpan), req)
 
 	// NextID without tracer.
-	mockComponent.EXPECT().NextID(gomock.Any()).Return(flakiID, nil).Times(1)
-	mockTracer.EXPECT().StartSpan(gomock.Any(), gomock.Any()).Times(0)
-	mockSpan.EXPECT().Context().Times(0)
-	mockSpan.EXPECT().Finish().Times(0)
-	mockSpan.EXPECT().SetTag(gomock.Any(), gomock.Any()).Times(0)
-	m.NextID(context.Background())
+	mockComponent.EXPECT().NextID(gomock.Any(), req).Return(reply, nil).Times(1)
+	m.NextID(context.Background(), req)
 
 	// NextValidID.
-	mockComponent.EXPECT().NextValidID(gomock.Any()).Return(flakiID).Times(1)
+	mockComponent.EXPECT().NextValidID(gomock.Any(), req).Return(reply).Times(1)
 	mockTracer.EXPECT().StartSpan("nextvalidid_component", gomock.Any()).Return(mockSpan).Times(1)
 	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
 	mockSpan.EXPECT().Finish().Return().Times(1)
 	mockSpan.EXPECT().SetTag("correlation_id", corrID).Return(mockSpan).Times(1)
-	m.NextValidID(ctx)
+	m.NextValidID(ctx, req)
 
 	// NextValidID without correlation ID.
-	mockComponent.EXPECT().NextValidID(gomock.Any()).Return(flakiID).Times(1)
+	mockComponent.EXPECT().NextValidID(gomock.Any(), req).Return(reply).Times(1)
 	mockTracer.EXPECT().StartSpan("nextvalidid_component", gomock.Any()).Return(mockSpan).Times(1)
 	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
 	mockSpan.EXPECT().Finish().Return().Times(1)
 	mockSpan.EXPECT().SetTag("correlation_id", flakiID).Return(mockSpan).Times(1)
-	m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockSpan))
+	m.NextValidID(opentracing.ContextWithSpan(context.Background(), mockSpan), req)
 
 	// NextValidID without tracer.
-	mockComponent.EXPECT().NextValidID(gomock.Any()).Return(flakiID).Times(1)
-	mockTracer.EXPECT().StartSpan(gomock.Any(), gomock.Any()).Times(0)
-	mockSpan.EXPECT().Context().Times(0)
-	mockSpan.EXPECT().Finish().Times(0)
-	mockSpan.EXPECT().SetTag(gomock.Any(), gomock.Any()).Times(0)
-	m.NextValidID(context.Background())
+	mockComponent.EXPECT().NextValidID(gomock.Any(), req).Return(reply).Times(1)
+	m.NextValidID(context.Background(), req)
 }
 
 func TestModuleTracingMW(t *testing.T) {
@@ -158,18 +219,24 @@ func TestModuleTracingMW(t *testing.T) {
 	var mockSpan = mock.NewSpan(mockCtrl)
 	var mockSpanContext = mock.NewSpanContext(mockCtrl)
 
+	var m = MakeModuleTracingMW(mockTracer)(mockModule)
+
 	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-
-	// Context with correlation ID.
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 	ctx = opentracing.ContextWithSpan(ctx, mockSpan)
 
-	var m = MakeModuleTracingMW(mockTracer)(mockModule)
-
 	// NextID.
 	mockModule.EXPECT().NextID(gomock.Any()).Return(flakiID, nil).Times(1)
+	mockTracer.EXPECT().StartSpan("nextid_module", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", corrID).Return(mockSpan).Times(1)
+	m.NextID(ctx)
+
+	// NextID error.
+	mockModule.EXPECT().NextID(gomock.Any()).Return("", fmt.Errorf("fail")).Times(1)
 	mockTracer.EXPECT().StartSpan("nextid_module", gomock.Any()).Return(mockSpan).Times(1)
 	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
 	mockSpan.EXPECT().Finish().Return().Times(1)
@@ -184,12 +251,16 @@ func TestModuleTracingMW(t *testing.T) {
 	mockSpan.EXPECT().SetTag("correlation_id", flakiID).Return(mockSpan).Times(1)
 	m.NextID(opentracing.ContextWithSpan(context.Background(), mockSpan))
 
+	// NextID error without correlation ID.
+	mockModule.EXPECT().NextID(gomock.Any()).Return("", fmt.Errorf("fail")).Times(1)
+	mockTracer.EXPECT().StartSpan("nextid_module", gomock.Any()).Return(mockSpan).Times(1)
+	mockSpan.EXPECT().Context().Return(mockSpanContext).Times(1)
+	mockSpan.EXPECT().Finish().Return().Times(1)
+	mockSpan.EXPECT().SetTag("correlation_id", "").Return(mockSpan).Times(1)
+	m.NextID(opentracing.ContextWithSpan(context.Background(), mockSpan))
+
 	// NextID without tracer.
 	mockModule.EXPECT().NextID(gomock.Any()).Return(flakiID, nil).Times(1)
-	mockTracer.EXPECT().StartSpan(gomock.Any(), gomock.Any()).Times(0)
-	mockSpan.EXPECT().Context().Times(0)
-	mockSpan.EXPECT().Finish().Times(0)
-	mockSpan.EXPECT().SetTag(gomock.Any(), gomock.Any()).Times(0)
 	m.NextID(context.Background())
 
 	// NextValidID.
@@ -210,9 +281,5 @@ func TestModuleTracingMW(t *testing.T) {
 
 	// NextValidID without tracer.
 	mockModule.EXPECT().NextValidID(gomock.Any()).Return(flakiID).Times(1)
-	mockTracer.EXPECT().StartSpan(gomock.Any(), gomock.Any()).Times(0)
-	mockSpan.EXPECT().Context().Times(0)
-	mockSpan.EXPECT().Finish().Times(0)
-	mockSpan.EXPECT().SetTag(gomock.Any(), gomock.Any()).Times(0)
 	m.NextValidID(context.Background())
 }

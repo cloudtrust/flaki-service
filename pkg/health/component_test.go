@@ -14,7 +14,6 @@ import (
 func TestHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-
 	var mockInfluxModule = mock.NewInfluxModule(mockCtrl)
 	var mockJaegerModule = mock.NewJaegerModule(mockCtrl)
 	var mockRedisModule = mock.NewRedisModule(mockCtrl)
@@ -58,7 +57,6 @@ func TestHealthChecks(t *testing.T) {
 func TestHealthChecksFail(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-
 	var mockInfluxModule = mock.NewInfluxModule(mockCtrl)
 	var mockJaegerModule = mock.NewJaegerModule(mockCtrl)
 	var mockRedisModule = mock.NewRedisModule(mockCtrl)

@@ -259,5 +259,5 @@ func TestHTTPErrorHandler(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	assert.Equal(t, "application/json; charset=utf-8", resp.Header.Get("Content-Type"))
-	assert.Equal(t, "500 Internal Server Error", string(body))
+	assert.Equal(t, "fail", string(body))
 }

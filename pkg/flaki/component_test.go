@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
 	"github.com/golang/mock/gomock"
+	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,24 +20,46 @@ func TestNewComponent(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockModule = mock.NewModule(mockCtrl)
 
+	var c = NewComponent(mockModule)
+
 	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var c = NewComponent(mockModule)
+	var req = createFlakiRequest()
 
 	// NextID.
 	mockModule.EXPECT().NextID(context.Background()).Return(flakiID, nil).Times(1)
-	var id, err = c.NextID(context.Background())
+	var reply, err = c.NextID(context.Background(), req)
 	assert.Nil(t, err)
-	assert.Equal(t, flakiID, id)
+	assert.Equal(t, flakiID, string(reply.Id()))
 
-	// NextID fail.
+	// NextID error.
 	mockModule.EXPECT().NextID(context.Background()).Return("", fmt.Errorf("fail")).Times(1)
-	id, err = c.NextID(context.Background())
+	reply, err = c.NextID(context.Background(), req)
 	assert.NotNil(t, err)
-	assert.Zero(t, id)
+	assert.Nil(t, reply)
 
 	// NextValidID.
 	mockModule.EXPECT().NextValidID(context.Background()).Return(flakiID).Times(1)
-	id = c.NextValidID(context.Background())
-	assert.Equal(t, flakiID, id)
+	reply = c.NextValidID(context.Background(), req)
+	assert.Equal(t, flakiID, string(reply.Id()))
+}
+
+func createFlakiRequest() *fb.FlakiRequest {
+	var b = flatbuffers.NewBuilder(0)
+
+	fb.FlakiRequestStart(b)
+	b.Finish(fb.FlakiRequestEnd(b))
+
+	return fb.GetRootAsFlakiRequest(b.FinishedBytes(), 0)
+}
+
+func createFlakiReply(id string) *fb.FlakiReply {
+	var b = flatbuffers.NewBuilder(0)
+	var str = b.CreateString(id)
+
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, str)
+	b.Finish(fb.FlakiReplyEnd(b))
+
+	return fb.GetRootAsFlakiReply(b.FinishedBytes(), 0)
 }

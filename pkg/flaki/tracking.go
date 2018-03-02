@@ -5,6 +5,7 @@ package flaki
 import (
 	"context"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	sentry "github.com/getsentry/raven-go"
 )
 
@@ -30,8 +31,8 @@ func MakeComponentTrackingMW(client Sentry) func(Component) Component {
 }
 
 // trackingComponentMW implements Component.
-func (m *trackingComponentMW) NextID(ctx context.Context) (string, error) {
-	var id, err = m.next.NextID(ctx)
+func (m *trackingComponentMW) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
+	var reply, err = m.next.NextID(ctx, req)
 	if err != nil {
 		var tags = map[string]string{}
 		if id := ctx.Value("correlation_id"); id != nil {
@@ -39,10 +40,10 @@ func (m *trackingComponentMW) NextID(ctx context.Context) (string, error) {
 		}
 		m.client.CaptureError(err, tags)
 	}
-	return id, err
+	return reply, err
 }
 
 // trackingComponentMW implements Component.
-func (m *trackingComponentMW) NextValidID(ctx context.Context) string {
-	return m.next.NextValidID(ctx)
+func (m *trackingComponentMW) NextValidID(ctx context.Context, req *fb.FlakiRequest) *fb.FlakiReply {
+	return m.next.NextValidID(ctx, req)
 }

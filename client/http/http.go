@@ -66,8 +66,8 @@ func main() {
 func nextID(logger log.Logger, tracer opentracing.Tracer) {
 	// NextID.
 	var b = flatbuffers.NewBuilder(0)
-	fb.EmptyRequestStart(b)
-	b.Finish(fb.EmptyRequestEnd(b))
+	fb.FlakiRequestStart(b)
+	b.Finish(fb.FlakiRequestEnd(b))
 
 	var span = tracer.StartSpan("http")
 	otag.HTTPMethod.Set(span, "http-client")
@@ -108,16 +108,20 @@ func nextID(logger log.Logger, tracer opentracing.Tracer) {
 			return
 		}
 
-		var reply = fb.GetRootAsFlakiReply(data, 0)
-		logger.Log("endpoint", "nextValidID", "id", reply.Id(), "error", reply.Error())
+		if httpNextIDResp.StatusCode != 200 {
+			logger.Log("error", string(data))
+		} else {
+			var reply = fb.GetRootAsFlakiReply(data, 0)
+			logger.Log("endpoint", "nextValidID", "id", reply.Id())
+		}
 	}
 }
 
 func nextValidID(logger log.Logger, tracer opentracing.Tracer) {
 	// NextID.
 	var b = flatbuffers.NewBuilder(0)
-	fb.EmptyRequestStart(b)
-	b.Finish(fb.EmptyRequestEnd(b))
+	fb.FlakiRequestStart(b)
+	b.Finish(fb.FlakiRequestEnd(b))
 
 	var span = tracer.StartSpan("http")
 	otag.HTTPMethod.Set(span, "http-client")
@@ -157,7 +161,11 @@ func nextValidID(logger log.Logger, tracer opentracing.Tracer) {
 			return
 		}
 
-		var reply = fb.GetRootAsFlakiReply(data, 0)
-		logger.Log("endpoint", "nextID", "id", reply.Id(), "error", reply.Error())
+		if httpNextValidIDResp.StatusCode != 200 {
+			logger.Log("error", string(data))
+		} else {
+			var reply = fb.GetRootAsFlakiReply(data, 0)
+			logger.Log("endpoint", "nextValidID", "id", reply.Id())
+		}
 	}
 }

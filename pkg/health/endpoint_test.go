@@ -20,7 +20,6 @@ func TestInfluxHealthCheckEndpoint(t *testing.T) {
 
 	// Health success.
 	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
-
 	var r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	var hr = r.(HealthReports).Reports[0]
@@ -31,7 +30,6 @@ func TestInfluxHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "influx", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
-
 	r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	hr = r.(HealthReports).Reports[0]
@@ -50,7 +48,6 @@ func TestJaegerHealthCheckEndpoint(t *testing.T) {
 
 	// Health success.
 	mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
-
 	var r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	var hr = r.(HealthReports).Reports[0]
@@ -61,7 +58,6 @@ func TestJaegerHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
-
 	r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	hr = r.(HealthReports).Reports[0]
@@ -80,7 +76,6 @@ func TestRedisHealthCheckEndpoint(t *testing.T) {
 
 	// Health success.
 	mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
-
 	var r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	var hr = r.(HealthReports).Reports[0]
@@ -91,7 +86,6 @@ func TestRedisHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "redis", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
-
 	r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	hr = r.(HealthReports).Reports[0]
@@ -109,7 +103,6 @@ func TestSentryHealthCheckEndpoint(t *testing.T) {
 
 	// Health success.
 	mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
-
 	var r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	var hr = r.(HealthReports).Reports[0]
@@ -120,7 +113,6 @@ func TestSentryHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return(HealthReports{Reports: []HealthReport{{Name: "sentry", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
-
 	r, err = e(context.Background(), nil)
 	assert.Nil(t, err)
 	hr = r.(HealthReports).Reports[0]

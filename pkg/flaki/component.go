@@ -5,13 +5,16 @@ package flaki
 import (
 	"context"
 
+	"github.com/google/flatbuffers/go"
+
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/pkg/errors"
 )
 
 // Component is the Flaki component interface.
 type Component interface {
-	NextID(context.Context) (string, error)
-	NextValidID(context.Context) string
+	NextID(context.Context, *fb.FlakiRequest) (*fb.FlakiReply, error)
+	NextValidID(context.Context, *fb.FlakiRequest) *fb.FlakiReply
 }
 
 // Component is the Flaki component.
@@ -27,15 +30,29 @@ func NewComponent(module Module) Component {
 }
 
 // NextID generates a unique string ID.
-func (c *component) NextID(ctx context.Context) (string, error) {
+func (c *component) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
 	var id, err = c.module.NextID(ctx)
 	if err != nil {
-		return "", errors.Wrap(err, "module could not generate ID")
+		return nil, errors.Wrap(err, "module could not generate ID")
 	}
-	return id, nil
+
+	return encodeFlakiReply(id), nil
 }
 
 // NextValidID generates a unique string ID.
-func (c *component) NextValidID(ctx context.Context) string {
-	return c.module.NextValidID(ctx)
+func (c *component) NextValidID(ctx context.Context, req *fb.FlakiRequest) *fb.FlakiReply {
+	var id = c.module.NextValidID(ctx)
+	return encodeFlakiReply(id)
+}
+
+// encodeFlakiReply encode the flatbuffer reply.
+func encodeFlakiReply(id string) *fb.FlakiReply {
+	var b = flatbuffers.NewBuilder(0)
+	var str = b.CreateString(id)
+
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, str)
+	b.Finish(fb.FlakiReplyEnd(b))
+
+	return fb.GetRootAsFlakiReply(b.FinishedBytes(), 0)
 }

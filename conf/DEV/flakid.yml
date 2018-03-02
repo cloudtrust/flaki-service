@@ -8,13 +8,13 @@ flaki-node-id: 0
 flaki-component-id: 0
 
 # Redis configs
-redis-url: 127.0.0.1:6379
+#redis-url: 127.0.0.1:6379
 redis-password: redis
 redis-database: 0
 redis-write-interval-ms: 1000
 
 # Influx DB configs
-influx-url: 127.0.0.1:8086
+#influx-url: 127.0.0.1:8086
 influx-username: flaki
 influx-password: flaki
 influx-database: flakimetrics

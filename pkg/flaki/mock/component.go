@@ -6,6 +6,7 @@ package mock
 
 import (
 	context "context"
+	fb "github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -34,26 +35,26 @@ func (m *Component) EXPECT() *ComponentMockRecorder {
 }
 
 // NextID mocks base method
-func (m *Component) NextID(arg0 context.Context) (string, error) {
-	ret := m.ctrl.Call(m, "NextID", arg0)
-	ret0, _ := ret[0].(string)
+func (m *Component) NextID(arg0 context.Context, arg1 *fb.FlakiRequest) (*fb.FlakiReply, error) {
+	ret := m.ctrl.Call(m, "NextID", arg0, arg1)
+	ret0, _ := ret[0].(*fb.FlakiReply)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NextID indicates an expected call of NextID
-func (mr *ComponentMockRecorder) NextID(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextID", reflect.TypeOf((*Component)(nil).NextID), arg0)
+func (mr *ComponentMockRecorder) NextID(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextID", reflect.TypeOf((*Component)(nil).NextID), arg0, arg1)
 }
 
 // NextValidID mocks base method
-func (m *Component) NextValidID(arg0 context.Context) string {
-	ret := m.ctrl.Call(m, "NextValidID", arg0)
-	ret0, _ := ret[0].(string)
+func (m *Component) NextValidID(arg0 context.Context, arg1 *fb.FlakiRequest) *fb.FlakiReply {
+	ret := m.ctrl.Call(m, "NextValidID", arg0, arg1)
+	ret0, _ := ret[0].(*fb.FlakiReply)
 	return ret0
 }
 
 // NextValidID indicates an expected call of NextValidID
-func (mr *ComponentMockRecorder) NextValidID(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextValidID", reflect.TypeOf((*Component)(nil).NextValidID), arg0)
+func (mr *ComponentMockRecorder) NextValidID(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextValidID", reflect.TypeOf((*Component)(nil).NextValidID), arg0, arg1)
 }

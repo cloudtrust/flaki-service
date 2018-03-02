@@ -16,7 +16,6 @@ import (
 	"github.com/cloudtrust/flaki-service/pkg/flaki"
 	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/cloudtrust/flaki-service/pkg/health"
-	"github.com/cloudtrust/flaki-service/pkg/middleware"
 	"github.com/garyburd/redigo/redis"
 	sentry "github.com/getsentry/raven-go"
 	"github.com/go-kit/kit/endpoint"
@@ -231,17 +230,17 @@ func main() {
 	var nextIDEndpoint endpoint.Endpoint
 	{
 		nextIDEndpoint = flaki.MakeNextIDEndpoint(flakiComponent)
-		nextIDEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint"))(nextIDEndpoint)
-		nextIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextID"))(nextIDEndpoint)
-		nextIDEndpoint = middleware.MakeEndpointTracingMW(tracer, "nextid_endpoint")(nextIDEndpoint)
+		nextIDEndpoint = flaki.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint"))(nextIDEndpoint)
+		nextIDEndpoint = flaki.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextID"))(nextIDEndpoint)
+		nextIDEndpoint = flaki.MakeEndpointTracingMW(tracer, "nextid_endpoint")(nextIDEndpoint)
 	}
 
 	var nextValidIDEndpoint endpoint.Endpoint
 	{
 		nextValidIDEndpoint = flaki.MakeNextValidIDEndpoint(flakiComponent)
-		nextValidIDEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint"))(nextValidIDEndpoint)
-		nextValidIDEndpoint = middleware.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextValidID"))(nextValidIDEndpoint)
-		nextValidIDEndpoint = middleware.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint")(nextValidIDEndpoint)
+		nextValidIDEndpoint = flaki.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint"))(nextValidIDEndpoint)
+		nextValidIDEndpoint = flaki.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextValidID"))(nextValidIDEndpoint)
+		nextValidIDEndpoint = flaki.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint")(nextValidIDEndpoint)
 	}
 
 	var flakiEndpoints = flaki.Endpoints{
@@ -255,44 +254,44 @@ func main() {
 	var healthComponent health.Component
 	{
 		var influxHM = health.NewInfluxModule(influxMetrics)
+		influxHM = health.MakeInfluxModuleLoggingMW(log.With(healthLogger, "mw", "module"))(influxHM)
+
 		var jaegerHM = health.NewJaegerModule(tracer)
+		jaegerHM = health.MakeJaegerModuleLoggingMW(log.With(healthLogger, "mw", "module"))(jaegerHM)
+
 		var redisHM = health.NewRedisModule(redisConn)
+		redisHM = health.MakeRedisModuleLoggingMW(log.With(healthLogger, "mw", "module"))(redisHM)
+
 		var sentryHM = health.NewSentryModule(sentryClient, http.DefaultClient)
+		sentryHM = health.MakeSentryModuleLoggingMW(log.With(healthLogger, "mw", "module"))(sentryHM)
 
 		healthComponent = health.NewComponent(influxHM, jaegerHM, redisHM, sentryHM)
+		healthComponent = health.MakeComponentLoggingMW(log.With(healthLogger, "mw", "component"))(healthComponent)
 	}
 
 	var influxHealthEndpoint endpoint.Endpoint
 	{
 		influxHealthEndpoint = health.MakeInfluxHealthCheckEndpoint(healthComponent)
-		influxHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("influx_health_endpoint"))(influxHealthEndpoint)
-		influxHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "influx"))(influxHealthEndpoint)
-		influxHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "influx_health_endpoint")(influxHealthEndpoint)
-		influxHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(influxHealthEndpoint)
+		influxHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "InfluxHealthCheck"))(influxHealthEndpoint)
+		influxHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(influxHealthEndpoint)
 	}
 	var jaegerHealthEndpoint endpoint.Endpoint
 	{
 		jaegerHealthEndpoint = health.MakeJaegerHealthCheckEndpoint(healthComponent)
-		jaegerHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("jaeger_health_endpoint"))(jaegerHealthEndpoint)
-		jaegerHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "jaeger"))(jaegerHealthEndpoint)
-		jaegerHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "jaeger_health_endpoint")(jaegerHealthEndpoint)
-		jaegerHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(jaegerHealthEndpoint)
+		jaegerHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "JaegerHealthCheck"))(jaegerHealthEndpoint)
+		jaegerHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(jaegerHealthEndpoint)
 	}
 	var redisHealthEndpoint endpoint.Endpoint
 	{
 		redisHealthEndpoint = health.MakeRedisHealthCheckEndpoint(healthComponent)
-		redisHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("redis_health_endpoint"))(redisHealthEndpoint)
-		redisHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "redis"))(redisHealthEndpoint)
-		redisHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "redis_health_endpoint")(redisHealthEndpoint)
-		redisHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(redisHealthEndpoint)
+		redisHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "RedisHealthCheck"))(redisHealthEndpoint)
+		redisHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(redisHealthEndpoint)
 	}
 	var sentryHealthEndpoint endpoint.Endpoint
 	{
 		sentryHealthEndpoint = health.MakeSentryHealthCheckEndpoint(healthComponent)
-		sentryHealthEndpoint = middleware.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("sentry_health_endpoint"))(sentryHealthEndpoint)
-		sentryHealthEndpoint = middleware.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "sentry"))(sentryHealthEndpoint)
-		sentryHealthEndpoint = middleware.MakeEndpointTracingMW(tracer, "sentry_health_endpoint")(sentryHealthEndpoint)
-		sentryHealthEndpoint = middleware.MakeEndpointCorrelationIDMW(flakiEndpoints)(sentryHealthEndpoint)
+		sentryHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "SentryHealthCheck"))(sentryHealthEndpoint)
+		sentryHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(sentryHealthEndpoint)
 	}
 
 	var healthEndpoints = health.Endpoints{

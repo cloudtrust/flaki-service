@@ -9,10 +9,12 @@ import (
 	http_transport "github.com/go-kit/kit/transport/http"
 )
 
+// HealthChecksReply contains all health check reports
 type HealthChecksReply struct {
 	Reports []HealthCheck `json:"health checks"`
 }
 
+// HealthCheck is the result of a single healthcheck
 type HealthCheck struct {
 	Name     string `json:"name"`
 	Duration string `json:"duration"`
@@ -28,58 +30,10 @@ func MakeHealthChecksHandler(es Endpoints) func(http.ResponseWriter, *http.Reque
 		var report = map[string]string{}
 
 		// Make all tests
-		var influxReport HealthReports
-		{
-			var err error
-			var x interface{}
-			x, err = es.InfluxHealthCheck(context.Background(), nil)
-			influxReport = x.(HealthReports)
-
-			if err != nil {
-				report["influx"] = KO.String()
-			} else {
-				report["influx"] = reportsStatus(influxReport)
-			}
-		}
-		var jaegerReport HealthReports
-		{
-			var err error
-			var x interface{}
-			x, err = es.JaegerHealthCheck(context.Background(), nil)
-			jaegerReport = x.(HealthReports)
-
-			if err != nil {
-				report["jaeger"] = KO.String()
-			} else {
-				report["jaeger"] = reportsStatus(jaegerReport)
-			}
-		}
-		var redisReport HealthReports
-		{
-			var err error
-			var x interface{}
-			x, err = es.RedisHealthCheck(context.Background(), nil)
-			redisReport = x.(HealthReports)
-
-			if err != nil {
-				report["redis"] = KO.String()
-			} else {
-				report["redis"] = reportsStatus(redisReport)
-			}
-		}
-		var sentryReport HealthReports
-		{
-			var err error
-			var x interface{}
-			x, err = es.SentryHealthCheck(context.Background(), nil)
-			sentryReport = x.(HealthReports)
-
-			if err != nil {
-				report["sentry"] = KO.String()
-			} else {
-				report["sentry"] = reportsStatus(sentryReport)
-			}
-		}
+		report["influx"] = makeReport(es.InfluxHealthCheck)
+		report["jaeger"] = makeReport(es.JaegerHealthCheck)
+		report["redis"] = makeReport(es.RedisHealthCheck)
+		report["sentry"] = makeReport(es.SentryHealthCheck)
 
 		// Write report.
 		var j, err = json.MarshalIndent(report, "", "  ")
@@ -92,7 +46,17 @@ func MakeHealthChecksHandler(es Endpoints) func(http.ResponseWriter, *http.Reque
 	}
 }
 
-// reportsStatus returs 'OK' if all tests passed.
+func makeReport(e endpoint.Endpoint) string {
+	var hr, err = e(context.Background(), nil)
+	var reports = hr.(HealthReports)
+
+	if err != nil {
+		return KO.String()
+	}
+	return reportsStatus(reports)
+}
+
+// reportsStatus returns 'OK' if all tests passed.
 func reportsStatus(reports HealthReports) string {
 	for _, r := range reports.Reports {
 		if r.Status != OK {
@@ -139,15 +103,15 @@ func MakeSentryHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 }
 
 // decodeHealthCheckRequest decodes the health check request.
-func decodeHealthCheckRequest(_ context.Context, r *http.Request) (res interface{}, err error) {
+func decodeHealthCheckRequest(_ context.Context, r *http.Request) (rep interface{}, err error) {
 	return nil, nil
 }
 
 // encodeHealthCheckReply encodes the health check reply.
-func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, res interface{}) error {
+func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	var reports = res.(HealthReports)
+	var reports = rep.(HealthReports)
 	var hr = HealthChecksReply{}
 	for _, r := range reports.Reports {
 		hr.Reports = append(hr.Reports, HealthCheck{
@@ -174,6 +138,5 @@ func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, res interf
 func healthCheckErrorHandler(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
-
-	w.Write([]byte("500 Internal Server Error"))
+	w.Write([]byte(err.Error()))
 }

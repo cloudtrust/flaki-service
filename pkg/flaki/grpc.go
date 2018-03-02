@@ -9,6 +9,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	"github.com/google/flatbuffers/go"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -61,25 +62,39 @@ func fetchGRPCCorrelationID(ctx context.Context, md metadata.MD) context.Context
 }
 
 // Implement the flatbuffer FlakiServer interface.
-func (s *grpcServer) NextID(ctx context.Context, req *fb.EmptyRequest) (*flatbuffers.Builder, error) {
-	var _, res, err = s.nextID.ServeGRPC(ctx, req)
+func (s *grpcServer) NextID(ctx context.Context, req *fb.FlakiRequest) (*flatbuffers.Builder, error) {
+	var _, rep, err = s.nextID.ServeGRPC(ctx, req)
 	if err != nil {
-		return grpcErrorHandler(err), nil
+		return nil, errors.Wrap(err, "grpc server could not return next ID")
 	}
 
-	var b = res.(*flatbuffers.Builder)
+	var reply = rep.(*fb.FlakiReply)
+
+	var b = flatbuffers.NewBuilder(0)
+	var str = b.CreateString(string(reply.Id()))
+
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, str)
+	b.Finish(fb.FlakiReplyEnd(b))
 
 	return b, nil
 }
 
 // Implement the flatbuffer FlakiServer interface.
-func (s *grpcServer) NextValidID(ctx context.Context, req *fb.EmptyRequest) (*flatbuffers.Builder, error) {
-	var _, res, err = s.nextValidID.ServeGRPC(ctx, req)
+func (s *grpcServer) NextValidID(ctx context.Context, req *fb.FlakiRequest) (*flatbuffers.Builder, error) {
+	var _, rep, err = s.nextValidID.ServeGRPC(ctx, req)
 	if err != nil {
-		return grpcErrorHandler(err), nil
+		return nil, errors.Wrap(err, "grpc server could not return next valid ID")
 	}
 
-	var b = res.(*flatbuffers.Builder)
+	var reply = rep.(*fb.FlakiReply)
+
+	var b = flatbuffers.NewBuilder(0)
+	var str = b.CreateString(string(reply.Id()))
+
+	fb.FlakiReplyStart(b)
+	fb.FlakiReplyAddId(b, str)
+	b.Finish(fb.FlakiReplyEnd(b))
 
 	return b, nil
 }
@@ -90,25 +105,6 @@ func decodeGRPCRequest(_ context.Context, req interface{}) (interface{}, error) 
 }
 
 // encodeHTTPReply encodes the flatbuffer flaki reply.
-func encodeGRPCReply(_ context.Context, res interface{}) (interface{}, error) {
-	var b = flatbuffers.NewBuilder(0)
-	var id = b.CreateString(res.(string))
-
-	fb.FlakiReplyStart(b)
-	fb.FlakiReplyAddId(b, id)
-	b.Finish(fb.FlakiReplyEnd(b))
-
-	return b, nil
-}
-
-// grpcErrorHandler encodes the flatbuffer flaki reply when there is an error.
-func grpcErrorHandler(err error) *flatbuffers.Builder {
-	var b = flatbuffers.NewBuilder(0)
-	var errStr = b.CreateString(err.Error())
-
-	fb.FlakiReplyStart(b)
-	fb.FlakiReplyAddError(b, errStr)
-	b.Finish(fb.FlakiReplyEnd(b))
-
-	return b
+func encodeGRPCReply(_ context.Context, rep interface{}) (interface{}, error) {
+	return rep, nil
 }

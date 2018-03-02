@@ -50,19 +50,21 @@ func decodeHTTPRequest(_ context.Context, req *http.Request) (interface{}, error
 		return nil, errors.Wrap(err, "could not decode HTTP request")
 	}
 
-	return fb.GetRootAsEmptyRequest(data, 0), nil
+	return fb.GetRootAsFlakiRequest(data, 0), nil
 }
 
 // encodeHTTPReply encodes the flatbuffer flaki reply.
-func encodeHTTPReply(_ context.Context, w http.ResponseWriter, res interface{}) error {
+func encodeHTTPReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(http.StatusOK)
 
+	var reply = rep.(*fb.FlakiReply)
+
 	var b = flatbuffers.NewBuilder(0)
-	var id = b.CreateString(res.(string))
+	var str = b.CreateString(string(reply.Id()))
 
 	fb.FlakiReplyStart(b)
-	fb.FlakiReplyAddId(b, id)
+	fb.FlakiReplyAddId(b, str)
 	b.Finish(fb.FlakiReplyEnd(b))
 
 	w.Write(b.FinishedBytes())
@@ -73,13 +75,5 @@ func encodeHTTPReply(_ context.Context, w http.ResponseWriter, res interface{}) 
 func httpErrorHandler(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(http.StatusInternalServerError)
-
-	var b = flatbuffers.NewBuilder(0)
-	var errStr = b.CreateString(err.Error())
-
-	fb.FlakiReplyStart(b)
-	fb.FlakiReplyAddError(b, errStr)
-	b.Finish(fb.FlakiReplyEnd(b))
-
-	w.Write(b.FinishedBytes())
+	w.Write([]byte(err.Error()))
 }
