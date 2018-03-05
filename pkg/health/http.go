@@ -112,9 +112,9 @@ func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interf
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	var reports = rep.(Reports)
-	var hr = Reply{}
+	var reply = Reply{}
 	for _, r := range reports.Reports {
-		hr.Reports = append(hr.Reports, Check{
+		reply.Reports = append(reply.Reports, Check{
 			Name:     r.Name,
 			Duration: r.Duration,
 			Status:   r.Status.String(),
@@ -122,13 +122,13 @@ func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interf
 		})
 	}
 
-	var d, err = json.MarshalIndent(hr, "", "  ")
+	var data, err = json.MarshalIndent(reply, "", "  ")
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusOK)
-		w.Write(d)
+		w.Write(data)
 	}
 
 	return nil

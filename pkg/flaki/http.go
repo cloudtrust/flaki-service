@@ -32,10 +32,10 @@ func MakeHTTPNextValidIDHandler(e endpoint.Endpoint) *http_transport.Server {
 	)
 }
 
-// fetchHTTPCorrelationID reads the correlation id from the http header "X-Correlation-ID".
-// If the id is not zero, we put it in the context.
-func fetchHTTPCorrelationID(ctx context.Context, r *http.Request) context.Context {
-	var correlationID = r.Header.Get("X-Correlation-ID")
+// fetchHTTPCorrelationID reads the correlation ID from the http header "X-Correlation-ID".
+// If the ID is not zero, we put it in the context.
+func fetchHTTPCorrelationID(ctx context.Context, req *http.Request) context.Context {
+	var correlationID = req.Header.Get("X-Correlation-ID")
 	if correlationID != "" {
 		ctx = context.WithValue(ctx, CorrelationIDKey, correlationID)
 	}
@@ -45,7 +45,6 @@ func fetchHTTPCorrelationID(ctx context.Context, r *http.Request) context.Contex
 // decodeHTTPRequest decodes the flatbuffer flaki request.
 func decodeHTTPRequest(_ context.Context, req *http.Request) (interface{}, error) {
 	var data, err = ioutil.ReadAll(req.Body)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "could not decode HTTP request")
 	}

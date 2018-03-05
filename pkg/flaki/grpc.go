@@ -108,7 +108,7 @@ func decodeGRPCRequest(_ context.Context, req interface{}) (interface{}, error) 
 	return req, nil
 }
 
-// encodeHTTPReply encodes the flatbuffer flaki reply.
+// encodeGRPCReply encodes the flatbuffer flaki reply.
 func encodeGRPCReply(_ context.Context, rep interface{}) (interface{}, error) {
 	return rep, nil
 }

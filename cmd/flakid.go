@@ -110,19 +110,28 @@ func main() {
 	)
 
 	// Redis.
-	var redisConn redis.Conn
+	type Redis interface {
+		Close() error
+		Do(commandName string, args ...interface{}) (reply interface{}, err error)
+		Send(commandName string, args ...interface{}) error
+		Flush() error
+	}
+
+	var redisClient Redis
 	if redisEnabled {
 		var err error
-		redisConn, err = redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
+		redisClient, err = redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
 		if err != nil {
 			logger.Log("msg", "could not create redis client", "error", err)
 			return
 		}
-		defer redisConn.Close()
+		defer redisClient.Close()
 
-		// Create logger that duplicates logs to stdout and redis.
-		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisConn, componentName)))
+		// Create logger that duplicates logs to stdout and Redis.
+		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisClient, componentName)))
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+	} else {
+		redisClient = &NoopRedis{}
 	}
 	defer logger.Log("msg", "goodbye")
 
@@ -217,7 +226,6 @@ func main() {
 			return
 		}
 		defer closer.Close()
-
 	}
 
 	// Systemd D-Bus connection.
@@ -284,7 +292,7 @@ func main() {
 		var jaegerHM = health.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
 		jaegerHM = health.MakeJaegerModuleLoggingMW(log.With(healthLogger, "mw", "module"))(jaegerHM)
 
-		var redisHM = health.NewRedisModule(redisConn, redisEnabled)
+		var redisHM = health.NewRedisModule(redisClient, redisEnabled)
 		redisHM = health.MakeRedisModuleLoggingMW(log.With(healthLogger, "mw", "module"))(redisHM)
 
 		var sentryHM = health.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
@@ -432,7 +440,7 @@ func main() {
 			var tic = time.NewTicker(redisWriteInterval)
 			defer tic.Stop()
 			for range tic.C {
-				redisConn.Flush()
+				redisClient.Flush()
 			}
 		}()
 	}
@@ -534,6 +542,7 @@ func config(logger log.Logger) map[string]interface{} {
 	config["jaeger"] = config["jaeger-sampler-host-port"].(string) != ""
 	config["redis"] = config["redis-host-port"].(string) != ""
 
+	// Log config.
 	for k, v := range config {
 		logger.Log(k, v)
 	}

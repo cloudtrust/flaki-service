@@ -11,11 +11,6 @@ import (
 	"github.com/go-kit/kit/metrics"
 )
 
-const (
-	// MetricCorrelationIDKey is the key for the correlation ID in the metric DB.
-	MetricCorrelationIDKey = "correlation_id"
-)
-
 // MakeEndpointInstrumentingMW makes an Instrumenting middleware at endpoint level.
 func MakeEndpointInstrumentingMW(h metrics.Histogram) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
@@ -46,8 +41,7 @@ type componentInstrumentingMW struct {
 	next      Component
 }
 
-// MakeComponentInstrumentingMW makes an instrumenting middleware (at component level) that counts the number
-// of IDs generated.
+// MakeComponentInstrumentingMW makes an Instrumenting middleware at component level.
 func MakeComponentInstrumentingMW(histogram metrics.Histogram) func(Component) Component {
 	return func(next Component) Component {
 		return &componentInstrumentingMW{
@@ -99,8 +93,7 @@ type moduleInstrumentingMW struct {
 	next      Module
 }
 
-// MakeModuleInstrumentingMW makes an instrumenting middleware (at module level) that counts the number
-// of IDs generated.
+// MakeModuleInstrumentingMW makes an Instrumenting middleware at module level.
 func MakeModuleInstrumentingMW(histogram metrics.Histogram) func(Module) Module {
 	return func(next Module) Module {
 		return &moduleInstrumentingMW{
@@ -148,8 +141,7 @@ type moduleInstrumentingCounterMW struct {
 	next    Module
 }
 
-// MakeModuleInstrumentingCounterMW makes an instrumenting middleware (at module level) that counts the number
-// of IDs generated.
+// MakeModuleInstrumentingCounterMW makes an Instrumenting middleware at module level.
 func MakeModuleInstrumentingCounterMW(counter metrics.Counter) func(Module) Module {
 	return func(next Module) Module {
 		return &moduleInstrumentingCounterMW{

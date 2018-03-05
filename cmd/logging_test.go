@@ -9,10 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	jsonLog = "{\"msg\":\"logstash log\",\"caller\":\"flakid.go:120\",\"component_name\":\"flaki-service\",\"component_version\":\"1.0.0\",\"environment\":\"DEV\",\"git_commit\":\"5fb7de0d7ae3f3d5f5d6a322b2344bdab645fd33\",\"ts\":\"2018-02-13T06:27:07.123915229Z\"}"
-)
-
 func TestLogstashRedisWriter(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -20,23 +16,23 @@ func TestLogstashRedisWriter(t *testing.T) {
 
 	var w = NewLogstashRedisWriter(mockRedis, "redisKey")
 
+	var jsonLog = "{\"msg\":\"logstash log\",\"caller\":\"flakid.go:120\",\"component_name\":\"flaki-service\",\"component_version\":\"1.0.0\",\"environment\":\"DEV\",\"git_commit\":\"5fb7de0d7ae3f3d5f5d6a322b2344bdab645fd33\",\"ts\":\"2018-02-13T06:27:07.123915229Z\"}"
 	mockRedis.EXPECT().Send("RPUSH", "redisKey", gomock.Any()).Return(nil).Times(1)
 	w.Write([]byte(jsonLog))
 }
 
-func TestDecodeJSON(t *testing.T) {
-	var m = decodeJSON([]byte(jsonLog))
-	assert.Equal(t, "logstash log", m["msg"])
-	assert.Equal(t, "flakid.go:120", m["caller"])
-	assert.Equal(t, "flaki-service", m["component_name"])
-	assert.Equal(t, "1.0.0", m["component_version"])
-	assert.Equal(t, "DEV", m["environment"])
-	assert.Equal(t, "5fb7de0d7ae3f3d5f5d6a322b2344bdab645fd33", m["git_commit"])
-	assert.Equal(t, "2018-02-13T06:27:07.123915229Z", m["ts"])
-}
-
 func TestLogstashEncode(t *testing.T) {
-	var logstashLog, err = logstashEncode(decodeJSON([]byte(jsonLog)))
+	var logs = map[string]string{
+		"msg":               "logstash log",
+		"caller":            "flakid.go:120",
+		"component_name":    "flaki-service",
+		"component_version": "1.0.0",
+		"environment":       "DEV",
+		"git_commit":        "5fb7de0d7ae3f3d5f5d6a322b2344bdab645fd33",
+		"ts":                "2018-02-13T06:27:07.123915229Z",
+	}
+
+	var logstashLog, err = logstashEncode(logs)
 	assert.Nil(t, err)
 
 	var m = map[string]interface{}{}

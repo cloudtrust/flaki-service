@@ -10,20 +10,15 @@ import (
 	"github.com/go-kit/kit/log"
 )
 
-const (
-	// LoggingCorrelationIDKey is the key for the correlation ID in the trace.
-	LoggingCorrelationIDKey = "correlation_id"
-)
-
 // MakeEndpointLoggingMW makes a logging middleware.
 func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			var begin = time.Now()
-			var reply, err = next(ctx, req)
+			defer func(begin time.Time) {
+				logger.Log(LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+			}(time.Now())
 
-			logger.Log(LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
-			return reply, err
+			return next(ctx, req)
 		}
 	}
 }

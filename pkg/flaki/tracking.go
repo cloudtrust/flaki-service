@@ -9,11 +9,6 @@ import (
 	sentry "github.com/getsentry/raven-go"
 )
 
-const (
-	// TrackingCorrelationIDKey is the key for the correlation ID in sentry.
-	TrackingCorrelationIDKey = "correlation_id"
-)
-
 // Sentry interface.
 type Sentry interface {
 	CaptureError(err error, tags map[string]string, interfaces ...sentry.Interface) string
@@ -21,15 +16,15 @@ type Sentry interface {
 
 // Tracking middleware at component level.
 type trackingComponentMW struct {
-	client Sentry
+	sentry Sentry
 	next   Component
 }
 
 // MakeComponentTrackingMW makes an error tracking middleware, where the errors are sent to Sentry.
-func MakeComponentTrackingMW(client Sentry) func(Component) Component {
+func MakeComponentTrackingMW(sentry Sentry) func(Component) Component {
 	return func(next Component) Component {
 		return &trackingComponentMW{
-			client: client,
+			sentry: sentry,
 			next:   next,
 		}
 	}
@@ -43,7 +38,7 @@ func (m *trackingComponentMW) NextID(ctx context.Context, req *fb.FlakiRequest) 
 		if id := ctx.Value(CorrelationIDKey); id != nil {
 			tags[TrackingCorrelationIDKey] = id.(string)
 		}
-		m.client.CaptureError(err, tags)
+		m.sentry.CaptureError(err, tags)
 	}
 	return reply, err
 }

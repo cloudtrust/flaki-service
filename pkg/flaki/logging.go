@@ -11,11 +11,6 @@ import (
 	"github.com/go-kit/kit/log"
 )
 
-const (
-	// LoggingCorrelationIDKey is the key for the correlation ID in the trace.
-	LoggingCorrelationIDKey = "correlation_id"
-)
-
 // MakeEndpointLoggingMW makes a logging middleware.
 func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {

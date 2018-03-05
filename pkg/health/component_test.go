@@ -27,32 +27,40 @@ func TestHealthChecks(t *testing.T) {
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule)
 
 	// Influx.
-	var ir = c.InfluxHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "influx", ir.Name)
-	assert.NotZero(t, ir.Duration)
-	assert.Equal(t, OK, ir.Status)
-	assert.Zero(t, ir.Error)
+	{
+		var report = c.InfluxHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "influx", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, OK, report.Status)
+		assert.Zero(t, report.Error)
+	}
 
 	// Jaeger.
-	var jr = c.JaegerHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "jaeger", jr.Name)
-	assert.NotZero(t, jr.Duration)
-	assert.Equal(t, OK, jr.Status)
-	assert.Zero(t, jr.Error)
+	{
+		var report = c.JaegerHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "jaeger", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, OK, report.Status)
+		assert.Zero(t, report.Error)
+	}
 
 	// Redis.
-	var rr = c.RedisHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "redis", rr.Name)
-	assert.NotZero(t, rr.Duration)
-	assert.Equal(t, OK, rr.Status)
-	assert.Zero(t, rr.Error)
+	{
+		var report = c.RedisHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "redis", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, OK, report.Status)
+		assert.Zero(t, report.Error)
+	}
 
 	// Sentry.
-	var sr = c.SentryHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "sentry", sr.Name)
-	assert.NotZero(t, sr.Duration)
-	assert.Equal(t, OK, sr.Status)
-	assert.Zero(t, sr.Error)
+	{
+		var report = c.SentryHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "sentry", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, OK, report.Status)
+		assert.Zero(t, report.Error)
+	}
 }
 func TestHealthChecksFail(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
@@ -70,30 +78,38 @@ func TestHealthChecksFail(t *testing.T) {
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule)
 
 	// Influx.
-	var ir = c.InfluxHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "influx", ir.Name)
-	assert.NotZero(t, ir.Duration)
-	assert.Equal(t, KO, ir.Status)
-	assert.Equal(t, "fail", ir.Error)
+	{
+		var report = c.InfluxHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "influx", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, KO, report.Status)
+		assert.Equal(t, "fail", report.Error)
+	}
 
 	// Jaeger.
-	var jr = c.JaegerHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "jaeger", jr.Name)
-	assert.NotZero(t, jr.Duration)
-	assert.Equal(t, KO, jr.Status)
-	assert.Equal(t, "fail", jr.Error)
+	{
+		var report = c.JaegerHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "jaeger", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, KO, report.Status)
+		assert.Equal(t, "fail", report.Error)
+	}
 
 	// Redis.
-	var rr = c.RedisHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "redis", rr.Name)
-	assert.NotZero(t, rr.Duration)
-	assert.Equal(t, KO, rr.Status)
-	assert.Equal(t, "fail", rr.Error)
+	{
+		var report = c.RedisHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "redis", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, KO, report.Status)
+		assert.Equal(t, "fail", report.Error)
+	}
 
 	// Sentry.
-	var sr = c.SentryHealthChecks(context.Background()).Reports[0]
-	assert.Equal(t, "sentry", sr.Name)
-	assert.NotZero(t, sr.Duration)
-	assert.Equal(t, KO, sr.Status)
-	assert.Equal(t, "fail", sr.Error)
+	{
+		var report = c.SentryHealthChecks(context.Background()).Reports[0]
+		assert.Equal(t, "sentry", report.Name)
+		assert.NotZero(t, report.Duration)
+		assert.Equal(t, KO, report.Status)
+		assert.Equal(t, "fail", report.Error)
+	}
 }

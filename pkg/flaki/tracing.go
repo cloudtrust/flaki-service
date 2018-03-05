@@ -14,11 +14,6 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const (
-	// TracingCorrelationIDKey is the key for the correlation ID in the trace.
-	TracingCorrelationIDKey = "correlation_id"
-)
-
 // MakeHTTPTracingMW try to extract an existing span from the HTTP headers. It it exists, we
 // continue the span, if not we create a new one.
 func MakeHTTPTracingMW(tracer opentracing.Tracer, componentName, operationName string) func(http.Handler) http.Handler {
@@ -51,8 +46,7 @@ type grpcTracingMW struct {
 	next          grpc_transport.Handler
 }
 
-// MakeGRPCTracingMW try to extract an existing span from the HTTP headers. It it exists, we
-// continue the span, if not we create a new one.
+// MakeGRPCTracingMW makes a tracing middleware at transport level.
 func MakeGRPCTracingMW(tracer opentracing.Tracer, componentName, operationName string) func(grpc_transport.Handler) grpc_transport.Handler {
 	return func(next grpc_transport.Handler) grpc_transport.Handler {
 		return &grpcTracingMW{
@@ -188,7 +182,7 @@ type moduleTracingMW struct {
 	next   Module
 }
 
-// MakeModuleTracingMW makes a tracing middleware at component level.
+// MakeModuleTracingMW makes a tracing middleware at module level.
 func MakeModuleTracingMW(tracer opentracing.Tracer) func(Module) Module {
 	return func(next Module) Module {
 		return &moduleTracingMW{

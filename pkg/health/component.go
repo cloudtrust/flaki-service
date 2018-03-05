@@ -25,6 +25,8 @@ type key int
 const (
 	// CorrelationIDKey is the key for the correlation ID in the context.
 	CorrelationIDKey key = iota
+	// LoggingCorrelationIDKey is the key for the correlation ID in the logs.
+	LoggingCorrelationIDKey = "correlation_id"
 )
 
 func (s Status) String() string {
