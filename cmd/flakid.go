@@ -16,6 +16,7 @@ import (
 	"github.com/cloudtrust/flaki-service/pkg/flaki"
 	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/cloudtrust/flaki-service/pkg/health"
+	"github.com/coreos/go-systemd/dbus"
 	"github.com/garyburd/redigo/redis"
 	sentry "github.com/getsentry/raven-go"
 	"github.com/go-kit/kit/endpoint"
@@ -53,9 +54,16 @@ func main() {
 	// Configurations.
 	var config = config(log.With(logger, "unit", "config"))
 	var (
-		componentName    = config["component-name"].(string)
-		grpcAddr         = config["component-grpc-address"].(string)
-		httpAddr         = config["component-http-address"].(string)
+		componentName = config["component-name"].(string)
+		grpcAddr      = config["component-grpc-address"].(string)
+		httpAddr      = config["component-http-address"].(string)
+
+		influxEnabled     = config["influx"].(bool)
+		sentryEnabled     = config["sentry"].(bool)
+		redisEnabled      = config["redis"].(bool)
+		jaegerEnabled     = config["jaeger"].(bool)
+		pprofRouteEnabled = config["pprof-route-enabled"].(bool)
+
 		influxHTTPConfig = influx.HTTPConfig{
 			Addr:     fmt.Sprintf("http://%s", config["influx-url"].(string)),
 			Username: config["influx-username"].(string),
@@ -69,7 +77,7 @@ func main() {
 		}
 		influxWriteInterval = time.Duration(config["influx-write-interval-ms"].(int)) * time.Millisecond
 		jaegerConfig        = jaeger.Configuration{
-			Disabled: !config["jaeger"].(bool),
+			Disabled: !jaegerEnabled,
 			Sampler: &jaeger.SamplerConfig{
 				Type:              config["jaeger-sampler-type"].(string),
 				Param:             float64(config["jaeger-sampler-param"].(int)),
@@ -80,14 +88,10 @@ func main() {
 				BufferFlushInterval: time.Duration(config["jaeger-write-interval-ms"].(int)) * time.Millisecond,
 			},
 		}
-		sentryDSN        = fmt.Sprintf(config["sentry-dsn"].(string))
-		flakiNodeID      = uint64(config["flaki-node-id"].(int))
-		flakiComponentID = uint64(config["flaki-component-id"].(int))
-
-		influxEnabled     = config["influx"].(bool)
-		sentryEnabled     = config["sentry"].(bool)
-		redisEnabled      = config["redis"].(bool)
-		pprofRouteEnabled = config["pprof-route-enabled"].(bool)
+		jaegerCollectorHealthcheckURL = config["jaeger-collector-healthcheck-url"].(string)
+		sentryDSN                     = fmt.Sprintf(config["sentry-dsn"].(string))
+		flakiNodeID                   = uint64(config["flaki-node-id"].(int))
+		flakiComponentID              = uint64(config["flaki-component-id"].(int))
 
 		redisURL           = config["redis-url"].(string)
 		redisPassword      = config["redis-password"].(string)
@@ -206,6 +210,17 @@ func main() {
 
 	}
 
+	// Systemd D-Bus connection.
+	var systemDConn *dbus.Conn
+	{
+		var err error
+		systemDConn, err = dbus.New()
+		if err != nil {
+			logger.Log("msg", "could not create systemd D-Bus connection", "error", err)
+			return
+		}
+	}
+
 	// Flaki service.
 	var flakiLogger = log.With(logger, "svc", "flaki")
 
@@ -253,16 +268,16 @@ func main() {
 
 	var healthComponent health.Component
 	{
-		var influxHM = health.NewInfluxModule(influxMetrics)
+		var influxHM = health.NewInfluxModule(influxMetrics, influxEnabled)
 		influxHM = health.MakeInfluxModuleLoggingMW(log.With(healthLogger, "mw", "module"))(influxHM)
 
-		var jaegerHM = health.NewJaegerModule(tracer)
+		var jaegerHM = health.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
 		jaegerHM = health.MakeJaegerModuleLoggingMW(log.With(healthLogger, "mw", "module"))(jaegerHM)
 
-		var redisHM = health.NewRedisModule(redisConn)
+		var redisHM = health.NewRedisModule(redisConn, redisEnabled)
 		redisHM = health.MakeRedisModuleLoggingMW(log.With(healthLogger, "mw", "module"))(redisHM)
 
-		var sentryHM = health.NewSentryModule(sentryClient, http.DefaultClient)
+		var sentryHM = health.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
 		sentryHM = health.MakeSentryModuleLoggingMW(log.With(healthLogger, "mw", "module"))(sentryHM)
 
 		healthComponent = health.NewComponent(influxHM, jaegerHM, redisHM, sentryHM)
@@ -478,6 +493,7 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("jaeger-sampler-url", "")
 	viper.SetDefault("jaeger-reporter-logspan", false)
 	viper.SetDefault("jaeger-write-interval-ms", 1000)
+	viper.SetDefault("jaeger-collector-healthcheck-url", "")
 
 	// Debug routes enabled.
 	viper.SetDefault("pprof-route-enabled", true)

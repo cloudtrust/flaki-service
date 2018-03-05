@@ -32,6 +32,7 @@ jaeger-sampler-param: 1
 jaeger-sampler-url: 127.0.0.1:5775
 jaeger-reporter-logspan: false
 jaeger-write-interval-ms: 1000
+jaeger-collector-healthcheck-url: 127.0.0.1:14269
 
 # Debug routes
 pprof-route-enabled: true

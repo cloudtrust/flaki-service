@@ -17,7 +17,7 @@ func TestInfluxHealthChecks(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockInflux = mock.NewInflux(mockCtrl)
 
-	var m = NewInfluxModule(mockInflux)
+	var m = NewInfluxModule(mockInflux, true)
 
 	// HealthChecks.
 	{
@@ -45,10 +45,9 @@ func TestNoopInfluxHealthChecks(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockInflux = mock.NewInflux(mockCtrl)
 
-	var m = NewInfluxModule(mockInflux)
+	var m = NewInfluxModule(mockInflux, false)
 
 	// HealthChecks.
-	mockInflux.EXPECT().Ping(5*time.Second).Return(1*time.Second, "NOOP", nil).Times(1)
 	var report = m.HealthChecks(context.Background())[0]
 	assert.Equal(t, "ping", report.Name)
 	assert.Equal(t, "N/A", report.Duration)

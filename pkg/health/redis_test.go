@@ -16,7 +16,7 @@ func TestRedisHealthChecks(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockRedis = mock.NewRedis(mockCtrl)
 
-	var m = NewRedisModule(mockRedis)
+	var m = NewRedisModule(mockRedis, true)
 
 	// HealthChecks
 	{
@@ -39,7 +39,7 @@ func TestRedisHealthChecks(t *testing.T) {
 	}
 }
 func TestNoopRedisHealthChecks(t *testing.T) {
-	var m = NewRedisModule(nil)
+	var m = NewRedisModule(nil, false)
 
 	var report = m.HealthChecks(context.Background())[0]
 	assert.Equal(t, "ping", report.Name)
