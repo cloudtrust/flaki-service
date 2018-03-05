@@ -54,18 +54,25 @@ func main() {
 	// Configurations.
 	var config = config(log.With(logger, "unit", "config"))
 	var (
+		// Component
 		componentName = config["component-name"].(string)
-		grpcAddr      = config["component-grpc-address"].(string)
-		httpAddr      = config["component-http-address"].(string)
+		grpcAddr      = config["component-grpc-host-port"].(string)
+		httpAddr      = config["component-http-host-port"].(string)
 
+		// Flaki
+		flakiNodeID      = uint64(config["flaki-node-id"].(int))
+		flakiComponentID = uint64(config["flaki-component-id"].(int))
+
+		// Enabled units
 		influxEnabled     = config["influx"].(bool)
 		sentryEnabled     = config["sentry"].(bool)
 		redisEnabled      = config["redis"].(bool)
 		jaegerEnabled     = config["jaeger"].(bool)
 		pprofRouteEnabled = config["pprof-route-enabled"].(bool)
 
+		// Influx
 		influxHTTPConfig = influx.HTTPConfig{
-			Addr:     fmt.Sprintf("http://%s", config["influx-url"].(string)),
+			Addr:     fmt.Sprintf("http://%s", config["influx-host-port"].(string)),
 			Username: config["influx-username"].(string),
 			Password: config["influx-password"].(string),
 		}
@@ -76,24 +83,27 @@ func main() {
 			WriteConsistency: config["influx-write-consistency"].(string),
 		}
 		influxWriteInterval = time.Duration(config["influx-write-interval-ms"].(int)) * time.Millisecond
-		jaegerConfig        = jaeger.Configuration{
+
+		// Jaeger
+		jaegerConfig = jaeger.Configuration{
 			Disabled: !jaegerEnabled,
 			Sampler: &jaeger.SamplerConfig{
 				Type:              config["jaeger-sampler-type"].(string),
 				Param:             float64(config["jaeger-sampler-param"].(int)),
-				SamplingServerURL: fmt.Sprintf("http://%s", config["jaeger-sampler-url"].(string)),
+				SamplingServerURL: fmt.Sprintf("http://%s", config["jaeger-sampler-host-port"].(string)),
 			},
 			Reporter: &jaeger.ReporterConfig{
 				LogSpans:            config["jaeger-reporter-logspan"].(bool),
 				BufferFlushInterval: time.Duration(config["jaeger-write-interval-ms"].(int)) * time.Millisecond,
 			},
 		}
-		jaegerCollectorHealthcheckURL = config["jaeger-collector-healthcheck-url"].(string)
-		sentryDSN                     = fmt.Sprintf(config["sentry-dsn"].(string))
-		flakiNodeID                   = uint64(config["flaki-node-id"].(int))
-		flakiComponentID              = uint64(config["flaki-component-id"].(int))
+		jaegerCollectorHealthcheckURL = config["jaeger-collector-healthcheck-host-port"].(string)
 
-		redisURL           = config["redis-url"].(string)
+		// Sentry
+		sentryDSN = fmt.Sprintf(config["sentry-dsn"].(string))
+
+		// Redis
+		redisURL           = config["redis-host-port"].(string)
 		redisPassword      = config["redis-password"].(string)
 		redisDatabase      = config["redis-database"].(int)
 		redisWriteInterval = time.Duration(config["redis-write-interval-ms"].(int)) * time.Millisecond
@@ -464,8 +474,8 @@ func config(logger log.Logger) map[string]interface{} {
 	// Component default.
 	viper.SetDefault("config-file", "./conf/DEV/flakid.yml")
 	viper.SetDefault("component-name", "flaki-service")
-	viper.SetDefault("component-http-address", "0.0.0.0:8888")
-	viper.SetDefault("component-grpc-address", "0.0.0.0:5555")
+	viper.SetDefault("component-http-host-port", "0.0.0.0:8888")
+	viper.SetDefault("component-grpc-host-port", "0.0.0.0:5555")
 
 	// Flaki generator default.
 	viper.SetDefault("flaki-node-id", 0)
@@ -473,7 +483,7 @@ func config(logger log.Logger) map[string]interface{} {
 
 	// Influx DB client default.
 	viper.SetDefault("influx", false)
-	viper.SetDefault("influx-url", "")
+	viper.SetDefault("influx-host-port", "")
 	viper.SetDefault("influx-username", "")
 	viper.SetDefault("influx-password", "")
 	viper.SetDefault("influx-database", "")
@@ -490,17 +500,17 @@ func config(logger log.Logger) map[string]interface{} {
 	viper.SetDefault("jaeger", false)
 	viper.SetDefault("jaeger-sampler-type", "")
 	viper.SetDefault("jaeger-sampler-param", 0)
-	viper.SetDefault("jaeger-sampler-url", "")
+	viper.SetDefault("jaeger-sampler-host-port", "")
 	viper.SetDefault("jaeger-reporter-logspan", false)
 	viper.SetDefault("jaeger-write-interval-ms", 1000)
-	viper.SetDefault("jaeger-collector-healthcheck-url", "")
+	viper.SetDefault("jaeger-collector-healthcheck-host-port", "")
 
 	// Debug routes enabled.
 	viper.SetDefault("pprof-route-enabled", true)
 
 	// Redis.
 	viper.SetDefault("redis", false)
-	viper.SetDefault("redis-url", "")
+	viper.SetDefault("redis-host-port", "")
 	viper.SetDefault("redis-password", "")
 	viper.SetDefault("redis-database", 0)
 	viper.SetDefault("redis-write-interval-ms", 1000)
@@ -518,11 +528,11 @@ func config(logger log.Logger) map[string]interface{} {
 	}
 	var config = viper.AllSettings()
 
-	// If the URL is not set, we consider the components disabled.
-	config["influx"] = config["influx-url"].(string) != ""
+	// If the host/port is not set, we consider the components deactivated.
+	config["influx"] = config["influx-host-port"].(string) != ""
 	config["sentry"] = config["sentry-dsn"].(string) != ""
-	config["jaeger"] = config["jaeger-sampler-url"].(string) != ""
-	config["redis"] = config["redis-url"].(string) != ""
+	config["jaeger"] = config["jaeger-sampler-host-port"].(string) != ""
+	config["redis"] = config["redis-host-port"].(string) != ""
 
 	for k, v := range config {
 		logger.Log(k, v)
