@@ -11,6 +11,11 @@ import (
 	"github.com/go-kit/kit/metrics"
 )
 
+const (
+	// MetricCorrelationIDKey is the key for the correlation ID in the metric DB.
+	MetricCorrelationIDKey = "correlation_id"
+)
+
 // MakeEndpointInstrumentingMW makes an Instrumenting middleware at endpoint level.
 func MakeEndpointInstrumentingMW(h metrics.Histogram) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
@@ -20,7 +25,7 @@ func MakeEndpointInstrumentingMW(h metrics.Histogram) endpoint.Middleware {
 			var duration = time.Since(begin)
 
 			// If there is no correlation ID, use the newly generated ID.
-			var corrID = ctx.Value("correlation_id")
+			var corrID = ctx.Value(CorrelationIDKey)
 			if corrID == nil {
 				if rep := reply.(*fb.FlakiReply); rep != nil {
 					corrID = string(rep.Id())
@@ -29,7 +34,7 @@ func MakeEndpointInstrumentingMW(h metrics.Histogram) endpoint.Middleware {
 				}
 			}
 
-			h.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+			h.With(MetricCorrelationIDKey, corrID.(string)).Observe(duration.Seconds())
 			return reply, err
 		}
 	}
@@ -59,7 +64,7 @@ func (m *componentInstrumentingMW) NextID(ctx context.Context, req *fb.FlakiRequ
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		if reply != nil {
 			corrID = string(reply.Id())
@@ -68,7 +73,7 @@ func (m *componentInstrumentingMW) NextID(ctx context.Context, req *fb.FlakiRequ
 		}
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+	m.histogram.With(MetricCorrelationIDKey, corrID.(string)).Observe(duration.Seconds())
 	return reply, err
 }
 
@@ -79,12 +84,12 @@ func (m *componentInstrumentingMW) NextValidID(ctx context.Context, req *fb.Flak
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = string(reply.Id())
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+	m.histogram.With(MetricCorrelationIDKey, corrID.(string)).Observe(duration.Seconds())
 	return reply
 }
 
@@ -112,12 +117,12 @@ func (m *moduleInstrumentingMW) NextID(ctx context.Context) (string, error) {
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+	m.histogram.With(MetricCorrelationIDKey, corrID.(string)).Observe(duration.Seconds())
 	return id, err
 }
 
@@ -128,12 +133,12 @@ func (m *moduleInstrumentingMW) NextValidID(ctx context.Context) string {
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.histogram.With("correlation_id", corrID.(string)).Observe(duration.Seconds())
+	m.histogram.With(MetricCorrelationIDKey, corrID.(string)).Observe(duration.Seconds())
 	return id
 }
 
@@ -159,12 +164,12 @@ func (m *moduleInstrumentingCounterMW) NextID(ctx context.Context) (string, erro
 	var id, err = m.next.NextID(ctx)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.counter.With("correlation_id", corrID.(string)).Add(1)
+	m.counter.With(MetricCorrelationIDKey, corrID.(string)).Add(1)
 	return id, err
 }
 
@@ -173,11 +178,11 @@ func (m *moduleInstrumentingCounterMW) NextValidID(ctx context.Context) string {
 	var id = m.next.NextValidID(ctx)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.counter.With("correlation_id", corrID.(string)).Add(1)
+	m.counter.With(MetricCorrelationIDKey, corrID.(string)).Add(1)
 	return id
 }

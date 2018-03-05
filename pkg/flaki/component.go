@@ -1,4 +1,4 @@
-package flaki
+CorrelationIDKeyCorrelationIDKeypackage flaki
 
 //go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=Component=Component github.com/cloudtrust/flaki-service/pkg/flaki Component
 
@@ -9,6 +9,13 @@ import (
 
 	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/pkg/errors"
+)
+
+type key int
+
+const (
+	// CorrelationIDKey is the key for the correlation ID in the context.
+	CorrelationIDKey key = iota
 )
 
 // Component is the Flaki component interface.

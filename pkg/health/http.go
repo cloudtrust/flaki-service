@@ -9,13 +9,13 @@ import (
 	http_transport "github.com/go-kit/kit/transport/http"
 )
 
-// HealthChecksReply contains all health check reports
-type HealthChecksReply struct {
-	Reports []HealthCheck `json:"health checks"`
+// Reply contains all health check reports
+type Reply struct {
+	Reports []Check `json:"health checks"`
 }
 
-// HealthCheck is the result of a single healthcheck
-type HealthCheck struct {
+// Check is the result of a single healthcheck
+type Check struct {
 	Name     string `json:"name"`
 	Duration string `json:"duration"`
 	Status   string `json:"status"`
@@ -48,7 +48,7 @@ func MakeHealthChecksHandler(es Endpoints) func(http.ResponseWriter, *http.Reque
 
 func makeReport(e endpoint.Endpoint) string {
 	var hr, err = e(context.Background(), nil)
-	var reports = hr.(HealthReports)
+	var reports = hr.(Reports)
 
 	if err != nil {
 		return KO.String()
@@ -57,7 +57,7 @@ func makeReport(e endpoint.Endpoint) string {
 }
 
 // reportsStatus returns 'OK' if all tests passed.
-func reportsStatus(reports HealthReports) string {
+func reportsStatus(reports Reports) string {
 	for _, r := range reports.Reports {
 		if r.Status != OK {
 			return KO.String()
@@ -111,10 +111,10 @@ func decodeHealthCheckRequest(_ context.Context, r *http.Request) (rep interface
 func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	var reports = rep.(HealthReports)
-	var hr = HealthChecksReply{}
+	var reports = rep.(Reports)
+	var hr = Reply{}
 	for _, r := range reports.Reports {
-		hr.Reports = append(hr.Reports, HealthCheck{
+		hr.Reports = append(hr.Reports, Check{
 			Name:     r.Name,
 			Duration: r.Duration,
 			Status:   r.Status.String(),

@@ -13,7 +13,7 @@ import (
 
 // SentryModule is the health check module for sentry.
 type SentryModule interface {
-	HealthChecks(context.Context) []SentryHealthReport
+	HealthChecks(context.Context) []SentryReport
 }
 
 type sentryModule struct {
@@ -22,8 +22,8 @@ type sentryModule struct {
 	enabled    bool
 }
 
-// SentryHealthReport is the health report returned by the sentry module.
-type SentryHealthReport struct {
+// SentryReport is the health report returned by the sentry module.
+type SentryReport struct {
 	Name     string
 	Duration string
 	Status   Status
@@ -50,17 +50,17 @@ func NewSentryModule(sentry Sentry, httpClient SentryHTTPClient, enabled bool) S
 }
 
 // HealthChecks executes all health checks for Sentry.
-func (m *sentryModule) HealthChecks(context.Context) []SentryHealthReport {
-	var reports = []SentryHealthReport{}
+func (m *sentryModule) HealthChecks(context.Context) []SentryReport {
+	var reports = []SentryReport{}
 	reports = append(reports, m.sentryPingCheck())
 	return reports
 }
 
-func (m *sentryModule) sentryPingCheck() SentryHealthReport {
+func (m *sentryModule) sentryPingCheck() SentryReport {
 	var healthCheckName = "ping"
 
 	if !m.enabled {
-		return SentryHealthReport{
+		return SentryReport{
 			Name:     healthCheckName,
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -84,7 +84,7 @@ func (m *sentryModule) sentryPingCheck() SentryHealthReport {
 		s = OK
 	}
 
-	return SentryHealthReport{
+	return SentryReport{
 		Name:     healthCheckName,
 		Duration: duration.String(),
 		Status:   s,

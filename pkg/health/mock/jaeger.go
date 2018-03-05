@@ -36,9 +36,9 @@ func (m *JaegerModule) EXPECT() *JaegerModuleMockRecorder {
 }
 
 // HealthChecks mocks base method
-func (m *JaegerModule) HealthChecks(arg0 context.Context) []health.JaegerHealthReport {
+func (m *JaegerModule) HealthChecks(arg0 context.Context) []health.JaegerReport {
 	ret := m.ctrl.Call(m, "HealthChecks", arg0)
-	ret0, _ := ret[0].([]health.JaegerHealthReport)
+	ret0, _ := ret[0].([]health.JaegerReport)
 	return ret0
 }
 

@@ -10,7 +10,7 @@ import (
 
 // RedisModule is the health check module for redis.
 type RedisModule interface {
-	HealthChecks(context.Context) []RedisHealthReport
+	HealthChecks(context.Context) []RedisReport
 }
 
 type redisModule struct {
@@ -18,8 +18,8 @@ type redisModule struct {
 	enabled bool
 }
 
-// RedisHealthReport is the health report returned by the redis module.
-type RedisHealthReport struct {
+// RedisReport is the health report returned by the redis module.
+type RedisReport struct {
 	Name     string
 	Duration string
 	Status   Status
@@ -40,17 +40,17 @@ func NewRedisModule(redis Redis, enabled bool) RedisModule {
 }
 
 // HealthChecks executes all health checks for Redis.
-func (m *redisModule) HealthChecks(context.Context) []RedisHealthReport {
-	var reports = []RedisHealthReport{}
+func (m *redisModule) HealthChecks(context.Context) []RedisReport {
+	var reports = []RedisReport{}
 	reports = append(reports, m.redisPingCheck())
 	return reports
 }
 
-func (m *redisModule) redisPingCheck() RedisHealthReport {
+func (m *redisModule) redisPingCheck() RedisReport {
 	var healthCheckName = "ping"
 
 	if !m.enabled {
-		return RedisHealthReport{
+		return RedisReport{
 			Name:     healthCheckName,
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -71,7 +71,7 @@ func (m *redisModule) redisPingCheck() RedisHealthReport {
 		s = OK
 	}
 
-	return RedisHealthReport{
+	return RedisReport{
 		Name:     healthCheckName,
 		Duration: duration.String(),
 		Status:   s,

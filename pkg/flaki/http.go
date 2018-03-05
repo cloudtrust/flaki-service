@@ -37,7 +37,7 @@ func MakeHTTPNextValidIDHandler(e endpoint.Endpoint) *http_transport.Server {
 func fetchHTTPCorrelationID(ctx context.Context, r *http.Request) context.Context {
 	var correlationID = r.Header.Get("X-Correlation-ID")
 	if correlationID != "" {
-		ctx = context.WithValue(ctx, "correlation_id", correlationID)
+		ctx = context.WithValue(ctx, CorrelationIDKey, correlationID)
 	}
 	return ctx
 }

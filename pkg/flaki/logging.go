@@ -11,6 +11,11 @@ import (
 	"github.com/go-kit/kit/log"
 )
 
+const (
+	// LoggingCorrelationIDKey is the key for the correlation ID in the trace.
+	LoggingCorrelationIDKey = "correlation_id"
+)
+
 // MakeEndpointLoggingMW makes a logging middleware.
 func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
@@ -20,7 +25,7 @@ func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 			var duration = time.Since(begin)
 
 			// If there is no correlation ID, use the newly generated ID.
-			var corrID = ctx.Value("correlation_id")
+			var corrID = ctx.Value(CorrelationIDKey)
 			if corrID == nil {
 				if rep := reply.(*fb.FlakiReply); rep != nil {
 					corrID = string(rep.Id())
@@ -29,7 +34,7 @@ func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 				}
 			}
 
-			logger.Log("correlation_id", corrID.(string), "took", duration)
+			logger.Log(LoggingCorrelationIDKey, corrID.(string), "took", duration)
 			return reply, err
 		}
 	}
@@ -58,7 +63,7 @@ func (m *componentLoggingMW) NextID(ctx context.Context, req *fb.FlakiRequest) (
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		if reply != nil {
 			corrID = string(reply.Id())
@@ -67,7 +72,7 @@ func (m *componentLoggingMW) NextID(ctx context.Context, req *fb.FlakiRequest) (
 		}
 	}
 
-	m.logger.Log("unit", "NextID", "correlation_id", corrID.(string), "took", duration)
+	m.logger.Log("unit", "NextID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
 	return reply, err
 }
@@ -79,12 +84,12 @@ func (m *componentLoggingMW) NextValidID(ctx context.Context, req *fb.FlakiReque
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = string(reply.Id())
 	}
 
-	m.logger.Log("unit", "NextValidID", "correlation_id", corrID.(string), "took", duration)
+	m.logger.Log("unit", "NextValidID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
 	return reply
 }
@@ -112,12 +117,12 @@ func (m *moduleLoggingMW) NextID(ctx context.Context) (string, error) {
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.logger.Log("unit", "NextID", "correlation_id", corrID.(string), "took", duration)
+	m.logger.Log("unit", "NextID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
 	return id, err
 }
@@ -129,12 +134,12 @@ func (m *moduleLoggingMW) NextValidID(ctx context.Context) string {
 	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.logger.Log("unit", "NextValidID", "correlation_id", corrID.(string), "took", duration)
+	m.logger.Log("unit", "NextValidID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
 	return id
 }

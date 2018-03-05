@@ -17,7 +17,7 @@ const (
 
 // JaegerModule is the health check module for jaeger.
 type JaegerModule interface {
-	HealthChecks(context.Context) []JaegerHealthReport
+	HealthChecks(context.Context) []JaegerReport
 }
 
 type jaegerModule struct {
@@ -27,8 +27,8 @@ type jaegerModule struct {
 	enabled                 bool
 }
 
-// JaegerHealthReport is the health report returned by the jaeger module.
-type JaegerHealthReport struct {
+// JaegerReport is the health report returned by the jaeger module.
+type JaegerReport struct {
 	Name     string
 	Duration string
 	Status   Status
@@ -56,18 +56,18 @@ func NewJaegerModule(conn SystemDConn, httpClient JaegerHTTPClient, collectorHea
 }
 
 // HealthChecks executes all health checks for Jaeger.
-func (m *jaegerModule) HealthChecks(context.Context) []JaegerHealthReport {
-	var reports = []JaegerHealthReport{}
+func (m *jaegerModule) HealthChecks(context.Context) []JaegerReport {
+	var reports = []JaegerReport{}
 	reports = append(reports, m.jaegerSystemDCheck())
 	reports = append(reports, m.jaegerCollectorPing())
 	return reports
 }
 
-func (m *jaegerModule) jaegerSystemDCheck() JaegerHealthReport {
+func (m *jaegerModule) jaegerSystemDCheck() JaegerReport {
 	var healthCheckName = "jaeger agent systemd unit check"
 
 	if !m.enabled {
-		return JaegerHealthReport{
+		return JaegerReport{
 			Name:     healthCheckName,
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -94,7 +94,7 @@ func (m *jaegerModule) jaegerSystemDCheck() JaegerHealthReport {
 		s = OK
 	}
 
-	return JaegerHealthReport{
+	return JaegerReport{
 		Name:     healthCheckName,
 		Duration: duration.String(),
 		Status:   s,
@@ -102,11 +102,11 @@ func (m *jaegerModule) jaegerSystemDCheck() JaegerHealthReport {
 	}
 }
 
-func (m *jaegerModule) jaegerCollectorPing() JaegerHealthReport {
+func (m *jaegerModule) jaegerCollectorPing() JaegerReport {
 	var healthCheckName = "ping jaeger collector"
 
 	if !m.enabled {
-		return JaegerHealthReport{
+		return JaegerReport{
 			Name:     healthCheckName,
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -131,7 +131,7 @@ func (m *jaegerModule) jaegerCollectorPing() JaegerHealthReport {
 		s = OK
 	}
 
-	return JaegerHealthReport{
+	return JaegerReport{
 		Name:     healthCheckName,
 		Duration: duration.String(),
 		Status:   s,

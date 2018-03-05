@@ -14,6 +14,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	// TracingCorrelationIDKey is the key for the correlation ID in the trace.
+	TracingCorrelationIDKey = "correlation_id"
+)
+
 // MakeHTTPTracingMW try to extract an existing span from the HTTP headers. It it exists, we
 // continue the span, if not we create a new one.
 func MakeHTTPTracingMW(tracer opentracing.Tracer, componentName, operationName string) func(http.Handler) http.Handler {
@@ -98,7 +103,7 @@ func MakeEndpointTracingMW(tracer opentracing.Tracer, operationName string) endp
 				var reply, err = next(opentracing.ContextWithSpan(ctx, span), req)
 
 				// If there is no correlation ID, use the newly generated ID.
-				var corrID = ctx.Value("correlation_id")
+				var corrID = ctx.Value(CorrelationIDKey)
 				if corrID == nil {
 					if rep := reply.(*fb.FlakiReply); rep != nil {
 						corrID = string(rep.Id())
@@ -107,7 +112,7 @@ func MakeEndpointTracingMW(tracer opentracing.Tracer, operationName string) endp
 					}
 				}
 
-				span.SetTag("correlation_id", corrID.(string))
+				span.SetTag(TracingCorrelationIDKey, corrID.(string))
 				return reply, err
 			}
 			return next(ctx, req)
@@ -140,7 +145,7 @@ func (m *componentTracingMW) NextID(ctx context.Context, req *fb.FlakiRequest) (
 		var reply, err = m.next.NextID(opentracing.ContextWithSpan(ctx, span), req)
 
 		// If there is no correlation ID, use the newly generated ID.
-		var corrID = ctx.Value("correlation_id")
+		var corrID = ctx.Value(CorrelationIDKey)
 		if corrID == nil {
 			if reply != nil {
 				corrID = string(reply.Id())
@@ -148,7 +153,7 @@ func (m *componentTracingMW) NextID(ctx context.Context, req *fb.FlakiRequest) (
 				corrID = ""
 			}
 		}
-		span.SetTag("correlation_id", corrID.(string))
+		span.SetTag(TracingCorrelationIDKey, corrID.(string))
 
 		return reply, err
 	}
@@ -165,11 +170,11 @@ func (m *componentTracingMW) NextValidID(ctx context.Context, req *fb.FlakiReque
 		var reply = m.next.NextValidID(opentracing.ContextWithSpan(ctx, span), req)
 
 		// If there is no correlation ID, use the newly generated ID.
-		var corrID = ctx.Value("correlation_id")
+		var corrID = ctx.Value(CorrelationIDKey)
 		if corrID == nil {
 			corrID = string(reply.Id())
 		}
-		span.SetTag("correlation_id", corrID.(string))
+		span.SetTag(TracingCorrelationIDKey, corrID.(string))
 
 		return reply
 	}
@@ -202,11 +207,11 @@ func (m *moduleTracingMW) NextID(ctx context.Context) (string, error) {
 		var id, err = m.next.NextID(opentracing.ContextWithSpan(ctx, span))
 
 		// If there is no correlation ID, use the newly generated ID.
-		var corrID = ctx.Value("correlation_id")
+		var corrID = ctx.Value(CorrelationIDKey)
 		if corrID == nil {
 			corrID = id
 		}
-		span.SetTag("correlation_id", corrID.(string))
+		span.SetTag(TracingCorrelationIDKey, corrID.(string))
 
 		return id, err
 	}
@@ -223,11 +228,11 @@ func (m *moduleTracingMW) NextValidID(ctx context.Context) string {
 		var id = m.next.NextValidID(opentracing.ContextWithSpan(ctx, span))
 
 		// If there is no correlation ID, use the newly generated ID.
-		var corrID = ctx.Value("correlation_id")
+		var corrID = ctx.Value(CorrelationIDKey)
 		if corrID == nil {
 			corrID = id
 		}
-		span.SetTag("correlation_id", corrID.(string))
+		span.SetTag(TracingCorrelationIDKey, corrID.(string))
 
 		return id
 	}

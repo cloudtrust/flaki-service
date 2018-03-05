@@ -10,7 +10,7 @@ import (
 
 // InfluxModule is the health check module for influx.
 type InfluxModule interface {
-	HealthChecks(context.Context) []InfluxHealthReport
+	HealthChecks(context.Context) []InfluxReport
 }
 
 type influxModule struct {
@@ -18,8 +18,8 @@ type influxModule struct {
 	enabled bool
 }
 
-// InfluxHealthReport is the health report returned by the influx module.
-type InfluxHealthReport struct {
+// InfluxReport is the health report returned by the influx module.
+type InfluxReport struct {
 	Name     string
 	Duration string
 	Status   Status
@@ -40,17 +40,17 @@ func NewInfluxModule(influx Influx, enabled bool) InfluxModule {
 }
 
 // HealthChecks executes all health checks for influx.
-func (m *influxModule) HealthChecks(context.Context) []InfluxHealthReport {
-	var reports = []InfluxHealthReport{}
+func (m *influxModule) HealthChecks(context.Context) []InfluxReport {
+	var reports = []InfluxReport{}
 	reports = append(reports, m.influxPing())
 	return reports
 }
 
-func (m *influxModule) influxPing() InfluxHealthReport {
+func (m *influxModule) influxPing() InfluxReport {
 	var healthCheckName = "ping"
 
 	if !m.enabled {
-		return InfluxHealthReport{
+		return InfluxReport{
 			Name:     healthCheckName,
 			Duration: "N/A",
 			Status:   Deactivated,
@@ -69,7 +69,7 @@ func (m *influxModule) influxPing() InfluxHealthReport {
 		s = OK
 	}
 
-	return InfluxHealthReport{
+	return InfluxReport{
 		Name:     healthCheckName,
 		Duration: d.String(),
 		Status:   s,
