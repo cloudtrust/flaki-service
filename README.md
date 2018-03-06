@@ -71,7 +71,7 @@ If no configuration file is passed, the service will try to load the default con
 
 ### gRPC and HTTP clients
 To obtain IDs using gRPC or HTTP, you need to implement your own clients. There is an example in the directory `client`.
-There are two methods available to get IDs: NextID and NextValidID. Both take a Flatbuffer `EmptyRequest` and reply with a Flatbuffer `FlakiReply` containing the unique ID and an error. The Flatbuffer schema is `pkg/flaki/flatbuffer/flaki.fbs`.
+There are two methods available to get IDs: NextID and NextValidID. Both take a Flatbuffer `FlakiRequest` and reply with a Flatbuffer `FlakiReply` containing the unique ID. The Flatbuffer schema is `pkg/flaki/flatbuffer/flaki.fbs`.
 
 ### Health
 The service exposes HTTP routes to monitor the application health.

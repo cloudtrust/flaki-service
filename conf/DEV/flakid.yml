@@ -8,16 +8,16 @@ flaki-node-id: 0
 flaki-component-id: 0
 
 # Redis configs
-#redis-host-port: 127.0.0.1:6379
-redis-password: redis
+redis-host-port: 
+redis-password: 
 redis-database: 0
 redis-write-interval-ms: 1000
 
 # Influx DB configs
-#influx-host-port: 127.0.0.1:8086
-influx-username: flaki
-influx-password: flaki
-influx-database: flakimetrics
+influx-host-port: 
+influx-username: 
+influx-password: 
+influx-database: 
 influx-precision: s
 influx-retention-policy: ""
 influx-write-consistency: ""
@@ -29,10 +29,10 @@ sentry-dsn:
 # Jaeger configs
 jaeger-sampler-type: const
 jaeger-sampler-param: 1
-jaeger-sampler-host-port: 127.0.0.1:5775
+jaeger-sampler-host-port: 
 jaeger-reporter-logspan: false
 jaeger-write-interval-ms: 1000
-jaeger-collector-healthcheck-host-port: 127.0.0.1:14269
+jaeger-collector-healthcheck-host-port: 
 
 # Debug routes
 pprof-route-enabled: true
