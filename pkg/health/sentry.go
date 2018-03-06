@@ -100,6 +100,7 @@ func pingSentry(dsn string, httpClient SentryHTTPClient) error {
 		url = fmt.Sprintf("%s/_health", dsn[:idx])
 	}
 
+	fmt.Println(url)
 	// Query sentry health endpoint.
 	var res *http.Response
 	{
