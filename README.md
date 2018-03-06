@@ -16,18 +16,22 @@ Build the service for the environment \<env>:
 Note: \<env> is used for versioning. 
 
 ## Container
-If you want to run the flaki-service in a docker container:
+A dockerfile is provided to make the flaki-service run in a container. 
+The container contains the flaki-service itself, the jaeger agent that handle traces and monit.
+To build the container you must provides the following build-args:
+- `flaki_service_git_tag`: the git tag of flaki-service repository (https://github.com/cloudtrust/flaki-service).
+- `flaki_service_release`: the flaki-service release archive, e.g. https://github.com/cloudtrust/flaki-service/releases/download/1.0/v1.0.tar.gz. It can be found [here](https://github.com/cloudtrust/flaki-service/releases).
+- `jaeger_release`: the jaeger release archive, e.g. https://github.com/cloudtrust/jaeger/releases/download/v1.2.0/v1.2.0.tar.gz. It can be found [here](https://github.com/cloudtrust/jaeger/releases).
+- `config_repo`: the repository containing the configuration, e.g. https://github.com/cloudtrust/dev-config.git.
+- `config_git_tag`: the git tag of config repository.
+
+Then you can build the image.
 ```bash
 mkdir build_context
-cp bin/flakid build_context/
 cp dockerfiles/cloudtrust-flaki.dockerfile build_context/
 cd build_context
 
-# For the tracing, you also need to put the jaeger "agent-linux" executable in the build_context.
-
-#Build the dockerfile for DEV environment
-docker build --build-arg flaki_service_git_tag=<git_tag> -t cloudtrust-flaki-service -f cloudtrust-flaki.dockerfile .
-docker create --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -p 5555:5555 -p 8888:8888 --name flaki-service-1 cloudtrust-flaki-service
+docker build --build-arg flaki_service_git_tag=<flaki_service_git_tag> --build-arg flaki_service_release=<flaki_service_release> --build-arg jaeger_release=<jaeger_release> --build-arg config_git_tag=<config_git_tag> --build-arg config_repo=<config_repo> -t cloudtrust-flaki-service -f cloudtrust-flaki.dockerfile .
 ```
 
 ## Configuration
@@ -44,8 +48,8 @@ For the component, the following parameters are available:
 Key | Description | Default value 
 --- | ----------- | ------------- 
 component-name | name of the component | flaki-service 
-component-http-address | HTTP server listening address | 0.0.0.0:8888 
-component-grpc-address | gRPC server listening address  | 0.0.0.0:5555 
+component-http-host-port | HTTP server listening address | 0.0.0.0:8888 
+component-grpc-host-port | gRPC server listening address  | 0.0.0.0:5555 
 
 ### Flaki
 Key | Description | Default value 
@@ -74,7 +78,7 @@ The service exposes HTTP routes to monitor the application health.
 There is a root route returning the application general health, that is the list of components and whether they are "OK" or "KO".
 Then each component has a dedicated route where more details are available: a set of tests and their results.
 
-The root route is ```<component-http-address>/health``` and it returns the service general health as a JSON of the form:
+The root route is ```<component-http-host-port>/health``` and it returns the service general health as a JSON of the form:
 ```
 {
   "influx": "OK",
@@ -84,7 +88,7 @@ The root route is ```<component-http-address>/health``` and it returns the servi
 }
 ```
 
-The subroutes are ```<component-http-address>/health/<name>``` and it returns the results of the tests for the component \<name>.
+The subroutes are ```<component-http-host-port>/health/<name>``` and it returns the results of the tests for the component \<name>.
 \<name> is the name of the component that matches the names in the JSON returned by the general route. In our case: "influx", "redis", "sentry", or "jaeger".
 The subroutes return a JSON of the form:
 ```
