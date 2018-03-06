@@ -2,7 +2,9 @@ package flaki
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -15,13 +17,23 @@ type Endpoints struct {
 // MakeNextIDEndpoint makes the NextIDEndpoint.
 func MakeNextIDEndpoint(c Component) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.NextID(ctx)
+		switch r := req.(type) {
+		case *fb.FlakiRequest:
+			return c.NextID(ctx, r)
+		default:
+			return nil, fmt.Errorf("wrong request type: %T", req)
+		}
 	}
 }
 
 // MakeNextValidIDEndpoint makes the NextValidIDEndpoint.
 func MakeNextValidIDEndpoint(c Component) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.NextValidID(ctx), nil
+		switch r := req.(type) {
+		case *fb.FlakiRequest:
+			return c.NextValidID(ctx, r), nil
+		default:
+			return nil, fmt.Errorf("wrong request type: %T", req)
+		}
 	}
 }

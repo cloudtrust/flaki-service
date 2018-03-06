@@ -1,5 +1,7 @@
 package health
 
+//go:generate mockgen -destination=./mock/sentry.go -package=mock -mock_names=SentryModule=SentryModule,Sentry=Sentry  github.com/cloudtrust/flaki-service/pkg/health SentryModule,Sentry
+
 import (
 	"context"
 	"fmt"
@@ -9,76 +11,88 @@ import (
 	"time"
 )
 
+// SentryModule is the health check module for sentry.
 type SentryModule interface {
-	HealthChecks(context.Context) []SentryHealthReport
+	HealthChecks(context.Context) []SentryReport
 }
 
-type SentryHealthReport struct {
+type sentryModule struct {
+	sentry     Sentry
+	httpClient SentryHTTPClient
+	enabled    bool
+}
+
+// SentryReport is the health report returned by the sentry module.
+type SentryReport struct {
 	Name     string
 	Duration string
 	Status   Status
 	Error    string
 }
 
+// Sentry is the interface of the sentry client.
 type Sentry interface {
 	URL() string
 }
 
-type httpClient interface {
+// SentryHTTPClient is the interface of the http client.
+type SentryHTTPClient interface {
 	Get(string) (*http.Response, error)
 }
 
-type sentryModule struct {
-	sentry     Sentry
-	httpClient httpClient
-}
-
 // NewSentryModule returns the sentry health module.
-func NewSentryModule(sentry Sentry, httpClient httpClient) SentryModule {
+func NewSentryModule(sentry Sentry, httpClient SentryHTTPClient, enabled bool) SentryModule {
 	return &sentryModule{
 		sentry:     sentry,
 		httpClient: httpClient,
+		enabled:    enabled,
 	}
 }
 
 // HealthChecks executes all health checks for Sentry.
-func (m *sentryModule) HealthChecks(context.Context) []SentryHealthReport {
-	var reports = []SentryHealthReport{}
-	reports = append(reports, sentryPingCheck(m.sentry, m.httpClient))
+func (m *sentryModule) HealthChecks(context.Context) []SentryReport {
+	var reports = []SentryReport{}
+	reports = append(reports, m.sentryPingCheck())
 	return reports
 }
 
-func sentryPingCheck(sentry Sentry, httpClient httpClient) SentryHealthReport {
-	var dsn = sentry.URL()
+func (m *sentryModule) sentryPingCheck() SentryReport {
+	var healthCheckName = "ping"
 
-	// If sentry is deactivated.
-	if dsn == "" {
-		return SentryHealthReport{
-			Name:     "ping",
+	if !m.enabled {
+		return SentryReport{
+			Name:     healthCheckName,
 			Duration: "N/A",
 			Status:   Deactivated,
 		}
 	}
 
+	var dsn = m.sentry.URL()
+
 	// Get Sentry health status.
 	var now = time.Now()
-	var status, err = getSentryStatus(dsn, httpClient)
+	var err = pingSentry(dsn, m.httpClient)
 	var duration = time.Since(now)
 
-	var error = ""
-	if err != nil {
-		error = err.Error()
+	var error string
+	var s Status
+	switch {
+	case err != nil:
+		error = fmt.Sprintf("could not ping sentry: %v", err.Error())
+		s = KO
+	default:
+		s = OK
 	}
 
-	return SentryHealthReport{
-		Name:     "ping",
+	return SentryReport{
+		Name:     healthCheckName,
 		Duration: duration.String(),
-		Status:   status,
+		Status:   s,
 		Error:    error,
 	}
 }
 
-func getSentryStatus(dsn string, httpClient httpClient) (Status, error) {
+func pingSentry(dsn string, httpClient SentryHTTPClient) error {
 
 	// Build sentry health url from sentry dsn. The health url is <sentryURL>/_health
 	var url string
@@ -86,13 +100,14 @@ func getSentryStatus(dsn string, httpClient httpClient) (Status, error) {
 		url = fmt.Sprintf("%s/_health", dsn[:idx])
 	}
 
+	fmt.Println(url)
 	// Query sentry health endpoint.
 	var res *http.Response
 	{
 		var err error
 		res, err = httpClient.Get(url)
 		if err != nil {
-			return KO, err
+			return err
 		}
 		if res != nil {
 			defer res.Body.Close()
@@ -101,7 +116,7 @@ func getSentryStatus(dsn string, httpClient httpClient) (Status, error) {
 
 	// Chesk response status.
 	if res.StatusCode != http.StatusOK {
-		return KO, fmt.Errorf("http response status code: %v", res.Status)
+		return fmt.Errorf("http response status code: %v", res.Status)
 	}
 
 	// Chesk response body. The sentry health endpoint returns "ok" when there is no issue.
@@ -110,13 +125,13 @@ func getSentryStatus(dsn string, httpClient httpClient) (Status, error) {
 		var err error
 		response, err = ioutil.ReadAll(res.Body)
 		if err != nil {
-			return KO, err
+			return err
 		}
 	}
 
 	if strings.Compare(string(response), "ok") == 0 {
-		return OK, nil
+		return nil
 	}
 
-	return KO, fmt.Errorf("response should be 'ok' but is: %v", string(response))
+	return fmt.Errorf("response should be 'ok' but is: %v", string(response))
 }

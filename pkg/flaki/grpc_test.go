@@ -2,109 +2,95 @@ package flaki
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
-	flatbuffers "github.com/google/flatbuffers/go"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 )
 
 func TestNewGRPCServer(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+
+	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
+
 	rand.Seed(time.Now().UnixNano())
-
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockEndpoint = MakeMockEndpoint(flakiID, false)
-
-	var s = NewGRPCServer(MakeGRPCNextIDHandler(mockEndpoint), MakeGRPCNextValidIDHandler(mockEndpoint))
-
-	// Flatbuffer Request.
-	var b = flatbuffers.NewBuilder(0)
-	fb.EmptyRequestStart(b)
-	b.Finish(fb.EmptyRequestEnd(b))
-	var emptyReq = fb.GetRootAsEmptyRequest(b.FinishedBytes(), 0)
+	var req = createFlakiRequest()
 
 	// NextID.
 	{
-		var data, err = s.NextID(context.Background(), emptyReq)
+		mockComponent.EXPECT().NextID(context.Background(), req).Return(createFlakiReply(flakiID), nil).Times(1)
+		var data, err = s.NextID(context.Background(), req)
 		assert.Nil(t, err)
 		// Decode and check reply.
 		var r = fb.GetRootAsFlakiReply(data.FinishedBytes(), 0)
 		assert.Equal(t, flakiID, string(r.Id()))
-		assert.Zero(t, string(r.Error()))
 	}
+
 	// NextValidID.
 	{
-		var data, err = s.NextValidID(context.Background(), emptyReq)
+		mockComponent.EXPECT().NextValidID(context.Background(), req).Return(createFlakiReply(flakiID)).Times(1)
+		var data, err = s.NextValidID(context.Background(), req)
 		assert.Nil(t, err)
 		// Decode and check reply.
 		var r = fb.GetRootAsFlakiReply(data.FinishedBytes(), 0)
 		assert.Equal(t, flakiID, string(r.Id()))
-		assert.Zero(t, string(r.Error()))
 	}
 }
 
 func TestGRPCErrorHandler(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
-	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockEndpoint = MakeMockEndpoint(flakiID, true)
+	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
 
-	var s = NewGRPCServer(MakeGRPCNextIDHandler(mockEndpoint), MakeGRPCNextValidIDHandler(mockEndpoint))
-
-	// Flatbuffer Request.
-	var b = flatbuffers.NewBuilder(0)
-	fb.EmptyRequestStart(b)
-	b.Finish(fb.EmptyRequestEnd(b))
-	var emptyReq = fb.GetRootAsEmptyRequest(b.FinishedBytes(), 0)
+	var req = createFlakiRequest()
 
 	// NextID.
-	{
-		var data, err = s.NextID(context.Background(), emptyReq)
-		assert.Nil(t, err)
-		// Decode and check reply.
-		var r = fb.GetRootAsFlakiReply(data.FinishedBytes(), 0)
-		assert.Zero(t, string(r.Id()))
-		assert.NotZero(t, string(r.Error()))
-	}
-	// NextValidID.
-	{
-		var data, err = s.NextValidID(context.Background(), emptyReq)
-		assert.Nil(t, err)
-		// Decode and check reply.
-		var r = fb.GetRootAsFlakiReply(data.FinishedBytes(), 0)
-		assert.Zero(t, string(r.Id()))
-		assert.NotZero(t, string(r.Error()))
-	}
+	mockComponent.EXPECT().NextID(context.Background(), req).Return(nil, fmt.Errorf("fail")).Times(1)
+	var reply, err = s.NextID(context.Background(), req)
+	assert.NotNil(t, err)
+	assert.Nil(t, reply)
 }
 
 func TestFetchGRPCCorrelationID(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+
+	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
+
 	rand.Seed(time.Now().UnixNano())
-
-	// Context with correlation ID.
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
-	var md = metadata.New(map[string]string{"correlation_id": corrID})
+	var md = metadata.New(map[string]string{grpcCorrelationIDKey: corrID})
 	var ctx = metadata.NewIncomingContext(context.Background(), md)
+	var req = createFlakiRequest()
+	var rep = createFlakiReply(flakiID)
 
-	var endpoint = func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		var id = ctx.Value("correlation_id")
-		assert.NotNil(t, id)
-		assert.Equal(t, corrID, id.(string))
+	// NextID.
+	mockComponent.EXPECT().NextID(context.WithValue(ctx, CorrelationIDKey, corrID), req).Return(rep, nil).Times(1)
+	s.NextID(ctx, req)
 
-		return "", nil
-	}
+	// NextID without correlation ID.
+	mockComponent.EXPECT().NextID(context.Background(), req).Return(rep, nil).Times(1)
+	s.NextID(context.Background(), req)
 
-	var s = NewGRPCServer(MakeGRPCNextIDHandler(endpoint), MakeGRPCNextValidIDHandler(endpoint))
+	// NextValidID.
+	mockComponent.EXPECT().NextValidID(context.WithValue(ctx, CorrelationIDKey, corrID), req).Return(rep).Times(1)
+	s.NextValidID(ctx, req)
 
-	// Flatbuffer Request.
-	var b = flatbuffers.NewBuilder(0)
-	fb.EmptyRequestStart(b)
-	b.Finish(fb.EmptyRequestEnd(b))
-	var emptyReq = fb.GetRootAsEmptyRequest(b.FinishedBytes(), 0)
-
-	s.NextID(ctx, emptyReq)
-	s.NextValidID(ctx, emptyReq)
+	// NextValidID without correlation ID.
+	mockComponent.EXPECT().NextValidID(context.Background(), req).Return(rep).Times(1)
+	s.NextValidID(context.Background(), req)
 }

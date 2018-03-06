@@ -1,5 +1,7 @@
 package main
 
+//go:generate mockgen -source=instrumenting.go -destination=./mock/instrumenting.go -package=mock -mock_names=Influx=Influx,GoKitMetrics=GoKitMetrics github.com/cloudtrust/flaki-service/cmd Influx,GoKitMetrics
+
 import (
 	"time"
 
@@ -8,15 +10,15 @@ import (
 	influx "github.com/influxdata/influxdb/client/v2"
 )
 
-// Influx is the influx client interface.
+// Influx is the Influx client interface.
 type Influx interface {
 	Ping(timeout time.Duration) (time.Duration, string, error)
 	Write(bp influx.BatchPoints) error
 	Close() error
 }
 
-// Metrics is the interface of the go-kit metrics.
-type Metrics interface {
+// GoKitMetrics is the interface of the go-kit metrics.
+type GoKitMetrics interface {
 	NewCounter(name string) *metric.Counter
 	NewGauge(name string) *metric.Gauge
 	NewHistogram(name string) *metric.Histogram
@@ -26,11 +28,11 @@ type Metrics interface {
 // InfluxMetrics sends metrics to the Influx DB.
 type InfluxMetrics struct {
 	influx  Influx
-	metrics Metrics
+	metrics GoKitMetrics
 }
 
 // NewMetrics returns an InfluxMetrics.
-func NewMetrics(influx Influx, metrics Metrics) *InfluxMetrics {
+func NewMetrics(influx Influx, metrics GoKitMetrics) *InfluxMetrics {
 	return &InfluxMetrics{
 		influx:  influx,
 		metrics: metrics,
@@ -65,29 +67,49 @@ func (m *InfluxMetrics) Ping(timeout time.Duration) (time.Duration, string, erro
 // NoopMetrics is an Influx metrics that does nothing.
 type NoopMetrics struct{}
 
-func (m *NoopMetrics) NewCounter(name string) metrics.Counter     { return &NoopCounter{} }
-func (m *NoopMetrics) NewGauge(name string) metrics.Gauge         { return &NoopGauge{} }
+// NewCounter returns a Counter that does nothing.
+func (m *NoopMetrics) NewCounter(name string) metrics.Counter { return &NoopCounter{} }
+
+// NewGauge returns a Gauge that does nothing.
+func (m *NoopMetrics) NewGauge(name string) metrics.Gauge { return &NoopGauge{} }
+
+// NewHistogram returns an Histogram that does nothing.
 func (m *NoopMetrics) NewHistogram(name string) metrics.Histogram { return &NoopHistogram{} }
-func (m *NoopMetrics) WriteLoop(c <-chan time.Time)               {}
+
+// WriteLoop does nothing.
+func (m *NoopMetrics) WriteLoop(c <-chan time.Time) {}
+
+// Ping does nothing.
 func (m *NoopMetrics) Ping(timeout time.Duration) (time.Duration, string, error) {
-	return time.Duration(0), "NOOP", nil
+	return time.Duration(0), "", nil
 }
 
 // NoopCounter is a Counter that does nothing.
 type NoopCounter struct{}
 
+// With does nothing.
 func (c *NoopCounter) With(labelValues ...string) metrics.Counter { return c }
-func (c *NoopCounter) Add(delta float64)                          {}
+
+// Add does nothing.
+func (c *NoopCounter) Add(delta float64) {}
 
 // NoopGauge is a Gauge that does nothing.
 type NoopGauge struct{}
 
+// With does nothing.
 func (g *NoopGauge) With(labelValues ...string) metrics.Gauge { return g }
-func (g *NoopGauge) Set(value float64)                        {}
-func (g *NoopGauge) Add(delta float64)                        {}
+
+// Set does nothing.
+func (g *NoopGauge) Set(value float64) {}
+
+// Add does nothing.
+func (g *NoopGauge) Add(delta float64) {}
 
 // NoopHistogram is an Histogram that does nothing.
 type NoopHistogram struct{}
 
+// With does nothing.
 func (h *NoopHistogram) With(labelValues ...string) metrics.Histogram { return h }
-func (h *NoopHistogram) Observe(value float64)                        {}
+
+// Observe does nothing.
+func (h *NoopHistogram) Observe(value float64) {}

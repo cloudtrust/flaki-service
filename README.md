@@ -15,21 +15,32 @@ Build the service for the environment \<env>:
 ```
 Note: \<env> is used for versioning. 
 
+## Container
+A dockerfile is provided to make the flaki-service run in a container. 
+The container contains the flaki-service itself, the jaeger agent that handle traces and monit.
+To build the container you must provides the following build-args:
+- `flaki_service_git_tag`: the git tag of flaki-service repository (https://github.com/cloudtrust/flaki-service).
+- `flaki_service_release`: the flaki-service release archive, e.g. https://github.com/cloudtrust/flaki-service/releases/download/1.0/v1.0.tar.gz. It can be found [here](https://github.com/cloudtrust/flaki-service/releases).
+- `jaeger_release`: the jaeger release archive, e.g. https://github.com/cloudtrust/jaeger/releases/download/v1.2.0/v1.2.0.tar.gz. It can be found [here](https://github.com/cloudtrust/jaeger/releases).
+- `config_repo`: the repository containing the configuration, e.g. https://github.com/cloudtrust/dev-config.git.
+- `config_git_tag`: the git tag of config repository.
+
+Then you can build the image.
+```bash
+mkdir build_context
+cp dockerfiles/cloudtrust-flaki.dockerfile build_context/
+cd build_context
+
+docker build --build-arg flaki_service_git_tag=<flaki_service_git_tag> --build-arg flaki_service_release=<flaki_service_release> --build-arg jaeger_release=<jaeger_release> --build-arg config_git_tag=<config_git_tag> --build-arg config_repo=<config_repo> -t cloudtrust-flaki-service -f cloudtrust-flaki.dockerfile .
+```
+
 ## Configuration
-Configuration is done with a YAML file. An example is provided in ```./conf/DEV/flaki_service.yml```.
-
-The following units can be configured: 
-- component
-- flaki
-- redis
-- influx
-- sentry
-- jaeger
-- debug
-
+Configuration is done with a YAML file, e.g. ```./conf/DEV/flakid.yml```.
 Default configurations are provided, that is if an entry is not present in the configuration file, it will be set to its default value.
 
-The following sections describe more precisely the available options.
+The documentation for the [Redis](https://cloudtrust.github.io/doc/chapter-godevel/logging.html), [Influx](https://cloudtrust.github.io/doc/chapter-godevel/instrumenting.html), [Sentry](https://cloudtrust.github.io/doc/chapter-godevel/tracking.html), [Jaeger](https://cloudtrust.github.io/doc/chapter-godevel/tracing.html) and [Debug](https://cloudtrust.github.io/doc/chapter-godevel/debugging.html) configuration are common to all microservices and is provided in the Cloudtrust Gitbook.
+
+The configurations specific to the flaki-service are described in the next sections.
 
 ### Component
 For the component, the following parameters are available:
@@ -37,8 +48,8 @@ For the component, the following parameters are available:
 Key | Description | Default value 
 --- | ----------- | ------------- 
 component-name | name of the component | flaki-service 
-component-http-address | HTTP server listening address | 0.0.0.0:8888 
-component-grpc-address | gRPC server listening address  | 0.0.0.0:5555 
+component-http-host-port | HTTP server listening address | 0.0.0.0:8888 
+component-grpc-host-port | gRPC server listening address  | 0.0.0.0:5555 
 
 ### Flaki
 Key | Description | Default value 
@@ -50,62 +61,6 @@ If two Flaki instance have the same component ID and same node ID, there will be
 
 More information on the Flaki unique ID generator are availaible on its [repository](https://github.com/cloudtrust/flaki).
 
-### Redis
-The logs can be formatted in [Logstash](https://www.elastic.co/products/logstash) format and send to a [Redis](https://redis.io/) server. The goal is to process them with the [Elastic Stack](https://www.elastic.co/products).
-
-By default the Redis configuration is empty, which mean we do not use Redis. The loggers only log to stdout. 
-If the Redis configuration keys are present in the configuration file, the logs are duplicated to stdout and Redis.
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-redis-url | Redis server URL | ""
-redis-password | Redis password | ""
-redis-database | Redis database | 0
-
-### InfluxDB
-The service can record metrics and send them to an [Influx](https://www.influxdata.com/time-series-platform/influxdb/) time series DB.
-
-By default the influx configuration is empty, which mean that the metrics are disabled. To activate them, provides configuration for infux in the configuration file.
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-influx-url | Influx URL | ""
-influx-username | InfluxDB username | ""
-influx-password | InfluxDB password | ""
-influx-database | InfluxDB database name | ""
-influx-precision | Write precision of the points | ""
-influx-retention-policy | Retention policy of the points | ""
-influx-write-consistency | Number of servers required to confirm write | ""
-influx-write-interval-ms | Flush interval in milliseconds | 1000
-
-### Sentry
-[Sentry](https://sentry.io/welcome/) is an open source error tracking system. It helps monitoring crashes and errors in real time.
-By default, the error tracking is deactivated. To set it up, add the sentry-dsn to the configuration file.
-
-Note: To obtain the sentry Data Source Name (DSN) you need to set up a project in Sentry (see [documenation](https://docs.sentry.io/quickstart/#configure-the-dsn)). 
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-sentry-dsn | Sentry Data Source Name | ""
-
-### Jaeger
-[Jaeger](https://jaeger.readthedocs.io/en/latest/) is a distributed tracing system. It is disabled by default, to enable it provide configuration in the configuration file.
-
-Key | Description | Default value 
---- | ----------- | ------------- 
-jaeger-sampler-type |  | ""
-jaeger-sampler-param |  | 0
-jaeger-sampler-url |  | ""
-jaeger-reporter-logspan |  | false
-jaeger-write-interval-ms | Flush interval in milliseconds | 1000
-
-### Debug
-Key | Description | Default value 
---- | ----------- | ------------- 
-pprof-route-enabled | whether the pprof debug routes are enabled | true
-
-The golang pprof package serves runtime profiling data via the HTTP server (see [documentation](https://golang.org/pkg/net/http/pprof/)). If ```pprof-route-enabled``` is true, we enable the HTTP pprof routes.
-
 ## Usage
 Launch the flaki service:
 ```bash
@@ -114,16 +69,16 @@ Launch the flaki service:
 It is recommended to always provides an absolute path to the configuration file when the service is started, even though absolute and relative paths are supported.
 If no configuration file is passed, the service will try to load the default config file at ```./conf/DEV/flaki_service.yml```, and if it fails it launches the service with the default parameters.
 
-### gRPC
-
-### HTTP
+### gRPC and HTTP clients
+To obtain IDs using gRPC or HTTP, you need to implement your own clients. There is an example in the directory `client`.
+There are two methods available to get IDs: NextID and NextValidID. Both take a Flatbuffer `FlakiRequest` and reply with a Flatbuffer `FlakiReply` containing the unique ID. The Flatbuffer schema is `pkg/flaki/flatbuffer/flaki.fbs`.
 
 ### Health
 The service exposes HTTP routes to monitor the application health.
 There is a root route returning the application general health, that is the list of components and whether they are "OK" or "KO".
 Then each component has a dedicated route where more details are available: a set of tests and their results.
 
-The root route is ```<component-http-address>/health``` and it returns the service general health as a JSON of the form:
+The root route is ```<component-http-host-port>/health``` and it returns the service general health as a JSON of the form:
 ```
 {
   "influx": "OK",
@@ -133,7 +88,7 @@ The root route is ```<component-http-address>/health``` and it returns the servi
 }
 ```
 
-The subroutes are ```<component-http-address>/health/<name>``` and it returns the results of the tests for the component \<name>.
+The subroutes are ```<component-http-host-port>/health/<name>``` and it returns the results of the tests for the component \<name>.
 \<name> is the name of the component that matches the names in the JSON returned by the general route. In our case: "influx", "redis", "sentry", or "jaeger".
 The subroutes return a JSON of the form:
 ```
@@ -162,6 +117,8 @@ correlation_id:<correlation_id>
 
 ## Tests
 
+Gomock is used to automatically genarate mocks. See the Cloudtrust [Gitbook](https://cloudtrust.github.io/doc/chapter-godevel/testing.html) for more information.
+
 The unit tests don't cover:
 - http client example (```./client/http/http.go```)
 - grpc client example (```./client/grpc/grpc.go```)
@@ -169,12 +126,8 @@ The unit tests don't cover:
 
 The first two are provided as example.
 
-The ```flakid.go``` is mosttly just the main function doing all the wiring, it is difficult to test it with unit tests. It is covered by our integration tests.
+The ```flakid.go``` is mostly just the main function doing all the wiring, it is difficult to test it with unit tests. It is covered by our integration tests.
 
 ## Limitations
 
 The Redis connection does not handle errors well: if there is a problem, it is closed forever. We will implement our own redis client later, because we need load-balancing and circuit-breaking.
-
-
-
-

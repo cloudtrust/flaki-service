@@ -8,79 +8,54 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNextID(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockFlaki = mock.NewFlaki(mockCtrl)
 
-	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockFlaki = &mockFlaki{fail: false, id: expectedID}
 	var m = NewModule(mockFlaki)
 
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+
+	// NextID.
+	mockFlaki.EXPECT().NextIDString().Return(flakiID, nil).Times(1)
 	var id, err = m.NextID(context.Background())
 	assert.Nil(t, err)
-	assert.Equal(t, expectedID, id)
+	assert.Equal(t, flakiID, id)
 }
 
-func TestNextIDFail(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+func TestNextIDError(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockFlaki = mock.NewFlaki(mockCtrl)
 
-	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockFlaki = &mockFlaki{fail: true, id: expectedID}
 	var m = NewModule(mockFlaki)
 
-	// When an error is returned, the id is the zero string.
+	// When an error is returned, the ID is the zero string.
+	mockFlaki.EXPECT().NextIDString().Return("", fmt.Errorf("fail")).Times(1)
 	var id, err = m.NextID(context.Background())
 	assert.NotNil(t, err)
 	assert.Zero(t, id)
 }
 
 func TestNextValidID(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockFlaki = mock.NewFlaki(mockCtrl)
 
-	var expectedID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockFlaki = &mockFlaki{id: expectedID}
 	var m = NewModule(mockFlaki)
 
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+
+	// NextValidID.
+	mockFlaki.EXPECT().NextValidIDString().Return(flakiID).Times(1)
 	var id = m.NextValidID(context.Background())
-	assert.Equal(t, expectedID, id)
-}
-
-// Mock Flaki.
-type mockFlaki struct {
-	id   string
-	fail bool
-}
-
-func (f *mockFlaki) NextIDString() (string, error) {
-	if f.fail {
-		return "", fmt.Errorf("fail")
-	}
-	return f.id, nil
-}
-
-func (f *mockFlaki) NextValidIDString() string {
-	return f.id
-}
-
-// Mock Flaki module.
-type mockModule struct {
-	id                string
-	fail              bool
-	nextIDCalled      bool
-	nextValidIDCalled bool
-}
-
-func (m *mockModule) NextID(context.Context) (string, error) {
-	m.nextIDCalled = true
-	if m.fail {
-		return "", fmt.Errorf("fail")
-	}
-	return m.id, nil
-}
-
-func (m *mockModule) NextValidID(context.Context) string {
-	m.nextValidIDCalled = true
-	return m.id
+	assert.Equal(t, flakiID, id)
 }

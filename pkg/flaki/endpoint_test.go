@@ -8,51 +8,72 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/endpoint"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNextIDEndpoint(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
-
-	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockComponent = &mockComponent{fail: false, id: flakiID}
-
-	// Context with correlation ID.
-	var corrID = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var e = MakeNextIDEndpoint(mockComponent)
 
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), CorrelationIDKey, corrID)
+	var req = createFlakiRequest()
+
 	// NextID.
-	var id, err = e(ctx, nil)
-	assert.Nil(t, err)
-	assert.Equal(t, flakiID, id)
+	{
+		mockComponent.EXPECT().NextID(ctx, req).Return(createFlakiReply(flakiID), nil).Times(1)
+		var reply, err = e(ctx, req)
+		assert.Nil(t, err)
+		var r = reply.(*fb.FlakiReply)
+		assert.Equal(t, flakiID, string(r.Id()))
+	}
+
+	// NextID error.
+	{
+		mockComponent.EXPECT().NextID(ctx, req).Return(nil, fmt.Errorf("fail")).Times(1)
+		var reply, err = e(ctx, req)
+		assert.NotNil(t, err)
+		assert.Nil(t, reply)
+	}
+
+	// Wrong request type.
+	{
+		var reply, err = e(ctx, nil)
+		assert.NotNil(t, err)
+		assert.Nil(t, reply)
+	}
 }
 
 func TestNextValidIDEndpoint(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
-
-	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
-	var mockComponent = &mockComponent{id: flakiID}
-
-	// Context with correlation ID.
-	var corrID = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
 	var e = MakeNextValidIDEndpoint(mockComponent)
 
-	// NextValidID.
-	var id, err = e(ctx, nil)
-	assert.Nil(t, err)
-	assert.Equal(t, flakiID, id)
-}
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var corrID = strconv.FormatUint(rand.Uint64(), 10)
+	var ctx = context.WithValue(context.Background(), CorrelationIDKey, corrID)
+	var req = createFlakiRequest()
 
-func MakeMockEndpoint(id string, fail bool) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		if fail {
-			return "", fmt.Errorf("fail")
-		}
-		return id, nil
-	}
+	// NextValidID.
+	mockComponent.EXPECT().NextValidID(ctx, req).Return(createFlakiReply(flakiID)).Times(1)
+	var reply, err = e(ctx, req)
+	assert.Nil(t, err)
+	var r = reply.(*fb.FlakiReply)
+	assert.Equal(t, flakiID, string(r.Id()))
+
+	// Wrong request type.
+	reply, err = e(ctx, nil)
+	assert.NotNil(t, err)
+	assert.Nil(t, reply)
 }

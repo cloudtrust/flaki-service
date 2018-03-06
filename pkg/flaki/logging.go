@@ -1,11 +1,39 @@
 package flaki
 
+//go:generate mockgen -destination=./mock/logging.go -package=mock -mock_names=Logger=Logger github.com/go-kit/kit/log Logger
+
 import (
 	"context"
 	"time"
 
+	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 )
+
+// MakeEndpointLoggingMW makes a logging middleware.
+func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req interface{}) (interface{}, error) {
+			var begin = time.Now()
+			var reply, err = next(ctx, req)
+			var duration = time.Since(begin)
+
+			// If there is no correlation ID, use the newly generated ID.
+			var corrID = ctx.Value(CorrelationIDKey)
+			if corrID == nil {
+				if rep := reply.(*fb.FlakiReply); rep != nil {
+					corrID = string(rep.Id())
+				} else {
+					corrID = ""
+				}
+			}
+
+			logger.Log(LoggingCorrelationIDKey, corrID.(string), "took", duration)
+			return reply, err
+		}
+	}
+}
 
 // Logging middleware at component level.
 type componentLoggingMW struct {
@@ -24,35 +52,41 @@ func MakeComponentLoggingMW(log log.Logger) func(Component) Component {
 }
 
 // componentLoggingMW implements Component.
-func (m *componentLoggingMW) NextID(ctx context.Context) (string, error) {
+func (m *componentLoggingMW) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
 	var begin = time.Now()
-	var id, err = m.next.NextID(ctx)
+	var reply, err = m.next.NextID(ctx, req)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
-		corrID = id
+		if reply != nil {
+			corrID = string(reply.Id())
+		} else {
+			corrID = ""
+		}
 	}
 
-	m.logger.Log("unit", "NextID", "correlation_id", corrID.(string), "took", time.Since(begin))
+	m.logger.Log("unit", "NextID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
-	return id, err
+	return reply, err
 }
 
 // componentLoggingMW implements Component.
-func (m *componentLoggingMW) NextValidID(ctx context.Context) string {
+func (m *componentLoggingMW) NextValidID(ctx context.Context, req *fb.FlakiRequest) *fb.FlakiReply {
 	var begin = time.Now()
-	var id = m.next.NextValidID(ctx)
+	var reply = m.next.NextValidID(ctx, req)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
-		corrID = id
+		corrID = string(reply.Id())
 	}
 
-	m.logger.Log("unit", "NextValidID", "correlation_id", corrID.(string), "took", time.Since(begin))
+	m.logger.Log("unit", "NextValidID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
-	return id
+	return reply
 }
 
 // Logging middleware at module level.
@@ -75,14 +109,15 @@ func MakeModuleLoggingMW(log log.Logger) func(Module) Module {
 func (m *moduleLoggingMW) NextID(ctx context.Context) (string, error) {
 	var begin = time.Now()
 	var id, err = m.next.NextID(ctx)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.logger.Log("unit", "NextID", "correlation_id", corrID.(string), "took", time.Since(begin))
+	m.logger.Log("unit", "NextID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
 	return id, err
 }
@@ -91,14 +126,15 @@ func (m *moduleLoggingMW) NextID(ctx context.Context) (string, error) {
 func (m *moduleLoggingMW) NextValidID(ctx context.Context) string {
 	var begin = time.Now()
 	var id = m.next.NextValidID(ctx)
+	var duration = time.Since(begin)
 
 	// If there is no correlation ID, use the newly generated ID.
-	var corrID = ctx.Value("correlation_id")
+	var corrID = ctx.Value(CorrelationIDKey)
 	if corrID == nil {
 		corrID = id
 	}
 
-	m.logger.Log("unit", "NextValidID", "correlation_id", corrID.(string), "took", time.Since(begin))
+	m.logger.Log("unit", "NextValidID", LoggingCorrelationIDKey, corrID.(string), "took", duration)
 
 	return id
 }

@@ -1,4 +1,4 @@
-package health
+package health_test
 
 import (
 	"context"
@@ -8,13 +8,23 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	. "github.com/cloudtrust/flaki-service/pkg/health"
+	"github.com/cloudtrust/flaki-service/pkg/health/mock"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestInfluxHealthCheckHandler(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
-	var h = MakeInfluxHealthCheckHandler(MakeMockHealthEndpoint("influx", false))
+	var h = MakeInfluxHealthCheckHandler(MakeInfluxHealthCheckEndpoint(mockComponent))
+
+	// Health success.
+	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/influx", nil)
@@ -35,14 +45,20 @@ func TestInfluxHealthCheckHandler(t *testing.T) {
 	{
 		var m = r.(map[string]interface{})
 		assert.Equal(t, "influx", m["name"])
-		assert.NotZero(t, m["duration"])
+		assert.Equal(t, (1 * time.Second).String(), m["duration"])
 		assert.Equal(t, "OK", m["status"])
 		assert.Zero(t, m["error"])
 	}
 }
 func TestJaegerHealthCheckHandler(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
-	var h = MakeJaegerHealthCheckHandler(MakeMockHealthEndpoint("jaeger", false))
+	var h = MakeJaegerHealthCheckHandler(MakeJaegerHealthCheckEndpoint(mockComponent))
+
+	// Health success.
+	mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/jaeger", nil)
@@ -63,15 +79,21 @@ func TestJaegerHealthCheckHandler(t *testing.T) {
 	{
 		var m = r.(map[string]interface{})
 		assert.Equal(t, "jaeger", m["name"])
-		assert.NotZero(t, m["duration"])
+		assert.Equal(t, (1 * time.Second).String(), m["duration"])
 		assert.Equal(t, "OK", m["status"])
 		assert.Zero(t, m["error"])
 	}
 }
 
 func TestRedisHealthCheckHandler(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
 
-	var h = MakeRedisHealthCheckHandler(MakeMockHealthEndpoint("redis", false))
+	var h = MakeRedisHealthCheckHandler(MakeRedisHealthCheckEndpoint(mockComponent))
+
+	// Health success.
+	mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/redis", nil)
@@ -92,14 +114,21 @@ func TestRedisHealthCheckHandler(t *testing.T) {
 	{
 		var m = r.(map[string]interface{})
 		assert.Equal(t, "redis", m["name"])
-		assert.NotZero(t, m["duration"])
+		assert.Equal(t, (1 * time.Second).String(), m["duration"])
 		assert.Equal(t, "OK", m["status"])
 		assert.Zero(t, m["error"])
 	}
 }
-func TestSentryHealthCheckHandler(t *testing.T) {
 
-	var h = MakeSentryHealthCheckHandler(MakeMockHealthEndpoint("sentry", false))
+func TestSentryHealthCheckHandler(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+
+	var h = MakeSentryHealthCheckHandler(MakeSentryHealthCheckEndpoint(mockComponent))
+
+	// Health success.
+	mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/sentry", nil)
@@ -120,23 +149,28 @@ func TestSentryHealthCheckHandler(t *testing.T) {
 	{
 		var m = r.(map[string]interface{})
 		assert.Equal(t, "sentry", m["name"])
-		assert.NotZero(t, m["duration"])
+		assert.Equal(t, (1 * time.Second).String(), m["duration"])
 		assert.Equal(t, "OK", m["status"])
 		assert.Zero(t, m["error"])
 	}
 }
 
 func TestHealthChecksHandler(t *testing.T) {
-	var influxE = MakeMockHealthEndpoint("influx", false)
-	var jaegerE = MakeMockHealthEndpoint("jaeger", false)
-	var redisE = MakeMockHealthEndpoint("redis", false)
-	var sentryE = MakeMockHealthEndpoint("sentry", false)
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+
+	// Health success.
+	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
+	mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
+	mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
+	mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
 
 	var es = Endpoints{
-		InfluxHealthCheck: influxE,
-		JaegerHealthCheck: jaegerE,
-		RedisHealthCheck:  redisE,
-		SentryHealthCheck: sentryE,
+		InfluxHealthCheck: MakeInfluxHealthCheckEndpoint(mockComponent),
+		JaegerHealthCheck: MakeJaegerHealthCheckEndpoint(mockComponent),
+		RedisHealthCheck:  MakeRedisHealthCheckEndpoint(mockComponent),
+		SentryHealthCheck: MakeSentryHealthCheckEndpoint(mockComponent),
 	}
 
 	var h = MakeHealthChecksHandler(es)
@@ -165,16 +199,21 @@ func TestHealthChecksHandler(t *testing.T) {
 	}
 }
 func TestHealthChecksHandlerFail(t *testing.T) {
-	var influxE = MakeMockHealthEndpoint("influx", true)
-	var jaegerE = MakeMockHealthEndpoint("jaeger", true)
-	var redisE = MakeMockHealthEndpoint("redis", true)
-	var sentryE = MakeMockHealthEndpoint("sentry", true)
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewComponent(mockCtrl)
+
+	// Health fail.
+	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
+	mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
+	mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
+	mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: KO, Error: "fail"}}}).Times(1)
 
 	var es = Endpoints{
-		InfluxHealthCheck: influxE,
-		JaegerHealthCheck: jaegerE,
-		RedisHealthCheck:  redisE,
-		SentryHealthCheck: sentryE,
+		InfluxHealthCheck: MakeInfluxHealthCheckEndpoint(mockComponent),
+		JaegerHealthCheck: MakeJaegerHealthCheckEndpoint(mockComponent),
+		RedisHealthCheck:  MakeRedisHealthCheckEndpoint(mockComponent),
+		SentryHealthCheck: MakeSentryHealthCheckEndpoint(mockComponent),
 	}
 
 	var h = MakeHealthChecksHandler(es)
@@ -220,5 +259,5 @@ func TestHTTPErrorHandler(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	assert.Equal(t, "application/json; charset=utf-8", resp.Header.Get("Content-Type"))
-	assert.Equal(t, "500 Internal Server Error", string(body))
+	assert.Equal(t, "fail", string(body))
 }

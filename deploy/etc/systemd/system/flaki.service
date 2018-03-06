@@ -1,0 +1,12 @@
+[Unit]
+Description=Flaki distributed unique IDs generator
+After=network.target
+
+[Service]
+Type=simple
+User=flaki
+Group=flaki
+ExecStart=/opt/flaki/flakid --config-file /etc/flaki/flakid.yml
+
+[Install]
+WantedBy=multi-user.target
