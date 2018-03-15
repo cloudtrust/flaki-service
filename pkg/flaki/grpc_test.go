@@ -73,13 +73,13 @@ func TestFetchGRPCCorrelationID(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
-	var md = metadata.New(map[string]string{grpcCorrelationIDKey: corrID})
+	var md = metadata.New(map[string]string{"correlation_id": corrID})
 	var ctx = metadata.NewIncomingContext(context.Background(), md)
 	var req = createFlakiRequest()
 	var rep = createFlakiReply(flakiID)
 
 	// NextID.
-	mockComponent.EXPECT().NextID(context.WithValue(ctx, CorrelationIDKey, corrID), req).Return(rep, nil).Times(1)
+	mockComponent.EXPECT().NextID(context.WithValue(ctx, "correlation_id", corrID), req).Return(rep, nil).Times(1)
 	s.NextID(ctx, req)
 
 	// NextID without correlation ID.
@@ -87,7 +87,7 @@ func TestFetchGRPCCorrelationID(t *testing.T) {
 	s.NextID(context.Background(), req)
 
 	// NextValidID.
-	mockComponent.EXPECT().NextValidID(context.WithValue(ctx, CorrelationIDKey, corrID), req).Return(rep).Times(1)
+	mockComponent.EXPECT().NextValidID(context.WithValue(ctx, "correlation_id", corrID), req).Return(rep).Times(1)
 	s.NextValidID(ctx, req)
 
 	// NextValidID without correlation ID.

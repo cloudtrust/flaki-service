@@ -10,22 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type key int
-
-const (
-	// CorrelationIDKey is the key for the correlation ID in the context.
-	CorrelationIDKey key = iota
-
-	// LoggingCorrelationIDKey is the logs correlation ID key
-	LoggingCorrelationIDKey = "correlation_id"
-	// MetricCorrelationIDKey is the metrics correlation ID key.
-	MetricCorrelationIDKey = "correlation_id"
-	// TracingCorrelationIDKey is the trace correlation ID key.
-	TracingCorrelationIDKey = "correlation_id"
-	// TrackingCorrelationIDKey is the error correlation ID key.
-	TrackingCorrelationIDKey = "correlation_id"
-)
-
 // Component is the flaki component interface.
 type Component interface {
 	NextID(context.Context, *fb.FlakiRequest) (*fb.FlakiReply, error)

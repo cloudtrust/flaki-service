@@ -50,6 +50,7 @@ func main() {
 	{
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	}
+	defer logger.Log("msg", "goodbye")
 
 	// Configurations.
 	var config = config(log.With(logger, "unit", "config"))
@@ -133,7 +134,6 @@ func main() {
 	} else {
 		redisClient = &NoopRedis{}
 	}
-	defer logger.Log("msg", "goodbye")
 
 	// Add component name and version to the logger tags.
 	logger = log.With(logger, "component_name", componentName, "component_version", Version)

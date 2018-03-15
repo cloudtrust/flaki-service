@@ -35,8 +35,8 @@ func (m *trackingComponentMW) NextID(ctx context.Context, req *fb.FlakiRequest) 
 	var reply, err = m.next.NextID(ctx, req)
 	if err != nil {
 		var tags = map[string]string{}
-		if id := ctx.Value(CorrelationIDKey); id != nil {
-			tags[TrackingCorrelationIDKey] = id.(string)
+		if id := ctx.Value("correlation_id"); id != nil {
+			tags["correlation_id"] = id.(string)
 		}
 		m.sentry.CaptureError(err, tags)
 	}
