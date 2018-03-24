@@ -9,12 +9,14 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
 	flaki_gen "github.com/cloudtrust/flaki"
+	"github.com/cloudtrust/flaki-service/api/fb"
+	"github.com/cloudtrust/flaki-service/internal/flakid"
 	"github.com/cloudtrust/flaki-service/pkg/flaki"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/cloudtrust/flaki-service/pkg/health"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/garyburd/redigo/redis"
@@ -129,10 +131,10 @@ func main() {
 		defer redisClient.Close()
 
 		// Create logger that duplicates logs to stdout and Redis.
-		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisClient, componentName)))
+		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, flakid.NewLogstashRedisWriter(redisClient, componentName)))
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	} else {
-		redisClient = &NoopRedis{}
+		redisClient = &flakid.NoopRedis{}
 	}
 
 	// Add component name and version to the logger tags.
@@ -179,7 +181,7 @@ func main() {
 		}
 		defer sentryClient.Close()
 	} else {
-		sentryClient = &NoopSentry{}
+		sentryClient = &flakid.NoopSentry{}
 	}
 
 	// Influx client.
@@ -208,9 +210,9 @@ func main() {
 			log.With(logger, "unit", "go-kit influx"),
 		)
 
-		influxMetrics = NewMetrics(influxClient, gokitInflux)
+		influxMetrics = flakid.NewMetrics(influxClient, gokitInflux)
 	} else {
-		influxMetrics = &NoopMetrics{}
+		influxMetrics = &flakid.NoopMetrics{}
 	}
 
 	// Jaeger client.
@@ -480,7 +482,7 @@ func config(logger log.Logger) map[string]interface{} {
 	logger.Log("msg", "load configuration and command args")
 
 	// Component default.
-	viper.SetDefault("config-file", "./conf/DEV/flakid.yml")
+	viper.SetDefault("config-file", "./configs/flakid.yml")
 	viper.SetDefault("component-name", "flaki-service")
 	viper.SetDefault("component-http-host-port", "0.0.0.0:8888")
 	viper.SetDefault("component-grpc-host-port", "0.0.0.0:5555")
@@ -542,9 +544,14 @@ func config(logger log.Logger) map[string]interface{} {
 	config["jaeger"] = config["jaeger-sampler-host-port"].(string) != ""
 	config["redis"] = config["redis-host-port"].(string) != ""
 
-	// Log config.
-	for k, v := range config {
-		logger.Log(k, v)
+	// Log config in alphabetical order.
+	var keys []string
+	for k := range config {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		logger.Log(k, config[k])
 	}
 
 	return config

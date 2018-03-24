@@ -1,4 +1,4 @@
-package main
+package flakid
 
 import (
 	sentry "github.com/getsentry/raven-go"

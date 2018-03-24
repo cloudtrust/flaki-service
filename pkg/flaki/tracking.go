@@ -5,7 +5,7 @@ package flaki
 import (
 	"context"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	sentry "github.com/getsentry/raven-go"
 )
 

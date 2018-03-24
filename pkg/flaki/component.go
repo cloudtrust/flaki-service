@@ -5,7 +5,7 @@ package flaki
 import (
 	"context"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/google/flatbuffers/go"
 	"github.com/pkg/errors"
 )

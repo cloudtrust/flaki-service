@@ -36,7 +36,7 @@ if [ -z ${ENV} ]; then
 fi
 
 # Directories.
-FLATBUF_DIR="./pkg/flaki/flatbuffer"
+FLATBUF_DIR="./api"
 
 # Delete the old dirs.
 echo "==> Removing old directories..."

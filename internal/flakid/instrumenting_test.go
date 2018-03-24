@@ -1,10 +1,10 @@
-package main
+package flakid
 
 import (
 	"testing"
 	"time"
 
-	"github.com/cloudtrust/flaki-service/cmd/mock"
+	"github.com/cloudtrust/flaki-service/internal/flakid/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )

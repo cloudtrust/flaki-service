@@ -1,4 +1,4 @@
-package main
+package flakid
 
 //go:generate mockgen -source=instrumenting.go -destination=./mock/instrumenting.go -package=mock -mock_names=Influx=Influx,GoKitMetrics=GoKitMetrics github.com/cloudtrust/flaki-service/cmd Influx,GoKitMetrics
 

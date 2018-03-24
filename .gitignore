@@ -18,10 +18,7 @@
 vendor/*
 bin/*
 **/debug
-**/.coverprofile
-
-# Flatbuffers generated files
-/pkg/flaki/flatbuffer/fb/*
+**/*.coverprofile
 
 # Docker
 build_context/

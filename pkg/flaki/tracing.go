@@ -6,7 +6,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/go-kit/kit/endpoint"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	opentracing "github.com/opentracing/opentracing-go"

@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 )

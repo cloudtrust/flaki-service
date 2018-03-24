@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
 	"github.com/golang/mock/gomock"
 	flatbuffers "github.com/google/flatbuffers/go"

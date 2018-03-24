@@ -12,5 +12,4 @@ install:
 script:
   - go list -f '{{if or (.XTestGoFiles | len) (.TestGoFiles | len) }}"go test -coverprofile={{.Dir}}/.coverprofile {{.ImportPath}}"{{end}}' ./... | xargs -L 1 sh -c
   - gover
-  - grep -v "cmd/flakid.go" gover.coverprofile > gover.filteredcoverprofile
-  - goveralls -coverprofile=gover.filteredcoverprofile -service=travis-ci 
+  - goveralls -coverprofile=gover.coverprofile -service=travis-ci 
