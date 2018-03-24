@@ -53,3 +53,17 @@ func TestLogstashEncode(t *testing.T) {
 	_, ok = fields["msg"]
 	assert.False(t, ok)
 }
+
+func TestNoopRedis(t *testing.T) {
+	var noopRedis = &NoopRedis{}
+
+	assert.Nil(t, noopRedis.Close())
+
+	var reply, err = noopRedis.Do("")
+	assert.Nil(t, reply)
+	assert.Nil(t, err)
+
+	assert.Nil(t, noopRedis.Send(""))
+
+	assert.Nil(t, noopRedis.Flush())
+}
