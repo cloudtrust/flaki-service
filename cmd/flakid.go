@@ -38,7 +38,7 @@ import (
 
 var (
 	// Version of the component.
-	Version = "1.0.0"
+	Version = "1.0"
 	// Environment is filled by the compiler.
 	Environment = "unknown"
 	// GitCommit is filled by the compiler.
@@ -232,14 +232,14 @@ func main() {
 
 	// Systemd D-Bus connection.
 	var systemDConn *dbus.Conn
-	{
+	/*{
 		var err error
 		systemDConn, err = dbus.New()
 		if err != nil {
 			logger.Log("msg", "could not create systemd D-Bus connection", "error", err)
 			return
 		}
-	}
+	}*/
 
 	// Flaki service.
 	var flakiLogger = log.With(logger, "svc", "flaki")
