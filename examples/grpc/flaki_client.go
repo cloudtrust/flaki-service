@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -11,16 +12,17 @@ import (
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
 	otag "github.com/opentracing/opentracing-go/ext"
+	"github.com/spf13/pflag"
 	jaeger_client "github.com/uber/jaeger-client-go/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-const (
-	address = "127.0.0.1:5555"
-)
-
 func main() {
+	// Configuration flags.
+	var host = pflag.String("host", "127.0.0.1", "flaki service host")
+	var port = pflag.String("port", "5555", "flaki service port")
+	pflag.Parse()
 
 	// Logger.
 	var logger = log.NewLogfmtLogger(os.Stdout)
@@ -62,7 +64,7 @@ func main() {
 	var clienConn *grpc.ClientConn
 	{
 		var err error
-		clienConn, err = grpc.Dial(address, grpc.WithInsecure(), grpc.WithCodec(flatbuffers.FlatbuffersCodec{}))
+		clienConn, err = grpc.Dial(fmt.Sprintf("%s:%s", *host, *port), grpc.WithInsecure(), grpc.WithCodec(flatbuffers.FlatbuffersCodec{}))
 		if err != nil {
 			logger.Log("error", err)
 		}
