@@ -232,14 +232,14 @@ func main() {
 
 	// Systemd D-Bus connection.
 	var systemDConn *dbus.Conn
-	/*{
+	{
 		var err error
 		systemDConn, err = dbus.New()
 		if err != nil {
 			logger.Log("msg", "could not create systemd D-Bus connection", "error", err)
 			return
 		}
-	}*/
+	}
 
 	// Flaki service.
 	var flakiLogger = log.With(logger, "svc", "flaki")
