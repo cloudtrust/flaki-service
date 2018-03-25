@@ -42,7 +42,7 @@ docker build --build-arg flaki_service_git_tag=<flaki_service_git_tag> --build-a
 
 ## Configuration
 
-Configuration is done with a YAML file, e.g. ```./conf/DEV/flakid.yml```.
+Configuration is done with a YAML file, e.g. ```./configs/flakid.yml```.
 Default configurations are provided, that is if an entry is not present in the configuration file, it will be set to its default value.
 
 The documentation for the [Redis](https://cloudtrust.github.io/doc/chapter-godevel/logging.html), [Influx](https://cloudtrust.github.io/doc/chapter-godevel/instrumenting.html), [Sentry](https://cloudtrust.github.io/doc/chapter-godevel/tracking.html), [Jaeger](https://cloudtrust.github.io/doc/chapter-godevel/tracing.html) and [Debug](https://cloudtrust.github.io/doc/chapter-godevel/debugging.html) configuration are common to all microservices and is provided in the Cloudtrust Gitbook.
@@ -79,12 +79,12 @@ Launch the flaki service:
 ```
 
 It is recommended to always provides an absolute path to the configuration file when the service is started, even though absolute and relative paths are supported.
-If no configuration file is passed, the service will try to load the default config file at ```./conf/DEV/flakid.yml```, and if it fails it launches the service with the default parameters.
+If no configuration file is passed, the service will try to load the default config file at ```./configs/flakid.yml```, and if it fails it launches the service with the default parameters.
 
 ### gRPC and HTTP clients
 
 To obtain IDs using gRPC or HTTP, you need to implement your own clients. There is an example in the directory `client`.
-There are two methods available to get IDs: NextID and NextValidID. Both take a Flatbuffer `FlakiRequest` and reply with a Flatbuffer `FlakiReply` containing the unique ID. The Flatbuffer schema is `pkg/flaki/flatbuffer/flaki.fbs`.
+There are two methods available to get IDs: NextID and NextValidID. Both take a Flatbuffer `FlakiRequest` and reply with a Flatbuffer `FlakiReply` containing the unique ID. The Flatbuffer schema is `api/flaki.fbs`.
 
 ### Health
 
@@ -141,8 +141,8 @@ Gomock is used to automatically genarate mocks. See the Cloudtrust [Gitbook](htt
 
 The unit tests don't cover:
 
-- http client example (```./client/http/http.go```)
-- grpc client example (```./client/grpc/grpc.go```)
+- http client example (```./examples/http/flaki_client.go```)
+- grpc client example (```./examples/grpc/flaki_client.go```)
 - flakid  (```./cmd/flakid.go```)
 
 The first two are provided as example.

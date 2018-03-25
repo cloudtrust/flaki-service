@@ -38,7 +38,7 @@ import (
 
 var (
 	// Version of the component.
-	Version = "1.0"
+	Version = "1.1"
 	// Environment is filled by the compiler.
 	Environment = "unknown"
 	// GitCommit is filled by the compiler.
