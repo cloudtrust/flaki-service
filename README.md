@@ -97,9 +97,9 @@ The root route is ```<component-http-host-port>/health``` and it returns the ser
 ```json
 {
   "influx": "OK",
-  "redis": "OK",
-  "sentry": "OK",
-  "jaeger": "OK"
+  "redis": "Deactivated",
+  "sentry": "Degraded",
+  "jaeger": "KO"
 }
 ```
 
