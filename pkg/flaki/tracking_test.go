@@ -17,8 +17,9 @@ func TestComponentTrackingMW(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockComponent = mock.NewComponent(mockCtrl)
 	var mockSentry = mock.NewSentry(mockCtrl)
+	var mockLogger = mock.NewLogger(mockCtrl)
 
-	var m = MakeComponentTrackingMW(mockSentry)(mockComponent)
+	var m = MakeComponentTrackingMW(mockSentry, mockLogger)(mockComponent)
 
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
@@ -29,11 +30,13 @@ func TestComponentTrackingMW(t *testing.T) {
 	// NextID.
 	mockComponent.EXPECT().NextID(ctx, req).Return(nil, fmt.Errorf("fail")).Times(1)
 	mockSentry.EXPECT().CaptureError(fmt.Errorf("fail"), map[string]string{"correlation_id": corrID}).Return("").Times(1)
+	mockLogger.EXPECT().Log("unit", "NextID", "correlation_id", corrID, "error", "fail").Return(nil).Times(1)
 	m.NextID(ctx, req)
 
 	// NextID without correlation ID.
 	mockComponent.EXPECT().NextID(context.Background(), req).Return(nil, fmt.Errorf("fail")).Times(1)
-	mockSentry.EXPECT().CaptureError(fmt.Errorf("fail"), map[string]string{}).Times(1)
+	mockSentry.EXPECT().CaptureError(fmt.Errorf("fail"), map[string]string{"correlation_id": ""}).Times(1)
+	mockLogger.EXPECT().Log("unit", "NextID", "correlation_id", "", "error", "fail").Return(nil).Times(1)
 	m.NextID(context.Background(), req)
 
 	// NextValidID never returns an error.

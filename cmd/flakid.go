@@ -259,7 +259,7 @@ func main() {
 		flakiComponent = flaki.MakeComponentInstrumentingMW(influxMetrics.NewHistogram("flaki_component"))(flakiComponent)
 		flakiComponent = flaki.MakeComponentLoggingMW(log.With(flakiLogger, "mw", "component"))(flakiComponent)
 		flakiComponent = flaki.MakeComponentTracingMW(tracer)(flakiComponent)
-		flakiComponent = flaki.MakeComponentTrackingMW(sentryClient)(flakiComponent)
+		flakiComponent = flaki.MakeComponentTrackingMW(sentryClient, log.With(flakiLogger, "mw", "component"))(flakiComponent)
 	}
 
 	var nextIDEndpoint endpoint.Endpoint
@@ -328,12 +328,19 @@ func main() {
 		sentryHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "SentryHealthCheck"))(sentryHealthEndpoint)
 		sentryHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(sentryHealthEndpoint)
 	}
+	var allHealthEndpoint endpoint.Endpoint
+	{
+		allHealthEndpoint = health.MakeAllHealthChecksEndpoint(healthComponent)
+		allHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "AllHealthCheck"))(allHealthEndpoint)
+		allHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(allHealthEndpoint)
+	}
 
 	var healthEndpoints = health.Endpoints{
 		InfluxHealthCheck: influxHealthEndpoint,
 		JaegerHealthCheck: jaegerHealthEndpoint,
 		RedisHealthCheck:  redisHealthEndpoint,
 		SentryHealthCheck: sentryHealthEndpoint,
+		AllHealthChecks:   allHealthEndpoint,
 	}
 
 	// GRPC server.
@@ -402,7 +409,8 @@ func main() {
 		// Health checks.
 		var healthSubroute = route.PathPrefix("/health").Subrouter()
 
-		healthSubroute.Handle("", http.HandlerFunc(health.MakeHealthChecksHandler(healthEndpoints)))
+		var allHealthChecksHandler = health.MakeAllHealthChecksHandler(healthEndpoints.AllHealthChecks)
+		healthSubroute.Handle("", allHealthChecksHandler)
 
 		var influxHealthCheckHandler = health.MakeInfluxHealthCheckHandler(healthEndpoints.InfluxHealthCheck)
 		healthSubroute.Handle("/influx", influxHealthCheckHandler)

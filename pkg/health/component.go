@@ -20,15 +20,6 @@ const (
 	Deactivated
 )
 
-type key int
-
-const (
-	// CorrelationIDKey is the key for the correlation ID in the context.
-	CorrelationIDKey key = iota
-	// LoggingCorrelationIDKey is the key for the correlation ID in the logs.
-	LoggingCorrelationIDKey = "correlation_id"
-)
-
 func (s Status) String() string {
 	var names = []string{"OK", "KO", "Degraded", "Deactivated"}
 
@@ -45,6 +36,7 @@ type Component interface {
 	JaegerHealthChecks(context.Context) Reports
 	RedisHealthChecks(context.Context) Reports
 	SentryHealthChecks(context.Context) Reports
+	AllHealthChecks(context.Context) map[string]string
 }
 
 // Reports contains the results of all health tests for a given module.
@@ -116,4 +108,37 @@ func (c *component) SentryHealthChecks(ctx context.Context) Reports {
 		hr.Reports = append(hr.Reports, Report(r))
 	}
 	return hr
+}
+
+// AllChecks call all component checks and build a general health report.
+func (c *component) AllHealthChecks(ctx context.Context) map[string]string {
+	var reports = map[string]string{}
+
+	reports["influx"] = determineStatus(c.InfluxHealthChecks(ctx))
+	reports["jaeger"] = determineStatus(c.JaegerHealthChecks(ctx))
+	reports["redis"] = determineStatus(c.RedisHealthChecks(ctx))
+	reports["sentry"] = determineStatus(c.SentryHealthChecks(ctx))
+
+	return reports
+}
+
+// determineStatus parse all the tests reports and output a global status.
+func determineStatus(reports Reports) string {
+	var degraded = false
+	for _, r := range reports.Reports {
+		switch r.Status {
+		case Deactivated:
+			// If the status is Deactivated, we do not need to go through all tests reports, all
+			// status will be the same.
+			return Deactivated.String()
+		case KO:
+			return KO.String()
+		case Degraded:
+			degraded = true
+		}
+	}
+	if degraded {
+		return Degraded.String()
+	}
+	return OK.String()
 }

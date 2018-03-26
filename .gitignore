@@ -19,6 +19,7 @@ vendor/*
 bin/*
 **/debug
 **/*.coverprofile
+configs/DEV/*
 
 # Docker
 build_context/

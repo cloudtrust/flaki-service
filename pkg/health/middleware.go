@@ -19,11 +19,11 @@ type IDGenerator interface {
 func MakeEndpointCorrelationIDMW(g flaki.Module) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			var id = ctx.Value(CorrelationIDKey)
+			var id = ctx.Value("correlation_id")
 
 			// If there is no correlation ID in the context, request one.
 			if id == nil {
-				ctx = context.WithValue(ctx, CorrelationIDKey, g.NextValidID(ctx))
+				ctx = context.WithValue(ctx, "correlation_id", g.NextValidID(ctx))
 			}
 			return next(ctx, req)
 		}

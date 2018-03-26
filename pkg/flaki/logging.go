@@ -42,10 +42,10 @@ type componentLoggingMW struct {
 }
 
 // MakeComponentLoggingMW makes a logging middleware at component level.
-func MakeComponentLoggingMW(log log.Logger) func(Component) Component {
+func MakeComponentLoggingMW(logger log.Logger) func(Component) Component {
 	return func(next Component) Component {
 		return &componentLoggingMW{
-			logger: log,
+			logger: logger,
 			next:   next,
 		}
 	}
@@ -96,10 +96,10 @@ type moduleLoggingMW struct {
 }
 
 // MakeModuleLoggingMW makes a logging middleware at module level.
-func MakeModuleLoggingMW(log log.Logger) func(Module) Module {
+func MakeModuleLoggingMW(logger log.Logger) func(Module) Module {
 	return func(next Module) Module {
 		return &moduleLoggingMW{
-			logger: log,
+			logger: logger,
 			next:   next,
 		}
 	}

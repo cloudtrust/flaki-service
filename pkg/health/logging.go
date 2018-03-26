@@ -15,7 +15,7 @@ func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			defer func(begin time.Time) {
-				logger.Log(LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+				logger.Log("correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 			}(time.Now())
 
 			return next(ctx, req)
@@ -30,10 +30,10 @@ type componentLoggingMW struct {
 }
 
 // MakeComponentLoggingMW makes a logging middleware at component level.
-func MakeComponentLoggingMW(log log.Logger) func(Component) Component {
+func MakeComponentLoggingMW(logger log.Logger) func(Component) Component {
 	return func(next Component) Component {
 		return &componentLoggingMW{
-			logger: log,
+			logger: logger,
 			next:   next,
 		}
 	}
@@ -42,7 +42,7 @@ func MakeComponentLoggingMW(log log.Logger) func(Component) Component {
 // componentLoggingMW implements Component.
 func (m *componentLoggingMW) InfluxHealthChecks(ctx context.Context) Reports {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "InfluxHealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "InfluxHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.InfluxHealthChecks(ctx)
@@ -51,7 +51,7 @@ func (m *componentLoggingMW) InfluxHealthChecks(ctx context.Context) Reports {
 // componentLoggingMW implements Component.
 func (m *componentLoggingMW) JaegerHealthChecks(ctx context.Context) Reports {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "JaegerHealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "JaegerHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.JaegerHealthChecks(ctx)
@@ -60,7 +60,7 @@ func (m *componentLoggingMW) JaegerHealthChecks(ctx context.Context) Reports {
 // componentLoggingMW implements Component.
 func (m *componentLoggingMW) RedisHealthChecks(ctx context.Context) Reports {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "RedisHealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "RedisHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.RedisHealthChecks(ctx)
@@ -69,10 +69,19 @@ func (m *componentLoggingMW) RedisHealthChecks(ctx context.Context) Reports {
 // componentLoggingMW implements Component.
 func (m *componentLoggingMW) SentryHealthChecks(ctx context.Context) Reports {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "SentryHealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "SentryHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.SentryHealthChecks(ctx)
+}
+
+// componentLoggingMW implements Component.
+func (m *componentLoggingMW) AllHealthChecks(ctx context.Context) map[string]string {
+	defer func(begin time.Time) {
+		m.logger.Log("unit", "AllHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
+	}(time.Now())
+
+	return m.next.AllHealthChecks(ctx)
 }
 
 // Logging middleware at module level.
@@ -82,10 +91,10 @@ type influxModuleLoggingMW struct {
 }
 
 // MakeInfluxModuleLoggingMW makes a logging middleware at module level.
-func MakeInfluxModuleLoggingMW(log log.Logger) func(InfluxModule) InfluxModule {
+func MakeInfluxModuleLoggingMW(logger log.Logger) func(InfluxModule) InfluxModule {
 	return func(next InfluxModule) InfluxModule {
 		return &influxModuleLoggingMW{
-			logger: log,
+			logger: logger,
 			next:   next,
 		}
 	}
@@ -94,7 +103,7 @@ func MakeInfluxModuleLoggingMW(log log.Logger) func(InfluxModule) InfluxModule {
 // influxModuleLoggingMW implements Module.
 func (m *influxModuleLoggingMW) HealthChecks(ctx context.Context) []InfluxReport {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "HealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.HealthChecks(ctx)
@@ -107,10 +116,10 @@ type jaegerModuleLoggingMW struct {
 }
 
 // MakeJaegerModuleLoggingMW makes a logging middleware at module level.
-func MakeJaegerModuleLoggingMW(log log.Logger) func(JaegerModule) JaegerModule {
+func MakeJaegerModuleLoggingMW(logger log.Logger) func(JaegerModule) JaegerModule {
 	return func(next JaegerModule) JaegerModule {
 		return &jaegerModuleLoggingMW{
-			logger: log,
+			logger: logger,
 			next:   next,
 		}
 	}
@@ -119,7 +128,7 @@ func MakeJaegerModuleLoggingMW(log log.Logger) func(JaegerModule) JaegerModule {
 // jaegerModuleLoggingMW implements Module.
 func (m *jaegerModuleLoggingMW) HealthChecks(ctx context.Context) []JaegerReport {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "HealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.HealthChecks(ctx)
@@ -132,10 +141,10 @@ type redisModuleLoggingMW struct {
 }
 
 // MakeRedisModuleLoggingMW makes a logging middleware at module level.
-func MakeRedisModuleLoggingMW(log log.Logger) func(RedisModule) RedisModule {
+func MakeRedisModuleLoggingMW(logger log.Logger) func(RedisModule) RedisModule {
 	return func(next RedisModule) RedisModule {
 		return &redisModuleLoggingMW{
-			logger: log,
+			logger: logger,
 			next:   next,
 		}
 	}
@@ -144,7 +153,7 @@ func MakeRedisModuleLoggingMW(log log.Logger) func(RedisModule) RedisModule {
 // redisModuleLoggingMW implements Module.
 func (m *redisModuleLoggingMW) HealthChecks(ctx context.Context) []RedisReport {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "HealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.HealthChecks(ctx)
@@ -157,10 +166,10 @@ type sentryModuleLoggingMW struct {
 }
 
 // MakeSentryModuleLoggingMW makes a logging middleware at module level.
-func MakeSentryModuleLoggingMW(log log.Logger) func(SentryModule) SentryModule {
+func MakeSentryModuleLoggingMW(logger log.Logger) func(SentryModule) SentryModule {
 	return func(next SentryModule) SentryModule {
 		return &sentryModuleLoggingMW{
-			logger: log,
+			logger: logger,
 			next:   next,
 		}
 	}
@@ -169,7 +178,7 @@ func MakeSentryModuleLoggingMW(log log.Logger) func(SentryModule) SentryModule {
 // sentryModuleLoggingMW implements Module.
 func (m *sentryModuleLoggingMW) HealthChecks(ctx context.Context) []SentryReport {
 	defer func(begin time.Time) {
-		m.logger.Log("unit", "HealthChecks", LoggingCorrelationIDKey, ctx.Value(CorrelationIDKey).(string), "took", time.Since(begin))
+		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
 	return m.next.HealthChecks(ctx)
