@@ -9,12 +9,14 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
 	flaki_gen "github.com/cloudtrust/flaki"
+	"github.com/cloudtrust/flaki-service/api/fb"
+	"github.com/cloudtrust/flaki-service/internal/flakid"
 	"github.com/cloudtrust/flaki-service/pkg/flaki"
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
 	"github.com/cloudtrust/flaki-service/pkg/health"
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/garyburd/redigo/redis"
@@ -36,7 +38,7 @@ import (
 
 var (
 	// Version of the component.
-	Version = "1.0.0"
+	Version = "1.1"
 	// Environment is filled by the compiler.
 	Environment = "unknown"
 	// GitCommit is filled by the compiler.
@@ -50,6 +52,7 @@ func main() {
 	{
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	}
+	defer logger.Log("msg", "goodbye")
 
 	// Configurations.
 	var config = config(log.With(logger, "unit", "config"))
@@ -128,12 +131,11 @@ func main() {
 		defer redisClient.Close()
 
 		// Create logger that duplicates logs to stdout and Redis.
-		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, NewLogstashRedisWriter(redisClient, componentName)))
+		logger = log.NewJSONLogger(io.MultiWriter(os.Stdout, flakid.NewLogstashRedisWriter(redisClient, componentName)))
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 	} else {
-		redisClient = &NoopRedis{}
+		redisClient = &flakid.NoopRedis{}
 	}
-	defer logger.Log("msg", "goodbye")
 
 	// Add component name and version to the logger tags.
 	logger = log.With(logger, "component_name", componentName, "component_version", Version)
@@ -179,7 +181,7 @@ func main() {
 		}
 		defer sentryClient.Close()
 	} else {
-		sentryClient = &NoopSentry{}
+		sentryClient = &flakid.NoopSentry{}
 	}
 
 	// Influx client.
@@ -208,9 +210,9 @@ func main() {
 			log.With(logger, "unit", "go-kit influx"),
 		)
 
-		influxMetrics = NewMetrics(influxClient, gokitInflux)
+		influxMetrics = flakid.NewMetrics(influxClient, gokitInflux)
 	} else {
-		influxMetrics = &NoopMetrics{}
+		influxMetrics = &flakid.NoopMetrics{}
 	}
 
 	// Jaeger client.
@@ -257,7 +259,7 @@ func main() {
 		flakiComponent = flaki.MakeComponentInstrumentingMW(influxMetrics.NewHistogram("flaki_component"))(flakiComponent)
 		flakiComponent = flaki.MakeComponentLoggingMW(log.With(flakiLogger, "mw", "component"))(flakiComponent)
 		flakiComponent = flaki.MakeComponentTracingMW(tracer)(flakiComponent)
-		flakiComponent = flaki.MakeComponentTrackingMW(sentryClient)(flakiComponent)
+		flakiComponent = flaki.MakeComponentTrackingMW(sentryClient, log.With(flakiLogger, "mw", "component"))(flakiComponent)
 	}
 
 	var nextIDEndpoint endpoint.Endpoint
@@ -326,12 +328,19 @@ func main() {
 		sentryHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "SentryHealthCheck"))(sentryHealthEndpoint)
 		sentryHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(sentryHealthEndpoint)
 	}
+	var allHealthEndpoint endpoint.Endpoint
+	{
+		allHealthEndpoint = health.MakeAllHealthChecksEndpoint(healthComponent)
+		allHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "AllHealthCheck"))(allHealthEndpoint)
+		allHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(allHealthEndpoint)
+	}
 
 	var healthEndpoints = health.Endpoints{
 		InfluxHealthCheck: influxHealthEndpoint,
 		JaegerHealthCheck: jaegerHealthEndpoint,
 		RedisHealthCheck:  redisHealthEndpoint,
 		SentryHealthCheck: sentryHealthEndpoint,
+		AllHealthChecks:   allHealthEndpoint,
 	}
 
 	// GRPC server.
@@ -400,7 +409,8 @@ func main() {
 		// Health checks.
 		var healthSubroute = route.PathPrefix("/health").Subrouter()
 
-		healthSubroute.Handle("", http.HandlerFunc(health.MakeHealthChecksHandler(healthEndpoints)))
+		var allHealthChecksHandler = health.MakeAllHealthChecksHandler(healthEndpoints.AllHealthChecks)
+		healthSubroute.Handle("", allHealthChecksHandler)
 
 		var influxHealthCheckHandler = health.MakeInfluxHealthCheckHandler(healthEndpoints.InfluxHealthCheck)
 		healthSubroute.Handle("/influx", influxHealthCheckHandler)
@@ -480,7 +490,7 @@ func config(logger log.Logger) map[string]interface{} {
 	logger.Log("msg", "load configuration and command args")
 
 	// Component default.
-	viper.SetDefault("config-file", "./conf/DEV/flakid.yml")
+	viper.SetDefault("config-file", "./configs/flakid.yml")
 	viper.SetDefault("component-name", "flaki-service")
 	viper.SetDefault("component-http-host-port", "0.0.0.0:8888")
 	viper.SetDefault("component-grpc-host-port", "0.0.0.0:5555")
@@ -542,9 +552,14 @@ func config(logger log.Logger) map[string]interface{} {
 	config["jaeger"] = config["jaeger-sampler-host-port"].(string) != ""
 	config["redis"] = config["redis-host-port"].(string) != ""
 
-	// Log config.
-	for k, v := range config {
-		logger.Log(k, v)
+	// Log config in alphabetical order.
+	var keys []string
+	for k := range config {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		logger.Log(k, config[k])
 	}
 
 	return config

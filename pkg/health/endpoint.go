@@ -12,6 +12,7 @@ type Endpoints struct {
 	JaegerHealthCheck endpoint.Endpoint
 	RedisHealthCheck  endpoint.Endpoint
 	SentryHealthCheck endpoint.Endpoint
+	AllHealthChecks   endpoint.Endpoint
 }
 
 // MakeInfluxHealthCheckEndpoint makes the InfluxHealthCheck endpoint.
@@ -39,5 +40,12 @@ func MakeRedisHealthCheckEndpoint(c Component) endpoint.Endpoint {
 func MakeSentryHealthCheckEndpoint(c Component) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		return c.SentryHealthChecks(ctx), nil
+	}
+}
+
+// MakeAllHealthChecksEndpoint makes an endpoint that does all health checks.
+func MakeAllHealthChecksEndpoint(c Component) endpoint.Endpoint {
+	return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return c.AllHealthChecks(ctx), nil
 	}
 }

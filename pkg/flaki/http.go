@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/go-kit/kit/endpoint"
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/flatbuffers/go"
@@ -37,7 +37,7 @@ func MakeHTTPNextValidIDHandler(e endpoint.Endpoint) *http_transport.Server {
 func fetchHTTPCorrelationID(ctx context.Context, req *http.Request) context.Context {
 	var correlationID = req.Header.Get("X-Correlation-ID")
 	if correlationID != "" {
-		ctx = context.WithValue(ctx, CorrelationIDKey, correlationID)
+		ctx = context.WithValue(ctx, "correlation_id", correlationID)
 	}
 	return ctx
 }

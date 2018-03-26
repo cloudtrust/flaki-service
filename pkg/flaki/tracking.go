@@ -5,8 +5,9 @@ package flaki
 import (
 	"context"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	sentry "github.com/getsentry/raven-go"
+	"github.com/go-kit/kit/log"
 )
 
 // Sentry interface.
@@ -17,14 +18,16 @@ type Sentry interface {
 // Tracking middleware at component level.
 type trackingComponentMW struct {
 	sentry Sentry
+	logger log.Logger
 	next   Component
 }
 
-// MakeComponentTrackingMW makes an error tracking middleware, where the errors are sent to Sentry.
-func MakeComponentTrackingMW(sentry Sentry) func(Component) Component {
+// MakeComponentTrackingMW makes an error tracking middleware, where the errors are logged and sent to Sentry.
+func MakeComponentTrackingMW(sentry Sentry, logger log.Logger) func(Component) Component {
 	return func(next Component) Component {
 		return &trackingComponentMW{
 			sentry: sentry,
+			logger: logger,
 			next:   next,
 		}
 	}
@@ -34,11 +37,12 @@ func MakeComponentTrackingMW(sentry Sentry) func(Component) Component {
 func (m *trackingComponentMW) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
 	var reply, err = m.next.NextID(ctx, req)
 	if err != nil {
-		var tags = map[string]string{}
-		if id := ctx.Value(CorrelationIDKey); id != nil {
-			tags[TrackingCorrelationIDKey] = id.(string)
+		var corrID = ""
+		if id := ctx.Value("correlation_id"); id != nil {
+			corrID = id.(string)
 		}
-		m.sentry.CaptureError(err, tags)
+		m.sentry.CaptureError(err, map[string]string{"correlation_id": corrID})
+		m.logger.Log("unit", "NextID", "correlation_id", corrID, "error", err.Error())
 	}
 	return reply, err
 }

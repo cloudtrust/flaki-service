@@ -23,7 +23,7 @@
   branch = "master"
   name = "github.com/cloudtrust/flaki"
   packages = ["."]
-  revision = "dacccf24d43e7e66b0b85b60d810a9fb5b289143"
+  revision = "00900b549be7226704eacec17b285175bf3db128"
 
 [[projects]]
   branch = "master"
@@ -51,7 +51,10 @@
 
 [[projects]]
   name = "github.com/garyburd/redigo"
-  packages = ["internal","redis"]
+  packages = [
+    "internal",
+    "redis"
+  ]
   revision = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
   version = "v1.6.0"
 
@@ -59,13 +62,22 @@
   branch = "master"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
-  revision = "563b81fc02b75d664e54da31f787c2cc2186780b"
+  revision = "7562301a6763c9ac631b0a2011b4aa0e064e45d4"
 
 [[projects]]
   name = "github.com/go-kit/kit"
-  packages = ["endpoint","log","metrics","metrics/generic","metrics/influx","metrics/internal/lv","transport/grpc","transport/http"]
-  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
-  version = "v0.6.0"
+  packages = [
+    "endpoint",
+    "log",
+    "metrics",
+    "metrics/generic",
+    "metrics/influx",
+    "metrics/internal/lv",
+    "transport/grpc",
+    "transport/http"
+  ]
+  revision = "ca4112baa34cb55091301bdc13b1420a122b1b9e"
+  version = "v0.7.0"
 
 [[projects]]
   name = "github.com/go-logfmt/logfmt"
@@ -93,7 +105,13 @@
 
 [[projects]]
   name = "github.com/golang/protobuf"
-  packages = ["proto","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
+  packages = [
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/timestamp"
+  ]
   revision = "925541529c1fa6821df4e44ce2723319eb2be768"
   version = "v1.0.0"
 
@@ -118,14 +136,29 @@
 [[projects]]
   branch = "master"
   name = "github.com/hashicorp/hcl"
-  packages = [".","hcl/ast","hcl/parser","hcl/scanner","hcl/strconv","hcl/token","json/parser","json/scanner","json/token"]
-  revision = "23c074d0eceb2b8a5bfdbb271ab780cde70f05a8"
+  packages = [
+    ".",
+    "hcl/ast",
+    "hcl/parser",
+    "hcl/printer",
+    "hcl/scanner",
+    "hcl/strconv",
+    "hcl/token",
+    "json/parser",
+    "json/scanner",
+    "json/token"
+  ]
+  revision = "f40e974e75af4e271d97ce0fc917af5898ae7bda"
 
 [[projects]]
   name = "github.com/influxdata/influxdb"
-  packages = ["client/v2","models","pkg/escape"]
-  revision = "60d27e6995558f38a39e90b35a92cbac080310a3"
-  version = "v1.4.3"
+  packages = [
+    "client/v2",
+    "models",
+    "pkg/escape"
+  ]
+  revision = "cdae4ccde4c67c3390d8ae8a1a06bd3b4cdce5c5"
+  version = "v1.5.1"
 
 [[projects]]
   branch = "master"
@@ -147,7 +180,11 @@
 
 [[projects]]
   name = "github.com/opentracing/opentracing-go"
-  packages = [".","ext","log"]
+  packages = [
+    ".",
+    "ext",
+    "log"
+  ]
   revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
   version = "v1.0.2"
 
@@ -171,7 +208,10 @@
 
 [[projects]]
   name = "github.com/spf13/afero"
-  packages = [".","mem"]
+  packages = [
+    ".",
+    "mem"
+  ]
   revision = "bb8f1927f2a9d3ab41c9340aa034f6b803f4359c"
   version = "v1.0.2"
 
@@ -196,8 +236,8 @@
 [[projects]]
   name = "github.com/spf13/viper"
   packages = ["."]
-  revision = "25b30aa063fc18e48662b86996252eabdcf2f0c7"
-  version = "v1.0.0"
+  revision = "b5e8006cbee93ec955a89ab31e0e3ce3204f3736"
+  version = "v1.0.2"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -207,9 +247,24 @@
 
 [[projects]]
   name = "github.com/uber/jaeger-client-go"
-  packages = [".","config","internal/baggage","internal/baggage/remote","internal/spanlog","log","rpcmetrics","thrift-gen/agent","thrift-gen/baggage","thrift-gen/jaeger","thrift-gen/sampling","thrift-gen/zipkincore","utils"]
-  revision = "3ac96c6e679cb60a74589b0d0aa7c70a906183f7"
-  version = "v2.11.2"
+  packages = [
+    ".",
+    "config",
+    "internal/baggage",
+    "internal/baggage/remote",
+    "internal/spanlog",
+    "internal/throttler",
+    "log",
+    "rpcmetrics",
+    "thrift-gen/agent",
+    "thrift-gen/baggage",
+    "thrift-gen/jaeger",
+    "thrift-gen/sampling",
+    "thrift-gen/zipkincore",
+    "utils"
+  ]
+  revision = "c107110d057826281414cb964f167bce5be17588"
+  version = "v2.12.0"
 
 [[projects]]
   name = "github.com/uber/jaeger-lib"
@@ -220,18 +275,41 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "d25186b37f34ebdbbea8f488ef055638dfab272d"
+  packages = [
+    "context",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "lex/httplex",
+    "trace"
+  ]
+  revision = "6078986fec03a1dcc236c34816c71b0e05018fda"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "dd2ff4accc098aceecb86b36eaa7829b2a17b1c9"
+  revision = "91ee8cde435411ca3f1cd365e8f20131aed4d0a1"
 
 [[projects]]
   name = "golang.org/x/text"
-  packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
 
@@ -239,23 +317,47 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "df60624c1e9b9d2973e889c7a1cff73155da81c4"
+  revision = "ab0870e398d5dd054b868c0db1481ab029b9a9f2"
 
 [[projects]]
   name = "google.golang.org/grpc"
-  packages = [".","balancer","balancer/base","balancer/roundrobin","codes","connectivity","credentials","encoding","encoding/proto","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","resolver/dns","resolver/passthrough","stats","status","tap","transport"]
+  packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "codes",
+    "connectivity",
+    "credentials",
+    "encoding",
+    "encoding/proto",
+    "grpclb/grpc_lb_v1/messages",
+    "grpclog",
+    "internal",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap",
+    "transport"
+  ]
   revision = "8e4536a86ab602859c20df5ebfd0bd4228d08655"
   version = "v1.10.0"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
-  version = "v2.1.1"
+  revision = "86f5ed62f8a0ee96bd888d2efdfd6d4fb100a4eb"
+  version = "v2.2.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f09f9d3cc6114f100af60710bd748f61bec894bc8cbf8cff5538af34d32a5ee2"
+  inputs-digest = "cc28ec40820814b4d58ffd3a1fccf61b5d60d78c8e135f0e4ff54d22e3a9d2c9"
   solver-name = "gps-cdcl"
   solver-version = 1

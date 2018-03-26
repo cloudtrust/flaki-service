@@ -9,19 +9,23 @@ import (
 	"os"
 	"time"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/go-kit/kit/log"
 	"github.com/google/flatbuffers/go"
 	opentracing "github.com/opentracing/opentracing-go"
 	otag "github.com/opentracing/opentracing-go/ext"
+	"github.com/spf13/pflag"
 	jaeger_client "github.com/uber/jaeger-client-go/config"
 )
 
-const (
-	address = "127.0.0.1:8888"
+var (
+	host = pflag.String("host", "127.0.0.1", "flaki service host")
+	port = pflag.String("port", "8888", "flaki service port")
 )
 
 func main() {
+	// Configuration flags.
+	pflag.Parse()
 
 	// Logger.
 	var logger = log.NewLogfmtLogger(os.Stdout)
@@ -78,7 +82,7 @@ func nextID(logger log.Logger, tracer opentracing.Tracer) {
 	{
 		var err error
 		var req *http.Request
-		var url = fmt.Sprintf("http://%s/nextid", address)
+		var url = fmt.Sprintf("http://%s:%s/nextid", *host, *port)
 
 		req, err = http.NewRequest("POST", url, bytes.NewReader(b.FinishedBytes()))
 		if err != nil {
@@ -132,7 +136,7 @@ func nextValidID(logger log.Logger, tracer opentracing.Tracer) {
 	{
 		var err error
 		var req *http.Request
-		var url = fmt.Sprintf("http://%s/nextvalidid", address)
+		var url = fmt.Sprintf("http://%s:%s/nextvalidid", *host, *port)
 
 		req, err = http.NewRequest("POST", url, bytes.NewReader(b.FinishedBytes()))
 		if err != nil {

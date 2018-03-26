@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +24,7 @@ func TestNextIDEndpoint(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), CorrelationIDKey, corrID)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 	var req = createFlakiRequest()
 
 	// NextID.
@@ -62,7 +62,7 @@ func TestNextValidIDEndpoint(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
-	var ctx = context.WithValue(context.Background(), CorrelationIDKey, corrID)
+	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
 	var req = createFlakiRequest()
 
 	// NextValidID.

@@ -6,7 +6,7 @@ package mock
 
 import (
 	context "context"
-	fb "github.com/cloudtrust/flaki-service/pkg/flaki/flatbuffer/fb"
+	fb "github.com/cloudtrust/flaki-service/api/fb"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )

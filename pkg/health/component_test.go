@@ -19,10 +19,10 @@ func TestHealthChecks(t *testing.T) {
 	var mockRedisModule = mock.NewRedisModule(mockCtrl)
 	var mockSentryModule = mock.NewSentryModule(mockCtrl)
 
-	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
-	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
-	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return([]RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
-	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return([]SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(1)
+	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(2)
+	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(2)
+	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return([]RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(2)
+	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return([]SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second).String(), Status: OK}}).Times(2)
 
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule)
 
@@ -60,6 +60,15 @@ func TestHealthChecks(t *testing.T) {
 		assert.NotZero(t, report.Duration)
 		assert.Equal(t, OK, report.Status)
 		assert.Zero(t, report.Error)
+	}
+
+	// All.
+	{
+		var reply = c.AllHealthChecks(context.Background())
+		assert.Equal(t, "OK", reply["influx"])
+		assert.Equal(t, "OK", reply["jaeger"])
+		assert.Equal(t, "OK", reply["redis"])
+		assert.Equal(t, "OK", reply["sentry"])
 	}
 }
 func TestHealthChecksFail(t *testing.T) {
@@ -70,10 +79,10 @@ func TestHealthChecksFail(t *testing.T) {
 	var mockRedisModule = mock.NewRedisModule(mockCtrl)
 	var mockSentryModule = mock.NewSentryModule(mockCtrl)
 
-	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
-	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
-	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return([]RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
-	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return([]SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(1)
+	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second).String(), Status: Deactivated}}).Times(2)
+	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(2)
+	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return([]RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second).String(), Status: Degraded, Error: "fail"}}).Times(2)
+	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return([]SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second).String(), Status: KO, Error: "fail"}}).Times(2)
 
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule)
 
@@ -82,8 +91,8 @@ func TestHealthChecksFail(t *testing.T) {
 		var report = c.InfluxHealthChecks(context.Background()).Reports[0]
 		assert.Equal(t, "influx", report.Name)
 		assert.NotZero(t, report.Duration)
-		assert.Equal(t, KO, report.Status)
-		assert.Equal(t, "fail", report.Error)
+		assert.Equal(t, Deactivated, report.Status)
+		assert.Zero(t, report.Error)
 	}
 
 	// Jaeger.
@@ -100,7 +109,7 @@ func TestHealthChecksFail(t *testing.T) {
 		var report = c.RedisHealthChecks(context.Background()).Reports[0]
 		assert.Equal(t, "redis", report.Name)
 		assert.NotZero(t, report.Duration)
-		assert.Equal(t, KO, report.Status)
+		assert.Equal(t, Degraded, report.Status)
 		assert.Equal(t, "fail", report.Error)
 	}
 
@@ -111,5 +120,14 @@ func TestHealthChecksFail(t *testing.T) {
 		assert.NotZero(t, report.Duration)
 		assert.Equal(t, KO, report.Status)
 		assert.Equal(t, "fail", report.Error)
+	}
+
+	// All.
+	{
+		var reply = c.AllHealthChecks(context.Background())
+		assert.Equal(t, "Deactivated", reply["influx"])
+		assert.Equal(t, "KO", reply["jaeger"])
+		assert.Equal(t, "Degraded", reply["redis"])
+		assert.Equal(t, "KO", reply["sentry"])
 	}
 }
