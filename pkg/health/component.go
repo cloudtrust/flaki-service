@@ -32,23 +32,18 @@ func (s Status) String() string {
 
 // Component is the health component interface.
 type Component interface {
-	InfluxHealthChecks(context.Context) Reports
-	JaegerHealthChecks(context.Context) Reports
-	RedisHealthChecks(context.Context) Reports
-	SentryHealthChecks(context.Context) Reports
+	InfluxHealthChecks(context.Context) []Report
+	JaegerHealthChecks(context.Context) []Report
+	RedisHealthChecks(context.Context) []Report
+	SentryHealthChecks(context.Context) []Report
 	AllHealthChecks(context.Context) map[string]string
-}
-
-// Reports contains the results of all health tests for a given module.
-type Reports struct {
-	Reports []Report
 }
 
 // Report contains the result of one health test.
 type Report struct {
 	Name     string
 	Duration string
-	Status   Status
+	Status   string
 	Error    string
 }
 
@@ -71,43 +66,63 @@ func NewComponent(influx InfluxModule, jaeger JaegerModule, redis RedisModule, s
 }
 
 // InfluxHealthChecks uses the health component to test the Influx health.
-func (c *component) InfluxHealthChecks(ctx context.Context) Reports {
+func (c *component) InfluxHealthChecks(ctx context.Context) []Report {
 	var reports = c.influx.HealthChecks(ctx)
-	var hr = Reports{}
+	var out = []Report{}
 	for _, r := range reports {
-		hr.Reports = append(hr.Reports, Report(r))
+		out = append(out, Report{
+			Name:     r.Name,
+			Duration: r.Duration.String(),
+			Status:   r.Status.String(),
+			Error:    err(r.Error),
+		})
 	}
-	return hr
+	return out
 }
 
 // JaegerHealthChecks uses the health component to test the Jaeger health.
-func (c *component) JaegerHealthChecks(ctx context.Context) Reports {
+func (c *component) JaegerHealthChecks(ctx context.Context) []Report {
 	var reports = c.jaeger.HealthChecks(ctx)
-	var hr = Reports{}
+	var out = []Report{}
 	for _, r := range reports {
-		hr.Reports = append(hr.Reports, Report(r))
+		out = append(out, Report{
+			Name:     r.Name,
+			Duration: r.Duration.String(),
+			Status:   r.Status.String(),
+			Error:    err(r.Error),
+		})
 	}
-	return hr
+	return out
 }
 
 // RedisHealthChecks uses the health component to test the Redis health.
-func (c *component) RedisHealthChecks(ctx context.Context) Reports {
+func (c *component) RedisHealthChecks(ctx context.Context) []Report {
 	var reports = c.redis.HealthChecks(ctx)
-	var hr = Reports{}
+	var out = []Report{}
 	for _, r := range reports {
-		hr.Reports = append(hr.Reports, Report(r))
+		out = append(out, Report{
+			Name:     r.Name,
+			Duration: r.Duration.String(),
+			Status:   r.Status.String(),
+			Error:    err(r.Error),
+		})
 	}
-	return hr
+	return out
 }
 
 // SentryHealthChecks uses the health component to test the Sentry health.
-func (c *component) SentryHealthChecks(ctx context.Context) Reports {
+func (c *component) SentryHealthChecks(ctx context.Context) []Report {
 	var reports = c.sentry.HealthChecks(ctx)
-	var hr = Reports{}
+	var out = []Report{}
 	for _, r := range reports {
-		hr.Reports = append(hr.Reports, Report(r))
+		out = append(out, Report{
+			Name:     r.Name,
+			Duration: r.Duration.String(),
+			Status:   r.Status.String(),
+			Error:    err(r.Error),
+		})
 	}
-	return hr
+	return out
 }
 
 // AllChecks call all component checks and build a general health report.
@@ -122,18 +137,26 @@ func (c *component) AllHealthChecks(ctx context.Context) map[string]string {
 	return reports
 }
 
+// err return the string error that will be in the health report
+func err(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
 // determineStatus parse all the tests reports and output a global status.
-func determineStatus(reports Reports) string {
+func determineStatus(reports []Report) string {
 	var degraded = false
-	for _, r := range reports.Reports {
+	for _, r := range reports {
 		switch r.Status {
-		case Deactivated:
+		case Deactivated.String():
 			// If the status is Deactivated, we do not need to go through all tests reports, all
 			// status will be the same.
 			return Deactivated.String()
-		case KO:
+		case KO.String():
 			return KO.String()
-		case Degraded:
+		case Degraded.String():
 			degraded = true
 		}
 	}

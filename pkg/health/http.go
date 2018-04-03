@@ -9,13 +9,13 @@ import (
 	http_transport "github.com/go-kit/kit/transport/http"
 )
 
-// Reply contains all health check reports
+// Reply contains all health check reports.
 type Reply struct {
-	Reports []Check `json:"health checks"`
+	Reports []HealthCheck `json:"health checks"`
 }
 
-// Check is the result of a single healthcheck
-type Check struct {
+// HealthCheck is the result of a single healthcheck.
+type HealthCheck struct {
 	Name     string `json:"name"`
 	Duration string `json:"duration"`
 	Status   string `json:"status"`
@@ -76,15 +76,10 @@ func decodeHealthCheckRequest(_ context.Context, r *http.Request) (rep interface
 func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	var reports = rep.(Reports)
+	var reports = rep.([]Report)
 	var reply = Reply{}
-	for _, r := range reports.Reports {
-		reply.Reports = append(reply.Reports, Check{
-			Name:     r.Name,
-			Duration: r.Duration,
-			Status:   r.Status.String(),
-			Error:    r.Error,
-		})
+	for _, r := range reports {
+		reply.Reports = append(reply.Reports, HealthCheck(r))
 	}
 
 	var data, err = json.MarshalIndent(reply, "", "  ")

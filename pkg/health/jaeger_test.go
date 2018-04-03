@@ -63,7 +63,7 @@ func TestNoopJaegerHealthChecks(t *testing.T) {
 
 	var report = m.HealthChecks(context.Background())[0]
 	assert.Equal(t, "jaeger agent systemd unit check", report.Name)
-	assert.Equal(t, "N/A", report.Duration)
+	assert.Zero(t, report.Duration)
 	assert.Equal(t, Deactivated, report.Status)
 	assert.Zero(t, report.Error)
 }

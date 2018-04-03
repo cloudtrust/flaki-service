@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // SentryModule is the health check module for sentry.
@@ -25,9 +27,9 @@ type sentryModule struct {
 // SentryReport is the health report returned by the sentry module.
 type SentryReport struct {
 	Name     string
-	Duration string
+	Duration time.Duration
 	Status   Status
-	Error    string
+	Error    error
 }
 
 // Sentry is the interface of the sentry client.
@@ -61,9 +63,8 @@ func (m *sentryModule) sentryPingCheck() SentryReport {
 
 	if !m.enabled {
 		return SentryReport{
-			Name:     healthCheckName,
-			Duration: "N/A",
-			Status:   Deactivated,
+			Name:   healthCheckName,
+			Status: Deactivated,
 		}
 	}
 
@@ -74,11 +75,11 @@ func (m *sentryModule) sentryPingCheck() SentryReport {
 	var err = pingSentry(dsn, m.httpClient)
 	var duration = time.Since(now)
 
-	var error string
+	var hcErr error
 	var s Status
 	switch {
 	case err != nil:
-		error = fmt.Sprintf("could not ping sentry: %v", err.Error())
+		hcErr = errors.Wrap(err, "could not ping sentry")
 		s = KO
 	default:
 		s = OK
@@ -86,9 +87,9 @@ func (m *sentryModule) sentryPingCheck() SentryReport {
 
 	return SentryReport{
 		Name:     healthCheckName,
-		Duration: duration.String(),
+		Duration: duration,
 		Status:   s,
-		Error:    error,
+		Error:    hcErr,
 	}
 }
 

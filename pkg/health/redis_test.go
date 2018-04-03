@@ -38,12 +38,13 @@ func TestRedisHealthChecks(t *testing.T) {
 		assert.NotZero(t, report.Error)
 	}
 }
+
 func TestNoopRedisHealthChecks(t *testing.T) {
 	var m = NewRedisModule(nil, false)
 
 	var report = m.HealthChecks(context.Background())[0]
 	assert.Equal(t, "ping", report.Name)
-	assert.NotZero(t, report.Duration)
+	assert.Zero(t, report.Duration)
 	assert.Equal(t, Deactivated, report.Status)
 	assert.Zero(t, report.Error)
 }

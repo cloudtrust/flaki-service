@@ -4,11 +4,11 @@ package health
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/coreos/go-systemd/dbus"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -30,9 +30,9 @@ type jaegerModule struct {
 // JaegerReport is the health report returned by the jaeger module.
 type JaegerReport struct {
 	Name     string
-	Duration string
+	Duration time.Duration
 	Status   Status
-	Error    string
+	Error    error
 }
 
 // SystemDConn is interface of systemd D-Bus connection.
@@ -68,9 +68,8 @@ func (m *jaegerModule) jaegerSystemDCheck() JaegerReport {
 
 	if !m.enabled {
 		return JaegerReport{
-			Name:     healthCheckName,
-			Duration: "N/A",
-			Status:   Deactivated,
+			Name:   healthCheckName,
+			Status: Deactivated,
 		}
 	}
 
@@ -78,17 +77,17 @@ func (m *jaegerModule) jaegerSystemDCheck() JaegerReport {
 	var units, err = m.conn.ListUnitsByNames([]string{agentSystemDUnitName})
 	var duration = time.Since(now)
 
-	var error string
+	var hcErr error
 	var s Status
 	switch {
 	case err != nil:
-		error = fmt.Sprintf("could not list systemd unit for name '%s': %v", agentSystemDUnitName, err.Error())
+		hcErr = errors.Wrapf(err, "could not list '%s' systemd unit", agentSystemDUnitName)
 		s = KO
 	case len(units) == 0:
-		error = fmt.Sprintf("systemd unit '%s' not found: %v", agentSystemDUnitName, err.Error())
+		hcErr = errors.Wrapf(err, "systemd unit '%s' not found", agentSystemDUnitName)
 		s = KO
 	case units[0].ActiveState != "active":
-		error = fmt.Sprintf("systemd unit '%s' is not active", agentSystemDUnitName)
+		hcErr = errors.Wrapf(err, "systemd unit '%s' is not active", agentSystemDUnitName)
 		s = KO
 	default:
 		s = OK
@@ -96,9 +95,9 @@ func (m *jaegerModule) jaegerSystemDCheck() JaegerReport {
 
 	return JaegerReport{
 		Name:     healthCheckName,
-		Duration: duration.String(),
+		Duration: duration,
 		Status:   s,
-		Error:    error,
+		Error:    hcErr,
 	}
 }
 
@@ -107,9 +106,8 @@ func (m *jaegerModule) jaegerCollectorPing() JaegerReport {
 
 	if !m.enabled {
 		return JaegerReport{
-			Name:     healthCheckName,
-			Duration: "N/A",
-			Status:   Deactivated,
+			Name:   healthCheckName,
+			Status: Deactivated,
 		}
 	}
 
@@ -118,14 +116,14 @@ func (m *jaegerModule) jaegerCollectorPing() JaegerReport {
 	var res, err = m.httpClient.Get("http://" + m.collectorHealthCheckURL)
 	var duration = time.Since(now)
 
-	var error string
+	var hcErr error
 	var s Status
 	switch {
 	case err != nil:
-		error = fmt.Sprintf("could not query jaeger collector health check service: %v", err.Error())
+		hcErr = errors.Wrap(err, "could not query jaeger collector health check service")
 		s = KO
 	case res.StatusCode != 204:
-		error = fmt.Sprintf("jaeger health check service returned invalid status code: %v", res.StatusCode)
+		hcErr = errors.Wrapf(err, "jaeger health check service returned invalid status code: %v", res.StatusCode)
 		s = KO
 	default:
 		s = OK
@@ -133,8 +131,8 @@ func (m *jaegerModule) jaegerCollectorPing() JaegerReport {
 
 	return JaegerReport{
 		Name:     healthCheckName,
-		Duration: duration.String(),
+		Duration: duration,
 		Status:   s,
-		Error:    error,
+		Error:    hcErr,
 	}
 }

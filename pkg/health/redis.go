@@ -4,8 +4,9 @@ package health
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // RedisModule is the health check module for redis.
@@ -21,9 +22,9 @@ type redisModule struct {
 // RedisReport is the health report returned by the redis module.
 type RedisReport struct {
 	Name     string
-	Duration string
+	Duration time.Duration
 	Status   Status
-	Error    string
+	Error    error
 }
 
 // Redis is the interface of the redis client.
@@ -51,9 +52,8 @@ func (m *redisModule) redisPingCheck() RedisReport {
 
 	if !m.enabled {
 		return RedisReport{
-			Name:     healthCheckName,
-			Duration: "N/A",
-			Status:   Deactivated,
+			Name:   healthCheckName,
+			Status: Deactivated,
 		}
 	}
 
@@ -61,11 +61,11 @@ func (m *redisModule) redisPingCheck() RedisReport {
 	var _, err = m.redis.Do("PING")
 	var duration = time.Since(now)
 
-	var error string
+	var hcErr error
 	var s Status
 	switch {
 	case err != nil:
-		error = fmt.Sprintf("could not ping redis: %v", err.Error())
+		hcErr = errors.Wrap(err, "could not ping redis")
 		s = KO
 	default:
 		s = OK
@@ -73,8 +73,8 @@ func (m *redisModule) redisPingCheck() RedisReport {
 
 	return RedisReport{
 		Name:     healthCheckName,
-		Duration: duration.String(),
+		Duration: duration,
 		Status:   s,
-		Error:    error,
+		Error:    hcErr,
 	}
 }

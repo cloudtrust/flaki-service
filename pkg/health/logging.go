@@ -40,7 +40,7 @@ func MakeComponentLoggingMW(logger log.Logger) func(Component) Component {
 }
 
 // componentLoggingMW implements Component.
-func (m *componentLoggingMW) InfluxHealthChecks(ctx context.Context) Reports {
+func (m *componentLoggingMW) InfluxHealthChecks(ctx context.Context) []Report {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "InfluxHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
@@ -49,7 +49,7 @@ func (m *componentLoggingMW) InfluxHealthChecks(ctx context.Context) Reports {
 }
 
 // componentLoggingMW implements Component.
-func (m *componentLoggingMW) JaegerHealthChecks(ctx context.Context) Reports {
+func (m *componentLoggingMW) JaegerHealthChecks(ctx context.Context) []Report {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "JaegerHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
@@ -58,7 +58,7 @@ func (m *componentLoggingMW) JaegerHealthChecks(ctx context.Context) Reports {
 }
 
 // componentLoggingMW implements Component.
-func (m *componentLoggingMW) RedisHealthChecks(ctx context.Context) Reports {
+func (m *componentLoggingMW) RedisHealthChecks(ctx context.Context) []Report {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "RedisHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
@@ -67,7 +67,7 @@ func (m *componentLoggingMW) RedisHealthChecks(ctx context.Context) Reports {
 }
 
 // componentLoggingMW implements Component.
-func (m *componentLoggingMW) SentryHealthChecks(ctx context.Context) Reports {
+func (m *componentLoggingMW) SentryHealthChecks(ctx context.Context) []Report {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "SentryHealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())

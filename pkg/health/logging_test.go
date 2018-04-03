@@ -25,7 +25,7 @@ func TestEndpointLoggingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-	var rep = Reports{Reports: []Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK}}}
+	var rep = []Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK.String()}}
 
 	// With correlation ID.
 	mockLogger.EXPECT().Log("correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
@@ -51,8 +51,8 @@ func TestComponentLoggingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-	var rep = func(name string) Reports {
-		return Reports{Reports: []Report{{Name: name, Duration: (1 * time.Second).String(), Status: OK}}}
+	var rep = func(name string) []Report {
+		return []Report{{Name: name, Duration: (1 * time.Second).String(), Status: OK.String()}}
 	}
 
 	// InfluxHealthChecks.
@@ -139,7 +139,7 @@ func TestInfluxModuleLoggingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-	var rep = []InfluxReport{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK}}
+	var rep = []InfluxReport{{Name: "influx", Duration: (1 * time.Second), Status: OK}}
 
 	mockModule.EXPECT().HealthChecks(ctx).Return(rep).Times(1)
 	mockLogger.EXPECT().Log("unit", "HealthChecks", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
@@ -165,7 +165,7 @@ func TestJaegerModuleLoggingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-	var rep = []JaegerReport{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK}}
+	var rep = []JaegerReport{{Name: "jaeger", Duration: (1 * time.Second), Status: OK}}
 
 	mockModule.EXPECT().HealthChecks(ctx).Return(rep).Times(1)
 	mockLogger.EXPECT().Log("unit", "HealthChecks", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
@@ -191,7 +191,7 @@ func TestRedisModuleLoggingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-	var rep = []RedisReport{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK}}
+	var rep = []RedisReport{{Name: "redis", Duration: (1 * time.Second), Status: OK}}
 
 	mockModule.EXPECT().HealthChecks(ctx).Return(rep).Times(1)
 	mockLogger.EXPECT().Log("unit", "HealthChecks", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)
@@ -217,7 +217,7 @@ func TestSentryModuleLoggingMW(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	var corrID = strconv.FormatUint(rand.Uint64(), 10)
 	var ctx = context.WithValue(context.Background(), "correlation_id", corrID)
-	var rep = []SentryReport{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK}}
+	var rep = []SentryReport{{Name: "sentry", Duration: (1 * time.Second), Status: OK}}
 
 	mockModule.EXPECT().HealthChecks(ctx).Return(rep).Times(1)
 	mockLogger.EXPECT().Log("unit", "HealthChecks", "correlation_id", corrID, "took", gomock.Any()).Return(nil).Times(1)

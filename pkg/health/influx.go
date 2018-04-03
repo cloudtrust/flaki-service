@@ -4,8 +4,9 @@ package health
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // InfluxModule is the health check module for influx.
@@ -21,9 +22,9 @@ type influxModule struct {
 // InfluxReport is the health report returned by the influx module.
 type InfluxReport struct {
 	Name     string
-	Duration string
+	Duration time.Duration
 	Status   Status
-	Error    string
+	Error    error
 }
 
 // Influx is the interface of the influx client.
@@ -51,19 +52,20 @@ func (m *influxModule) influxPing() InfluxReport {
 
 	if !m.enabled {
 		return InfluxReport{
-			Name:     healthCheckName,
-			Duration: "N/A",
-			Status:   Deactivated,
+			Name:   healthCheckName,
+			Status: Deactivated,
 		}
 	}
 
-	var d, _, err = m.influx.Ping(5 * time.Second)
+	var now = time.Now()
+	var _, _, err = m.influx.Ping(5 * time.Second)
+	var duration = time.Since(now)
 
-	var error string
+	var hcErr error
 	var s Status
 	switch {
 	case err != nil:
-		error = fmt.Sprintf("could not ping influx: %v", err.Error())
+		hcErr = errors.Wrap(err, "could not ping influx")
 		s = KO
 	default:
 		s = OK
@@ -71,8 +73,8 @@ func (m *influxModule) influxPing() InfluxReport {
 
 	return InfluxReport{
 		Name:     healthCheckName,
-		Duration: d.String(),
+		Duration: duration,
 		Status:   s,
-		Error:    error,
+		Error:    hcErr,
 	}
 }

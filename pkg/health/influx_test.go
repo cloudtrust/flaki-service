@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type asdf struct{}
+
+func (a *asdf) String() string {
+	fmt.Println("called")
+	return "asdf"
+}
+
 func TestInfluxHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -50,7 +57,7 @@ func TestNoopInfluxHealthChecks(t *testing.T) {
 	// HealthChecks.
 	var report = m.HealthChecks(context.Background())[0]
 	assert.Equal(t, "ping", report.Name)
-	assert.Equal(t, "N/A", report.Duration)
+	assert.Zero(t, report.Duration)
 	assert.Equal(t, Deactivated, report.Status)
 	assert.Zero(t, report.Error)
 }

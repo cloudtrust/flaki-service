@@ -27,11 +27,11 @@ func TestEndpointCorrelationIDMW(t *testing.T) {
 	var ctxFID = context.WithValue(context.Background(), "correlation_id", flakiID)
 
 	// Context with correlation ID.
-	mockComponent.EXPECT().InfluxHealthChecks(ctx).Return(Reports{}).Times(1)
+	mockComponent.EXPECT().InfluxHealthChecks(ctx).Return([]Report{}).Times(1)
 	m(ctx, nil)
 
 	// Without correlation ID.
 	mockFlakiModule.EXPECT().NextValidID(gomock.Any()).Return(flakiID).Times(1)
-	mockComponent.EXPECT().InfluxHealthChecks(ctxFID).Return(Reports{}).Times(1)
+	mockComponent.EXPECT().InfluxHealthChecks(ctxFID).Return([]Report{}).Times(1)
 	m(context.Background(), nil)
 }

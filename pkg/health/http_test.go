@@ -24,7 +24,7 @@ func TestInfluxHealthCheckHandler(t *testing.T) {
 	var h = MakeInfluxHealthCheckHandler(MakeInfluxHealthCheckEndpoint(mockComponent))
 
 	// Health success.
-	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
+	mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return([]Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/influx", nil)
@@ -58,7 +58,7 @@ func TestJaegerHealthCheckHandler(t *testing.T) {
 	var h = MakeJaegerHealthCheckHandler(MakeJaegerHealthCheckEndpoint(mockComponent))
 
 	// Health success.
-	mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
+	mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return([]Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/jaeger", nil)
@@ -93,7 +93,7 @@ func TestRedisHealthCheckHandler(t *testing.T) {
 	var h = MakeRedisHealthCheckHandler(MakeRedisHealthCheckEndpoint(mockComponent))
 
 	// Health success.
-	mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
+	mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return([]Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/redis", nil)
@@ -128,7 +128,7 @@ func TestSentryHealthCheckHandler(t *testing.T) {
 	var h = MakeSentryHealthCheckHandler(MakeSentryHealthCheckEndpoint(mockComponent))
 
 	// Health success.
-	mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return(Reports{Reports: []Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK}}}).Times(1)
+	mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return([]Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 
 	// HTTP request.
 	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/sentry", nil)
