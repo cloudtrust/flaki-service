@@ -1,3 +1,7 @@
+// This is an example of a HTTP client that request IDs to the flaki-service.
+// Note that for the client side tracing to work, you need to have a jaeger agent
+// listening to "127.0.0.1:5775". If this is not the case, the root span will be lost,
+// but all other spans will be handled correctly.
 package main
 
 import (
