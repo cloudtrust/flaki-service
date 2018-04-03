@@ -22,7 +22,7 @@ import (
 func TestHTTPNextIDHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var nextIDHandler = MakeHTTPNextIDHandler(MakeNextIDEndpoint(mockComponent))
 
@@ -56,7 +56,7 @@ func TestHTTPNextIDHandler(t *testing.T) {
 func TestHTTPNextValidIDHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var nextValidIDHandler = MakeHTTPNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent))
 
@@ -90,7 +90,7 @@ func TestHTTPNextValidIDHandler(t *testing.T) {
 func TestHTTPErrorHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var nextIDHandler = MakeHTTPNextIDHandler(MakeNextIDEndpoint(mockComponent))
 
@@ -118,7 +118,7 @@ func TestHTTPErrorHandler(t *testing.T) {
 func TestFetchHTTPCorrelationID(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var nextIDHandler = MakeHTTPNextIDHandler(MakeNextIDEndpoint(mockComponent))
 

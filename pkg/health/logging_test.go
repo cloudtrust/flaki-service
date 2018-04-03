@@ -17,7 +17,7 @@ func TestEndpointLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
 	var mockLogger = mock.NewLogger(mockCtrl)
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var m = MakeEndpointLoggingMW(mockLogger)(MakeInfluxHealthCheckEndpoint(mockComponent))
 
@@ -44,7 +44,7 @@ func TestComponentLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
 	var mockLogger = mock.NewLogger(mockCtrl)
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var m = MakeComponentLoggingMW(mockLogger)(mockComponent)
 
@@ -131,7 +131,7 @@ func TestInfluxModuleLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
 	var mockLogger = mock.NewLogger(mockCtrl)
-	var mockModule = mock.NewInfluxModule(mockCtrl)
+	var mockModule = mock.NewInfluxHealthChecker(mockCtrl)
 
 	var m = MakeInfluxModuleLoggingMW(mockLogger)(mockModule)
 
@@ -157,7 +157,7 @@ func TestJaegerModuleLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
 	var mockLogger = mock.NewLogger(mockCtrl)
-	var mockModule = mock.NewJaegerModule(mockCtrl)
+	var mockModule = mock.NewJaegerHealthChecker(mockCtrl)
 
 	var m = MakeJaegerModuleLoggingMW(mockLogger)(mockModule)
 
@@ -183,7 +183,7 @@ func TestRedisModuleLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
 	var mockLogger = mock.NewLogger(mockCtrl)
-	var mockModule = mock.NewRedisModule(mockCtrl)
+	var mockModule = mock.NewRedisHealthChecker(mockCtrl)
 
 	var m = MakeRedisModuleLoggingMW(mockLogger)(mockModule)
 
@@ -209,7 +209,7 @@ func TestSentryModuleLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
 	var mockLogger = mock.NewLogger(mockCtrl)
-	var mockModule = mock.NewSentryModule(mockCtrl)
+	var mockModule = mock.NewSentryHealthChecker(mockCtrl)
 
 	var m = MakeSentryModuleLoggingMW(mockLogger)(mockModule)
 

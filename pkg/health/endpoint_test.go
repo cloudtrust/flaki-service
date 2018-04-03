@@ -14,7 +14,7 @@ import (
 func TestInfluxHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var e = MakeInfluxHealthCheckEndpoint(mockComponent)
 
@@ -46,7 +46,7 @@ func TestInfluxHealthCheckEndpoint(t *testing.T) {
 func TestJaegerHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var e = MakeJaegerHealthCheckEndpoint(mockComponent)
 
@@ -78,7 +78,7 @@ func TestJaegerHealthCheckEndpoint(t *testing.T) {
 func TestRedisHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var e = MakeRedisHealthCheckEndpoint(mockComponent)
 
@@ -109,7 +109,7 @@ func TestRedisHealthCheckEndpoint(t *testing.T) {
 func TestSentryHealthCheckEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var e = MakeSentryHealthCheckEndpoint(mockComponent)
 

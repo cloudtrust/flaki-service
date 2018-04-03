@@ -15,10 +15,10 @@ import (
 func TestHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockInfluxModule = mock.NewInfluxModule(mockCtrl)
-	var mockJaegerModule = mock.NewJaegerModule(mockCtrl)
-	var mockRedisModule = mock.NewRedisModule(mockCtrl)
-	var mockSentryModule = mock.NewSentryModule(mockCtrl)
+	var mockInfluxModule = mock.NewInfluxHealthChecker(mockCtrl)
+	var mockJaegerModule = mock.NewJaegerHealthChecker(mockCtrl)
+	var mockRedisModule = mock.NewRedisHealthChecker(mockCtrl)
+	var mockSentryModule = mock.NewSentryHealthChecker(mockCtrl)
 
 	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: OK}}).Times(2)
 	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second), Status: OK}}).Times(2)
@@ -76,10 +76,10 @@ func TestHealthChecks(t *testing.T) {
 func TestHealthChecksFail(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockInfluxModule = mock.NewInfluxModule(mockCtrl)
-	var mockJaegerModule = mock.NewJaegerModule(mockCtrl)
-	var mockRedisModule = mock.NewRedisModule(mockCtrl)
-	var mockSentryModule = mock.NewSentryModule(mockCtrl)
+	var mockInfluxModule = mock.NewInfluxHealthChecker(mockCtrl)
+	var mockJaegerModule = mock.NewJaegerHealthChecker(mockCtrl)
+	var mockRedisModule = mock.NewRedisHealthChecker(mockCtrl)
+	var mockSentryModule = mock.NewSentryHealthChecker(mockCtrl)
 
 	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return([]InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: Deactivated}}).Times(2)
 	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return([]JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second), Status: KO, Error: fmt.Errorf("fail")}}).Times(2)

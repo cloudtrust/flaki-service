@@ -19,12 +19,12 @@ type Sentry interface {
 type trackingComponentMW struct {
 	sentry Sentry
 	logger log.Logger
-	next   Component
+	next   IDGeneratorComponent
 }
 
 // MakeComponentTrackingMW makes an error tracking middleware, where the errors are logged and sent to Sentry.
-func MakeComponentTrackingMW(sentry Sentry, logger log.Logger) func(Component) Component {
-	return func(next Component) Component {
+func MakeComponentTrackingMW(sentry Sentry, logger log.Logger) func(IDGeneratorComponent) IDGeneratorComponent {
+	return func(next IDGeneratorComponent) IDGeneratorComponent {
 		return &trackingComponentMW{
 			sentry: sentry,
 			logger: logger,

@@ -1,6 +1,6 @@
 package health
 
-//go:generate mockgen -destination=./mock/sentry.go -package=mock -mock_names=SentryModule=SentryModule,Sentry=Sentry  github.com/cloudtrust/flaki-service/pkg/health SentryModule,Sentry
+//go:generate mockgen -destination=./mock/sentry.go -package=mock -mock_names=SentryClient=SentryClient  github.com/cloudtrust/flaki-service/pkg/health SentryClient
 
 import (
 	"context"
@@ -14,14 +14,29 @@ import (
 )
 
 // SentryModule is the health check module for sentry.
-type SentryModule interface {
-	HealthChecks(context.Context) []SentryReport
-}
-
-type sentryModule struct {
-	sentry     Sentry
+type SentryModule struct {
+	sentry     SentryClient
 	httpClient SentryHTTPClient
 	enabled    bool
+}
+
+// SentryClient is the interface of the sentry client.
+type SentryClient interface {
+	URL() string
+}
+
+// SentryHTTPClient is the interface of the http client.
+type SentryHTTPClient interface {
+	Get(string) (*http.Response, error)
+}
+
+// NewSentryModule returns the sentry health module.
+func NewSentryModule(sentry SentryClient, httpClient SentryHTTPClient, enabled bool) *SentryModule {
+	return &SentryModule{
+		sentry:     sentry,
+		httpClient: httpClient,
+		enabled:    enabled,
+	}
 }
 
 // SentryReport is the health report returned by the sentry module.
@@ -32,33 +47,14 @@ type SentryReport struct {
 	Error    error
 }
 
-// Sentry is the interface of the sentry client.
-type Sentry interface {
-	URL() string
-}
-
-// SentryHTTPClient is the interface of the http client.
-type SentryHTTPClient interface {
-	Get(string) (*http.Response, error)
-}
-
-// NewSentryModule returns the sentry health module.
-func NewSentryModule(sentry Sentry, httpClient SentryHTTPClient, enabled bool) SentryModule {
-	return &sentryModule{
-		sentry:     sentry,
-		httpClient: httpClient,
-		enabled:    enabled,
-	}
-}
-
 // HealthChecks executes all health checks for Sentry.
-func (m *sentryModule) HealthChecks(context.Context) []SentryReport {
+func (m *SentryModule) HealthChecks(context.Context) []SentryReport {
 	var reports = []SentryReport{}
 	reports = append(reports, m.sentryPingCheck())
 	return reports
 }
 
-func (m *sentryModule) sentryPingCheck() SentryReport {
+func (m *SentryModule) sentryPingCheck() SentryReport {
 	var healthCheckName = "ping"
 
 	if !m.enabled {

@@ -14,7 +14,7 @@ import (
 func TestRedisHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockRedis = mock.NewRedis(mockCtrl)
+	var mockRedis = mock.NewRedisClient(mockCtrl)
 
 	var m = NewRedisModule(mockRedis, true)
 

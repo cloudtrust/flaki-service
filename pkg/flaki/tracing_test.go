@@ -85,7 +85,7 @@ func TestGRPCTracingMW(t *testing.T) {
 func TestEndpointTracingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 	var mockTracer = mock.NewTracer(mockCtrl)
 	var mockSpan = mock.NewSpan(mockCtrl)
 	var mockSpanContext = mock.NewSpanContext(mockCtrl)
@@ -139,7 +139,7 @@ func TestEndpointTracingMW(t *testing.T) {
 func TestComponentTracingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 	var mockTracer = mock.NewTracer(mockCtrl)
 	var mockSpan = mock.NewSpan(mockCtrl)
 	var mockSpanContext = mock.NewSpanContext(mockCtrl)
@@ -214,7 +214,7 @@ func TestComponentTracingMW(t *testing.T) {
 func TestModuleTracingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockModule = mock.NewModule(mockCtrl)
+	var mockModule = mock.NewIDGeneratorModule(mockCtrl)
 	var mockTracer = mock.NewTracer(mockCtrl)
 	var mockSpan = mock.NewSpan(mockCtrl)
 	var mockSpanContext = mock.NewSpanContext(mockCtrl)

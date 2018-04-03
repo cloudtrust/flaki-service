@@ -1,6 +1,6 @@
 package health
 
-//go:generate mockgen -destination=./mock/redis.go -package=mock -mock_names=RedisModule=RedisModule,Redis=Redis  github.com/cloudtrust/flaki-service/pkg/health RedisModule,Redis
+//go:generate mockgen -destination=./mock/redis.go -package=mock -mock_names=RedisClient=RedisClient  github.com/cloudtrust/flaki-service/pkg/health RedisClient
 
 import (
 	"context"
@@ -10,13 +10,22 @@ import (
 )
 
 // RedisModule is the health check module for redis.
-type RedisModule interface {
-	HealthChecks(context.Context) []RedisReport
+type RedisModule struct {
+	redis   RedisClient
+	enabled bool
 }
 
-type redisModule struct {
-	redis   Redis
-	enabled bool
+// RedisClient is the interface of the redis client.
+type RedisClient interface {
+	Do(cmd string, args ...interface{}) (interface{}, error)
+}
+
+// NewRedisModule returns the redis health module.
+func NewRedisModule(redis RedisClient, enabled bool) *RedisModule {
+	return &RedisModule{
+		redis:   redis,
+		enabled: enabled,
+	}
 }
 
 // RedisReport is the health report returned by the redis module.
@@ -27,27 +36,14 @@ type RedisReport struct {
 	Error    error
 }
 
-// Redis is the interface of the redis client.
-type Redis interface {
-	Do(cmd string, args ...interface{}) (interface{}, error)
-}
-
-// NewRedisModule returns the redis health module.
-func NewRedisModule(redis Redis, enabled bool) RedisModule {
-	return &redisModule{
-		redis:   redis,
-		enabled: enabled,
-	}
-}
-
 // HealthChecks executes all health checks for Redis.
-func (m *redisModule) HealthChecks(context.Context) []RedisReport {
+func (m *RedisModule) HealthChecks(context.Context) []RedisReport {
 	var reports = []RedisReport{}
 	reports = append(reports, m.redisPingCheck())
 	return reports
 }
 
-func (m *redisModule) redisPingCheck() RedisReport {
+func (m *RedisModule) redisPingCheck() RedisReport {
 	var healthCheckName = "ping"
 
 	if !m.enabled {

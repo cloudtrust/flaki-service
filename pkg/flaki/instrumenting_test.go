@@ -15,7 +15,7 @@ import (
 func TestEndpointInstrumentingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 	var mockHistogram = mock.NewHistogram(mockCtrl)
 
 	var m = MakeEndpointInstrumentingMW(mockHistogram)(MakeNextIDEndpoint(mockComponent))
@@ -55,7 +55,7 @@ func TestEndpointInstrumentingMW(t *testing.T) {
 func TestComponentInstrumentingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 	var mockHistogram = mock.NewHistogram(mockCtrl)
 
 	var m = MakeComponentInstrumentingMW(mockHistogram)(mockComponent)
@@ -107,7 +107,7 @@ func TestComponentInstrumentingMW(t *testing.T) {
 func TestModuleInstrumentingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockModule = mock.NewModule(mockCtrl)
+	var mockModule = mock.NewIDGeneratorModule(mockCtrl)
 	var mockHistogram = mock.NewHistogram(mockCtrl)
 
 	var m = MakeModuleInstrumentingMW(mockHistogram)(mockModule)
@@ -157,7 +157,7 @@ func TestModuleInstrumentingMW(t *testing.T) {
 func TestModuleInstrumentingCounterMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockModule = mock.NewModule(mockCtrl)
+	var mockModule = mock.NewIDGeneratorModule(mockCtrl)
 	var mockCounter = mock.NewCounter(mockCtrl)
 
 	var m = MakeModuleInstrumentingCounterMW(mockCounter)(mockModule)

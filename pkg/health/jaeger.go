@@ -1,6 +1,6 @@
 package health
 
-//go:generate mockgen -destination=./mock/jaeger.go -package=mock -mock_names=JaegerModule=JaegerModule,SystemDConn=SystemDConn  github.com/cloudtrust/flaki-service/pkg/health JaegerModule,SystemDConn
+//go:generate mockgen -destination=./mock/jaeger.go -package=mock -mock_names=SystemDConn=SystemDConn  github.com/cloudtrust/flaki-service/pkg/health SystemDConn
 
 import (
 	"context"
@@ -16,23 +16,11 @@ const (
 )
 
 // JaegerModule is the health check module for jaeger.
-type JaegerModule interface {
-	HealthChecks(context.Context) []JaegerReport
-}
-
-type jaegerModule struct {
+type JaegerModule struct {
 	conn                    SystemDConn
 	collectorHealthCheckURL string
 	httpClient              JaegerHTTPClient
 	enabled                 bool
-}
-
-// JaegerReport is the health report returned by the jaeger module.
-type JaegerReport struct {
-	Name     string
-	Duration time.Duration
-	Status   Status
-	Error    error
 }
 
 // SystemDConn is interface of systemd D-Bus connection.
@@ -46,8 +34,8 @@ type JaegerHTTPClient interface {
 }
 
 // NewJaegerModule returns the jaeger health module.
-func NewJaegerModule(conn SystemDConn, httpClient JaegerHTTPClient, collectorHealthCheckURL string, enabled bool) JaegerModule {
-	return &jaegerModule{
+func NewJaegerModule(conn SystemDConn, httpClient JaegerHTTPClient, collectorHealthCheckURL string, enabled bool) *JaegerModule {
+	return &JaegerModule{
 		conn:                    conn,
 		httpClient:              httpClient,
 		collectorHealthCheckURL: collectorHealthCheckURL,
@@ -55,15 +43,23 @@ func NewJaegerModule(conn SystemDConn, httpClient JaegerHTTPClient, collectorHea
 	}
 }
 
+// JaegerReport is the health report returned by the jaeger module.
+type JaegerReport struct {
+	Name     string
+	Duration time.Duration
+	Status   Status
+	Error    error
+}
+
 // HealthChecks executes all health checks for Jaeger.
-func (m *jaegerModule) HealthChecks(context.Context) []JaegerReport {
+func (m *JaegerModule) HealthChecks(context.Context) []JaegerReport {
 	var reports = []JaegerReport{}
 	reports = append(reports, m.jaegerSystemDCheck())
 	reports = append(reports, m.jaegerCollectorPing())
 	return reports
 }
 
-func (m *jaegerModule) jaegerSystemDCheck() JaegerReport {
+func (m *JaegerModule) jaegerSystemDCheck() JaegerReport {
 	var healthCheckName = "jaeger agent systemd unit check"
 
 	if !m.enabled {
@@ -101,7 +97,7 @@ func (m *jaegerModule) jaegerSystemDCheck() JaegerReport {
 	}
 }
 
-func (m *jaegerModule) jaegerCollectorPing() JaegerReport {
+func (m *JaegerModule) jaegerCollectorPing() JaegerReport {
 	var healthCheckName = "ping jaeger collector"
 
 	if !m.enabled {

@@ -1,6 +1,6 @@
 package health
 
-//go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=Component=Component github.com/cloudtrust/flaki-service/pkg/health Component
+//go:generate mockgen -destination=./mock/module.go -package=mock -mock_names=InfluxHealthChecker=InfluxHealthChecker,JaegerHealthChecker=JaegerHealthChecker,RedisHealthChecker=RedisHealthChecker,SentryHealthChecker=SentryHealthChecker  github.com/cloudtrust/flaki-service/pkg/health InfluxHealthChecker,JaegerHealthChecker,RedisHealthChecker,SentryHealthChecker
 
 import (
 	"context"
@@ -30,13 +30,38 @@ func (s Status) String() string {
 	return names[s]
 }
 
-// Component is the health component interface.
-type Component interface {
-	InfluxHealthChecks(context.Context) []Report
-	JaegerHealthChecks(context.Context) []Report
-	RedisHealthChecks(context.Context) []Report
-	SentryHealthChecks(context.Context) []Report
-	AllHealthChecks(context.Context) map[string]string
+type InfluxHealthChecker interface {
+	HealthChecks(context.Context) []InfluxReport
+}
+
+type JaegerHealthChecker interface {
+	HealthChecks(context.Context) []JaegerReport
+}
+
+type RedisHealthChecker interface {
+	HealthChecks(context.Context) []RedisReport
+}
+
+type SentryHealthChecker interface {
+	HealthChecks(context.Context) []SentryReport
+}
+
+// Component is the Health component.
+type Component struct {
+	influx InfluxHealthChecker
+	jaeger JaegerHealthChecker
+	redis  RedisHealthChecker
+	sentry SentryHealthChecker
+}
+
+// NewComponent returns the health component.
+func NewComponent(influx InfluxHealthChecker, jaeger JaegerHealthChecker, redis RedisHealthChecker, sentry SentryHealthChecker) *Component {
+	return &Component{
+		influx: influx,
+		jaeger: jaeger,
+		redis:  redis,
+		sentry: sentry,
+	}
 }
 
 // Report contains the result of one health test.
@@ -47,26 +72,8 @@ type Report struct {
 	Error    string
 }
 
-// component is the Health component.
-type component struct {
-	influx InfluxModule
-	jaeger JaegerModule
-	redis  RedisModule
-	sentry SentryModule
-}
-
-// NewComponent returns the health component.
-func NewComponent(influx InfluxModule, jaeger JaegerModule, redis RedisModule, sentry SentryModule) Component {
-	return &component{
-		influx: influx,
-		jaeger: jaeger,
-		redis:  redis,
-		sentry: sentry,
-	}
-}
-
 // InfluxHealthChecks uses the health component to test the Influx health.
-func (c *component) InfluxHealthChecks(ctx context.Context) []Report {
+func (c *Component) InfluxHealthChecks(ctx context.Context) []Report {
 	var reports = c.influx.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -81,7 +88,7 @@ func (c *component) InfluxHealthChecks(ctx context.Context) []Report {
 }
 
 // JaegerHealthChecks uses the health component to test the Jaeger health.
-func (c *component) JaegerHealthChecks(ctx context.Context) []Report {
+func (c *Component) JaegerHealthChecks(ctx context.Context) []Report {
 	var reports = c.jaeger.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -96,7 +103,7 @@ func (c *component) JaegerHealthChecks(ctx context.Context) []Report {
 }
 
 // RedisHealthChecks uses the health component to test the Redis health.
-func (c *component) RedisHealthChecks(ctx context.Context) []Report {
+func (c *Component) RedisHealthChecks(ctx context.Context) []Report {
 	var reports = c.redis.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -111,7 +118,7 @@ func (c *component) RedisHealthChecks(ctx context.Context) []Report {
 }
 
 // SentryHealthChecks uses the health component to test the Sentry health.
-func (c *component) SentryHealthChecks(ctx context.Context) []Report {
+func (c *Component) SentryHealthChecks(ctx context.Context) []Report {
 	var reports = c.sentry.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -126,7 +133,7 @@ func (c *component) SentryHealthChecks(ctx context.Context) []Report {
 }
 
 // AllChecks call all component checks and build a general health report.
-func (c *component) AllHealthChecks(ctx context.Context) map[string]string {
+func (c *Component) AllHealthChecks(ctx context.Context) map[string]string {
 	var reports = map[string]string{}
 
 	reports["influx"] = determineStatus(c.InfluxHealthChecks(ctx))

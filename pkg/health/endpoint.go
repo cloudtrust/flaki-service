@@ -1,5 +1,7 @@
 package health
 
+//go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=HealthChecker=HealthChecker github.com/cloudtrust/flaki-service/pkg/health HealthChecker
+
 import (
 	"context"
 
@@ -15,37 +17,46 @@ type Endpoints struct {
 	AllHealthChecks   endpoint.Endpoint
 }
 
+// HealthChecker is the health component interface.
+type HealthChecker interface {
+	InfluxHealthChecks(context.Context) []Report
+	JaegerHealthChecks(context.Context) []Report
+	RedisHealthChecks(context.Context) []Report
+	SentryHealthChecks(context.Context) []Report
+	AllHealthChecks(context.Context) map[string]string
+}
+
 // MakeInfluxHealthCheckEndpoint makes the InfluxHealthCheck endpoint.
-func MakeInfluxHealthCheckEndpoint(c Component) endpoint.Endpoint {
+func MakeInfluxHealthCheckEndpoint(hc HealthChecker) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.InfluxHealthChecks(ctx), nil
+		return hc.InfluxHealthChecks(ctx), nil
 	}
 }
 
 // MakeJaegerHealthCheckEndpoint makes the JaegerHealthCheck endpoint.
-func MakeJaegerHealthCheckEndpoint(c Component) endpoint.Endpoint {
+func MakeJaegerHealthCheckEndpoint(hc HealthChecker) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.JaegerHealthChecks(ctx), nil
+		return hc.JaegerHealthChecks(ctx), nil
 	}
 }
 
 // MakeRedisHealthCheckEndpoint makes the RedisHealthCheck endpoint.
-func MakeRedisHealthCheckEndpoint(c Component) endpoint.Endpoint {
+func MakeRedisHealthCheckEndpoint(hc HealthChecker) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.RedisHealthChecks(ctx), nil
+		return hc.RedisHealthChecks(ctx), nil
 	}
 }
 
 // MakeSentryHealthCheckEndpoint makes the SentryHealthCheck endpoint.
-func MakeSentryHealthCheckEndpoint(c Component) endpoint.Endpoint {
+func MakeSentryHealthCheckEndpoint(hc HealthChecker) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.SentryHealthChecks(ctx), nil
+		return hc.SentryHealthChecks(ctx), nil
 	}
 }
 
 // MakeAllHealthChecksEndpoint makes an endpoint that does all health checks.
-func MakeAllHealthChecksEndpoint(c Component) endpoint.Endpoint {
+func MakeAllHealthChecksEndpoint(hc HealthChecker) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		return c.AllHealthChecks(ctx), nil
+		return hc.AllHealthChecks(ctx), nil
 	}
 }

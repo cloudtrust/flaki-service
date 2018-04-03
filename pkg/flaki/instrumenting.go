@@ -38,12 +38,12 @@ func MakeEndpointInstrumentingMW(h metrics.Histogram) endpoint.Middleware {
 // Instrumenting middleware at component level.
 type componentInstrumentingMW struct {
 	histogram metrics.Histogram
-	next      Component
+	next      IDGeneratorComponent
 }
 
 // MakeComponentInstrumentingMW makes an Instrumenting middleware at component level.
-func MakeComponentInstrumentingMW(histogram metrics.Histogram) func(Component) Component {
-	return func(next Component) Component {
+func MakeComponentInstrumentingMW(histogram metrics.Histogram) func(IDGeneratorComponent) IDGeneratorComponent {
+	return func(next IDGeneratorComponent) IDGeneratorComponent {
 		return &componentInstrumentingMW{
 			histogram: histogram,
 			next:      next,
@@ -90,12 +90,12 @@ func (m *componentInstrumentingMW) NextValidID(ctx context.Context, req *fb.Flak
 // Instrumenting middleware at module level.
 type moduleInstrumentingMW struct {
 	histogram metrics.Histogram
-	next      Module
+	next      IDGeneratorModule
 }
 
 // MakeModuleInstrumentingMW makes an Instrumenting middleware at module level.
-func MakeModuleInstrumentingMW(histogram metrics.Histogram) func(Module) Module {
-	return func(next Module) Module {
+func MakeModuleInstrumentingMW(histogram metrics.Histogram) func(IDGeneratorModule) IDGeneratorModule {
+	return func(next IDGeneratorModule) IDGeneratorModule {
 		return &moduleInstrumentingMW{
 			histogram: histogram,
 			next:      next,
@@ -138,12 +138,12 @@ func (m *moduleInstrumentingMW) NextValidID(ctx context.Context) string {
 // Instrumenting middleware at module level.
 type moduleInstrumentingCounterMW struct {
 	counter metrics.Counter
-	next    Module
+	next    IDGeneratorModule
 }
 
 // MakeModuleInstrumentingCounterMW makes an Instrumenting middleware at module level.
-func MakeModuleInstrumentingCounterMW(counter metrics.Counter) func(Module) Module {
-	return func(next Module) Module {
+func MakeModuleInstrumentingCounterMW(counter metrics.Counter) func(IDGeneratorModule) IDGeneratorModule {
+	return func(next IDGeneratorModule) IDGeneratorModule {
 		return &moduleInstrumentingCounterMW{
 			counter: counter,
 			next:    next,

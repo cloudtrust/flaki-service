@@ -244,7 +244,7 @@ func main() {
 	// Flaki service.
 	var flakiLogger = log.With(logger, "svc", "flaki")
 
-	var flakiModule flaki.Module
+	var flakiModule flaki.IDGeneratorModule
 	{
 		flakiModule = flaki.NewModule(flakiGen)
 		flakiModule = flaki.MakeModuleInstrumentingCounterMW(influxMetrics.NewCounter("flaki_module_ctr"))(flakiModule)
@@ -253,7 +253,7 @@ func main() {
 		flakiModule = flaki.MakeModuleTracingMW(tracer)(flakiModule)
 	}
 
-	var flakiComponent flaki.Component
+	var flakiComponent flaki.IDGeneratorComponent
 	{
 		flakiComponent = flaki.NewComponent(flakiModule)
 		flakiComponent = flaki.MakeComponentInstrumentingMW(influxMetrics.NewHistogram("flaki_component"))(flakiComponent)
@@ -286,18 +286,18 @@ func main() {
 	// Health service.
 	var healthLogger = log.With(logger, "svc", "health")
 
-	var healthComponent health.Component
+	var healthComponent health.HealthChecker
 	{
-		var influxHM = health.NewInfluxModule(influxMetrics, influxEnabled)
+		var influxHM health.InfluxHealthChecker = health.NewInfluxModule(influxMetrics, influxEnabled)
 		influxHM = health.MakeInfluxModuleLoggingMW(log.With(healthLogger, "mw", "module"))(influxHM)
 
-		var jaegerHM = health.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
+		var jaegerHM health.JaegerHealthChecker = health.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
 		jaegerHM = health.MakeJaegerModuleLoggingMW(log.With(healthLogger, "mw", "module"))(jaegerHM)
 
-		var redisHM = health.NewRedisModule(redisClient, redisEnabled)
+		var redisHM health.RedisHealthChecker = health.NewRedisModule(redisClient, redisEnabled)
 		redisHM = health.MakeRedisModuleLoggingMW(log.With(healthLogger, "mw", "module"))(redisHM)
 
-		var sentryHM = health.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
+		var sentryHM health.SentryHealthChecker = health.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
 		sentryHM = health.MakeSentryModuleLoggingMW(log.With(healthLogger, "mw", "module"))(sentryHM)
 
 		healthComponent = health.NewComponent(influxHM, jaegerHM, redisHM, sentryHM)

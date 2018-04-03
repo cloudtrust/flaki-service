@@ -15,7 +15,7 @@ import (
 func TestSentryHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockSentry = mock.NewSentry(mockCtrl)
+	var mockSentry = mock.NewSentryClient(mockCtrl)
 
 	var s = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -36,7 +36,7 @@ func TestSentryHealthChecks(t *testing.T) {
 func TestNoopSentryHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockSentry = mock.NewSentry(mockCtrl)
+	var mockSentry = mock.NewSentryClient(mockCtrl)
 
 	var s = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

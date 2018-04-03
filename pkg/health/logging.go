@@ -26,12 +26,12 @@ func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 // Logging middleware at component level.
 type componentLoggingMW struct {
 	logger log.Logger
-	next   Component
+	next   HealthChecker
 }
 
 // MakeComponentLoggingMW makes a logging middleware at component level.
-func MakeComponentLoggingMW(logger log.Logger) func(Component) Component {
-	return func(next Component) Component {
+func MakeComponentLoggingMW(logger log.Logger) func(HealthChecker) HealthChecker {
+	return func(next HealthChecker) HealthChecker {
 		return &componentLoggingMW{
 			logger: logger,
 			next:   next,
@@ -87,12 +87,12 @@ func (m *componentLoggingMW) AllHealthChecks(ctx context.Context) map[string]str
 // Logging middleware at module level.
 type influxModuleLoggingMW struct {
 	logger log.Logger
-	next   InfluxModule
+	next   InfluxHealthChecker
 }
 
 // MakeInfluxModuleLoggingMW makes a logging middleware at module level.
-func MakeInfluxModuleLoggingMW(logger log.Logger) func(InfluxModule) InfluxModule {
-	return func(next InfluxModule) InfluxModule {
+func MakeInfluxModuleLoggingMW(logger log.Logger) func(InfluxHealthChecker) InfluxHealthChecker {
+	return func(next InfluxHealthChecker) InfluxHealthChecker {
 		return &influxModuleLoggingMW{
 			logger: logger,
 			next:   next,
@@ -112,12 +112,12 @@ func (m *influxModuleLoggingMW) HealthChecks(ctx context.Context) []InfluxReport
 // Logging middleware at module level.
 type jaegerModuleLoggingMW struct {
 	logger log.Logger
-	next   JaegerModule
+	next   JaegerHealthChecker
 }
 
 // MakeJaegerModuleLoggingMW makes a logging middleware at module level.
-func MakeJaegerModuleLoggingMW(logger log.Logger) func(JaegerModule) JaegerModule {
-	return func(next JaegerModule) JaegerModule {
+func MakeJaegerModuleLoggingMW(logger log.Logger) func(JaegerHealthChecker) JaegerHealthChecker {
+	return func(next JaegerHealthChecker) JaegerHealthChecker {
 		return &jaegerModuleLoggingMW{
 			logger: logger,
 			next:   next,
@@ -137,12 +137,12 @@ func (m *jaegerModuleLoggingMW) HealthChecks(ctx context.Context) []JaegerReport
 // Logging middleware at module level.
 type redisModuleLoggingMW struct {
 	logger log.Logger
-	next   RedisModule
+	next   RedisHealthChecker
 }
 
 // MakeRedisModuleLoggingMW makes a logging middleware at module level.
-func MakeRedisModuleLoggingMW(logger log.Logger) func(RedisModule) RedisModule {
-	return func(next RedisModule) RedisModule {
+func MakeRedisModuleLoggingMW(logger log.Logger) func(RedisHealthChecker) RedisHealthChecker {
+	return func(next RedisHealthChecker) RedisHealthChecker {
 		return &redisModuleLoggingMW{
 			logger: logger,
 			next:   next,
@@ -162,12 +162,12 @@ func (m *redisModuleLoggingMW) HealthChecks(ctx context.Context) []RedisReport {
 // Logging middleware at module level.
 type sentryModuleLoggingMW struct {
 	logger log.Logger
-	next   SentryModule
+	next   SentryHealthChecker
 }
 
 // MakeSentryModuleLoggingMW makes a logging middleware at module level.
-func MakeSentryModuleLoggingMW(logger log.Logger) func(SentryModule) SentryModule {
-	return func(next SentryModule) SentryModule {
+func MakeSentryModuleLoggingMW(logger log.Logger) func(SentryHealthChecker) SentryHealthChecker {
+	return func(next SentryHealthChecker) SentryHealthChecker {
 		return &sentryModuleLoggingMW{
 			logger: logger,
 			next:   next,

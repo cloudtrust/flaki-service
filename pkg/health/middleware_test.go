@@ -15,7 +15,7 @@ import (
 func TestEndpointCorrelationIDMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 	var mockFlakiModule = mock.NewFlakiModule(mockCtrl)
 
 	var m = MakeEndpointCorrelationIDMW(mockFlakiModule)(MakeInfluxHealthCheckEndpoint(mockComponent))

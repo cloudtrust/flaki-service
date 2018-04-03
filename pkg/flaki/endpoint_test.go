@@ -17,7 +17,7 @@ import (
 func TestNextIDEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var e = MakeNextIDEndpoint(mockComponent)
 
@@ -55,7 +55,7 @@ func TestNextIDEndpoint(t *testing.T) {
 func TestNextValidIDEndpoint(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var e = MakeNextValidIDEndpoint(mockComponent)
 

@@ -15,7 +15,7 @@ import (
 func TestEndpointLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 	var mockLogger = mock.NewLogger(mockCtrl)
 
 	var m = MakeEndpointLoggingMW(mockLogger)(MakeNextIDEndpoint(mockComponent))
@@ -52,7 +52,7 @@ func TestComponentLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
 	var mockLogger = mock.NewLogger(mockCtrl)
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var m = MakeComponentLoggingMW(mockLogger)(mockComponent)
 
@@ -97,7 +97,7 @@ func TestComponentLoggingMW(t *testing.T) {
 func TestModuleLoggingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockModule = mock.NewModule(mockCtrl)
+	var mockModule = mock.NewIDGeneratorModule(mockCtrl)
 	var mockLogger = mock.NewLogger(mockCtrl)
 
 	var m = MakeModuleLoggingMW(mockLogger)(mockModule)

@@ -19,7 +19,7 @@ import (
 func TestInfluxHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var h = MakeInfluxHealthCheckHandler(MakeInfluxHealthCheckEndpoint(mockComponent))
 
@@ -53,7 +53,7 @@ func TestInfluxHealthCheckHandler(t *testing.T) {
 func TestJaegerHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var h = MakeJaegerHealthCheckHandler(MakeJaegerHealthCheckEndpoint(mockComponent))
 
@@ -88,7 +88,7 @@ func TestJaegerHealthCheckHandler(t *testing.T) {
 func TestRedisHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var h = MakeRedisHealthCheckHandler(MakeRedisHealthCheckEndpoint(mockComponent))
 
@@ -123,7 +123,7 @@ func TestRedisHealthCheckHandler(t *testing.T) {
 func TestSentryHealthCheckHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var h = MakeSentryHealthCheckHandler(MakeSentryHealthCheckEndpoint(mockComponent))
 
@@ -158,7 +158,7 @@ func TestSentryHealthCheckHandler(t *testing.T) {
 func TestHealthChecksHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var h = MakeAllHealthChecksHandler(MakeAllHealthChecksEndpoint(mockComponent))
 
@@ -187,7 +187,7 @@ func TestHealthChecksHandler(t *testing.T) {
 func TestHealthChecksHandlerFail(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
 	var h = MakeAllHealthChecksHandler(MakeAllHealthChecksEndpoint(mockComponent))
 

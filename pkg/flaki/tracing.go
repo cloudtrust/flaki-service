@@ -117,12 +117,12 @@ func MakeEndpointTracingMW(tracer opentracing.Tracer, operationName string) endp
 // Tracing middleware at component level.
 type componentTracingMW struct {
 	tracer opentracing.Tracer
-	next   Component
+	next   IDGeneratorComponent
 }
 
 // MakeComponentTracingMW makes a tracing middleware at component level.
-func MakeComponentTracingMW(tracer opentracing.Tracer) func(Component) Component {
-	return func(next Component) Component {
+func MakeComponentTracingMW(tracer opentracing.Tracer) func(IDGeneratorComponent) IDGeneratorComponent {
+	return func(next IDGeneratorComponent) IDGeneratorComponent {
 		return &componentTracingMW{
 			tracer: tracer,
 			next:   next,
@@ -179,12 +179,12 @@ func (m *componentTracingMW) NextValidID(ctx context.Context, req *fb.FlakiReque
 // Tracing middleware at module level.
 type moduleTracingMW struct {
 	tracer opentracing.Tracer
-	next   Module
+	next   IDGeneratorModule
 }
 
 // MakeModuleTracingMW makes a tracing middleware at module level.
-func MakeModuleTracingMW(tracer opentracing.Tracer) func(Module) Module {
-	return func(next Module) Module {
+func MakeModuleTracingMW(tracer opentracing.Tracer) func(IDGeneratorModule) IDGeneratorModule {
+	return func(next IDGeneratorModule) IDGeneratorModule {
 		return &moduleTracingMW{
 			tracer: tracer,
 			next:   next,

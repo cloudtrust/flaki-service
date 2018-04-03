@@ -1,6 +1,6 @@
 package health
 
-//go:generate mockgen -destination=./mock/influx.go -package=mock -mock_names=InfluxModule=InfluxModule,Influx=Influx  github.com/cloudtrust/flaki-service/pkg/health InfluxModule,Influx
+//go:generate mockgen -destination=./mock/influx.go -package=mock -mock_names=Influx=Influx  github.com/cloudtrust/flaki-service/pkg/health Influx
 
 import (
 	"context"
@@ -10,13 +10,22 @@ import (
 )
 
 // InfluxModule is the health check module for influx.
-type InfluxModule interface {
-	HealthChecks(context.Context) []InfluxReport
-}
-
-type influxModule struct {
+type InfluxModule struct {
 	influx  Influx
 	enabled bool
+}
+
+// Influx is the interface of the influx client.
+type Influx interface {
+	Ping(timeout time.Duration) (time.Duration, string, error)
+}
+
+// NewInfluxModule returns the influx health module.
+func NewInfluxModule(influx Influx, enabled bool) *InfluxModule {
+	return &InfluxModule{
+		influx:  influx,
+		enabled: enabled,
+	}
 }
 
 // InfluxReport is the health report returned by the influx module.
@@ -27,27 +36,14 @@ type InfluxReport struct {
 	Error    error
 }
 
-// Influx is the interface of the influx client.
-type Influx interface {
-	Ping(timeout time.Duration) (time.Duration, string, error)
-}
-
-// NewInfluxModule returns the influx health module.
-func NewInfluxModule(influx Influx, enabled bool) InfluxModule {
-	return &influxModule{
-		influx:  influx,
-		enabled: enabled,
-	}
-}
-
 // HealthChecks executes all health checks for influx.
-func (m *influxModule) HealthChecks(context.Context) []InfluxReport {
+func (m *InfluxModule) HealthChecks(context.Context) []InfluxReport {
 	var reports = []InfluxReport{}
 	reports = append(reports, m.influxPing())
 	return reports
 }
 
-func (m *influxModule) influxPing() InfluxReport {
+func (m *InfluxModule) influxPing() InfluxReport {
 	var healthCheckName = "ping"
 
 	if !m.enabled {

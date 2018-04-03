@@ -18,7 +18,7 @@ import (
 func TestNewGRPCServer(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
 
@@ -50,7 +50,7 @@ func TestNewGRPCServer(t *testing.T) {
 func TestGRPCErrorHandler(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
 
@@ -66,7 +66,7 @@ func TestGRPCErrorHandler(t *testing.T) {
 func TestFetchGRPCCorrelationID(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 
 	var s = NewGRPCServer(MakeGRPCNextIDHandler(MakeNextIDEndpoint(mockComponent)), MakeGRPCNextValidIDHandler(MakeNextValidIDEndpoint(mockComponent)))
 
