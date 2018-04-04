@@ -20,15 +20,3 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
-[[constraint]]
-  name = "google.golang.org/grpc"
-  version = "1.8.2"
-
-[[override]]
-  name = "github.com/apache/thrift"
-  version = "0.10.0"
-
-[[constraint]]
-  name = "github.com/golang/mock"
-  branch = "master"
-
