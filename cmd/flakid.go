@@ -438,11 +438,13 @@ func main() {
 	}()
 
 	// Influx writing.
-	go func() {
-		var tic = time.NewTicker(influxWriteInterval)
-		defer tic.Stop()
-		influxMetrics.WriteLoop(tic.C)
-	}()
+	if influxEnabled {
+		go func() {
+			var tic = time.NewTicker(influxWriteInterval)
+			defer tic.Stop()
+			influxMetrics.WriteLoop(tic.C)
+		}()
+	}
 
 	// Redis writing.
 	if redisEnabled {
