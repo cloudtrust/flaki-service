@@ -30,18 +30,22 @@ func (s Status) String() string {
 	return names[s]
 }
 
+// InfluxHealthChecker is the interface of the influx health check module.
 type InfluxHealthChecker interface {
 	HealthChecks(context.Context) []InfluxReport
 }
 
+// JaegerHealthChecker is the interface of the jaeger health check module.
 type JaegerHealthChecker interface {
 	HealthChecks(context.Context) []JaegerReport
 }
 
+// RedisHealthChecker is the interface of the redis health check module.
 type RedisHealthChecker interface {
 	HealthChecks(context.Context) []RedisReport
 }
 
+// SentryHealthChecker is the interface of the sentry health check module.
 type SentryHealthChecker interface {
 	HealthChecks(context.Context) []SentryReport
 }
@@ -132,7 +136,7 @@ func (c *Component) SentryHealthChecks(ctx context.Context) []Report {
 	return out
 }
 
-// AllChecks call all component checks and build a general health report.
+// AllHealthChecks call all component checks and build a general health report.
 func (c *Component) AllHealthChecks(ctx context.Context) map[string]string {
 	var reports = map[string]string{}
 

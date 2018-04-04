@@ -29,6 +29,6 @@ type CockroachModule struct {
 }
 
 // NewCockroachModule returns the jaeger health module.
-func NewCockroachModule(conn SystemDConn, httpClient JaegerHTTPClient, collectorHealthCheckURL string, enabled bool) *CockroachModule {
+func NewCockroachModule() *CockroachModule {
 	return &CockroachModule{}
 }

@@ -15,23 +15,23 @@ import (
 
 // SentryModule is the health check module for sentry.
 type SentryModule struct {
-	sentry     SentryClient
-	httpClient SentryHTTPClient
+	sentry     sentryClient
+	httpClient sentryHTTPClient
 	enabled    bool
 }
 
-// SentryClient is the interface of the sentry client.
-type SentryClient interface {
+// sentryClient is the interface of the sentry client.
+type sentryClient interface {
 	URL() string
 }
 
-// SentryHTTPClient is the interface of the http client.
-type SentryHTTPClient interface {
+// sentryHTTPClient is the interface of the http client.
+type sentryHTTPClient interface {
 	Get(string) (*http.Response, error)
 }
 
 // NewSentryModule returns the sentry health module.
-func NewSentryModule(sentry SentryClient, httpClient SentryHTTPClient, enabled bool) *SentryModule {
+func NewSentryModule(sentry sentryClient, httpClient sentryHTTPClient, enabled bool) *SentryModule {
 	return &SentryModule{
 		sentry:     sentry,
 		httpClient: httpClient,
@@ -89,7 +89,7 @@ func (m *SentryModule) sentryPingCheck() SentryReport {
 	}
 }
 
-func pingSentry(dsn string, httpClient SentryHTTPClient) error {
+func pingSentry(dsn string, httpClient sentryHTTPClient) error {
 
 	// Build sentry health url from sentry dsn. The health url is <sentryURL>/_health
 	var url string
