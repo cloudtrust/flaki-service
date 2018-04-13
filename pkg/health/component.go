@@ -50,21 +50,30 @@ type SentryHealthChecker interface {
 	HealthChecks(context.Context) []SentryReport
 }
 
+// StorageModule is the interface of the module that stores the health reports
+// in the DB.
+type StorageModule interface {
+	Update()
+	Read()
+}
+
 // Component is the Health component.
 type Component struct {
-	influx InfluxHealthChecker
-	jaeger JaegerHealthChecker
-	redis  RedisHealthChecker
-	sentry SentryHealthChecker
+	influx  InfluxHealthChecker
+	jaeger  JaegerHealthChecker
+	redis   RedisHealthChecker
+	sentry  SentryHealthChecker
+	storage StorageModule
 }
 
 // NewComponent returns the health component.
-func NewComponent(influx InfluxHealthChecker, jaeger JaegerHealthChecker, redis RedisHealthChecker, sentry SentryHealthChecker) *Component {
+func NewComponent(influx InfluxHealthChecker, jaeger JaegerHealthChecker, redis RedisHealthChecker, sentry SentryHealthChecker, storage StorageModule) *Component {
 	return &Component{
-		influx: influx,
-		jaeger: jaeger,
-		redis:  redis,
-		sentry: sentry,
+		influx:  influx,
+		jaeger:  jaeger,
+		redis:   redis,
+		sentry:  sentry,
+		storage: storage,
 	}
 }
 
@@ -76,8 +85,8 @@ type Report struct {
 	Error    string
 }
 
-// InfluxHealthChecks uses the health component to test the Influx health.
-func (c *Component) InfluxHealthChecks(ctx context.Context) []Report {
+// ExecInfluxHealthChecks executes the health checks for Influx.
+func (c *Component) ExecInfluxHealthChecks(ctx context.Context) []Report {
 	var reports = c.influx.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -91,8 +100,13 @@ func (c *Component) InfluxHealthChecks(ctx context.Context) []Report {
 	return out
 }
 
-// JaegerHealthChecks uses the health component to test the Jaeger health.
-func (c *Component) JaegerHealthChecks(ctx context.Context) []Report {
+// ReadInfluxHealthChecks read the health checks status in DB.
+func (c *Component) ReadInfluxHealthChecks(ctx context.Context) []Report {
+	return []Report{{Name: "ReadInfluxHealthChecks"}}
+}
+
+// ExecJaegerHealthChecks executes the health checks for Jaeger.
+func (c *Component) ExecJaegerHealthChecks(ctx context.Context) []Report {
 	var reports = c.jaeger.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -106,8 +120,13 @@ func (c *Component) JaegerHealthChecks(ctx context.Context) []Report {
 	return out
 }
 
-// RedisHealthChecks uses the health component to test the Redis health.
-func (c *Component) RedisHealthChecks(ctx context.Context) []Report {
+// ReadJaegerHealthChecks read the health checks status in DB.
+func (c *Component) ReadJaegerHealthChecks(ctx context.Context) []Report {
+	return []Report{{Name: "ReadJaegerHealthChecks"}}
+}
+
+// ExecRedisHealthChecks executes the health checks for Redis.
+func (c *Component) ExecRedisHealthChecks(ctx context.Context) []Report {
 	var reports = c.redis.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -121,8 +140,13 @@ func (c *Component) RedisHealthChecks(ctx context.Context) []Report {
 	return out
 }
 
-// SentryHealthChecks uses the health component to test the Sentry health.
-func (c *Component) SentryHealthChecks(ctx context.Context) []Report {
+// ReadRedisHealthChecks read the health checks status in DB.
+func (c *Component) ReadRedisHealthChecks(ctx context.Context) []Report {
+	return []Report{{Name: "ReadRedisHealthChecks"}}
+}
+
+// ExecSentryHealthChecks executes the health checks for Sentry.
+func (c *Component) ExecSentryHealthChecks(ctx context.Context) []Report {
 	var reports = c.sentry.HealthChecks(ctx)
 	var out = []Report{}
 	for _, r := range reports {
@@ -136,14 +160,19 @@ func (c *Component) SentryHealthChecks(ctx context.Context) []Report {
 	return out
 }
 
+// ReadSentryHealthChecks read the health checks status in DB.
+func (c *Component) ReadSentryHealthChecks(ctx context.Context) []Report {
+	return []Report{{Name: "ReadSentryHealthChecks"}}
+}
+
 // AllHealthChecks call all component checks and build a general health report.
 func (c *Component) AllHealthChecks(ctx context.Context) map[string]string {
 	var reports = map[string]string{}
 
-	reports["influx"] = determineStatus(c.InfluxHealthChecks(ctx))
-	reports["jaeger"] = determineStatus(c.JaegerHealthChecks(ctx))
-	reports["redis"] = determineStatus(c.RedisHealthChecks(ctx))
-	reports["sentry"] = determineStatus(c.SentryHealthChecks(ctx))
+	reports["influx"] = determineStatus(c.ExecInfluxHealthChecks(ctx))
+	reports["jaeger"] = determineStatus(c.ExecJaegerHealthChecks(ctx))
+	reports["redis"] = determineStatus(c.ExecRedisHealthChecks(ctx))
+	reports["sentry"] = determineStatus(c.ExecSentryHealthChecks(ctx))
 
 	return reports
 }

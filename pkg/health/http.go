@@ -9,8 +9,8 @@ import (
 	http_transport "github.com/go-kit/kit/transport/http"
 )
 
-// MakeInfluxHealthCheckHandler makes a HTTP handler for the Influx HealthCheck endpoint.
-func MakeInfluxHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
+// MakeInfluxHealthCheckGETHandler makes a HTTP handler for the Influx HealthCheck endpoint.
+func MakeInfluxHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeHealthCheckRequest,
 		encodeHealthCheckReply,
@@ -18,8 +18,8 @@ func MakeInfluxHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 	)
 }
 
-// MakeJaegerHealthCheckHandler makes a HTTP handler for the Jaeger HealthCheck endpoint.
-func MakeJaegerHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
+// MakeInfluxHealthCheckPOSTHandler makes a HTTP handler for the Influx HealthCheck endpoint.
+func MakeInfluxHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeHealthCheckRequest,
 		encodeHealthCheckReply,
@@ -27,8 +27,8 @@ func MakeJaegerHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 	)
 }
 
-// MakeRedisHealthCheckHandler makes a HTTP handler for the Redis HealthCheck endpoint.
-func MakeRedisHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
+// MakeJaegerHealthCheckGETHandler makes a HTTP handler for the Jaeger HealthCheck endpoint.
+func MakeJaegerHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeHealthCheckRequest,
 		encodeHealthCheckReply,
@@ -36,8 +36,44 @@ func MakeRedisHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 	)
 }
 
-// MakeSentryHealthCheckHandler makes a HTTP handler for the Sentry HealthCheck endpoint.
-func MakeSentryHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
+// MakeJaegerHealthCheckPOSTHandler makes a HTTP handler for the Jaeger HealthCheck endpoint.
+func MakeJaegerHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
+	return http_transport.NewServer(e,
+		decodeHealthCheckRequest,
+		encodeHealthCheckReply,
+		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
+	)
+}
+
+// MakeRedisHealthCheckGETHandler makes a HTTP handler for the Redis HealthCheck endpoint.
+func MakeRedisHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
+	return http_transport.NewServer(e,
+		decodeHealthCheckRequest,
+		encodeHealthCheckReply,
+		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
+	)
+}
+
+// MakeRedisHealthCheckPOSTHandler makes a HTTP handler for the Redis HealthCheck endpoint.
+func MakeRedisHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
+	return http_transport.NewServer(e,
+		decodeHealthCheckRequest,
+		encodeHealthCheckReply,
+		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
+	)
+}
+
+// MakeSentryHealthCheckGETHandler makes a HTTP handler for the Sentry HealthCheck endpoint.
+func MakeSentryHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
+	return http_transport.NewServer(e,
+		decodeHealthCheckRequest,
+		encodeHealthCheckReply,
+		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
+	)
+}
+
+// MakeSentryHealthCheckPOSTHandler makes a HTTP handler for the Sentry HealthCheck endpoint.
+func MakeSentryHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeHealthCheckRequest,
 		encodeHealthCheckReply,
