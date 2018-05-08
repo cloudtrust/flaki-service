@@ -1,9 +1,11 @@
 package health
 
-//go:generate mockgen -destination=./mock/module.go -package=mock -mock_names=InfluxHealthChecker=InfluxHealthChecker,JaegerHealthChecker=JaegerHealthChecker,RedisHealthChecker=RedisHealthChecker,SentryHealthChecker=SentryHealthChecker  github.com/cloudtrust/flaki-service/pkg/health InfluxHealthChecker,JaegerHealthChecker,RedisHealthChecker,SentryHealthChecker
+//go:generate mockgen -destination=./mock/module.go -package=mock -mock_names=InfluxHealthChecker=InfluxHealthChecker,JaegerHealthChecker=JaegerHealthChecker,RedisHealthChecker=RedisHealthChecker,SentryHealthChecker=SentryHealthChecker,StorageModule=StorageModule  github.com/cloudtrust/flaki-service/pkg/health InfluxHealthChecker,JaegerHealthChecker,RedisHealthChecker,SentryHealthChecker,StorageModule
 
 import (
 	"context"
+	"fmt"
+	"time"
 )
 
 // Status is the status of the health check.
@@ -18,16 +20,34 @@ const (
 	Degraded
 	// Deactivated is the status for a service that is deactivated, e.g. we can disable error tracking, instrumenting, tracing,...
 	Deactivated
+	// Unknown is the status set when there is unexpected errors, e.g. parsing status from DB.
+	Unknown
 )
 
-func (s Status) String() string {
-	var names = []string{"OK", "KO", "Degraded", "Deactivated"}
+const (
+	// Names of the units in the health check http response and in the DB.
+	influxUnitName = "influx"
+	jaegerUnitName = "jaeger"
+	redisUnitName  = "redis"
+	sentryUnitName = "sentry"
+)
 
-	if s < OK || s > Deactivated {
-		return "Unknown"
+var statusName = []string{"OK", "KO", "Degraded", "Deactivated", "Unknown"}
+
+func status(s string) Status {
+	for i, n := range statusName {
+		if n == s {
+			return Status(i)
+		}
 	}
+	return Unknown
+}
 
-	return names[s]
+func (s Status) String() string {
+	if s >= 0 && int(s) <= len(statusName) {
+		return statusName[s]
+	}
+	return Unknown.String()
 }
 
 // InfluxHealthChecker is the interface of the influx health check module.
@@ -53,27 +73,29 @@ type SentryHealthChecker interface {
 // StorageModule is the interface of the module that stores the health reports
 // in the DB.
 type StorageModule interface {
-	Update()
-	Read()
+	Read(name string) ([]StoredReport, error)
+	Update(unit string, reports []StoredReport) error
 }
 
 // Component is the Health component.
 type Component struct {
-	influx  InfluxHealthChecker
-	jaeger  JaegerHealthChecker
-	redis   RedisHealthChecker
-	sentry  SentryHealthChecker
-	storage StorageModule
+	influx              InfluxHealthChecker
+	jaeger              JaegerHealthChecker
+	redis               RedisHealthChecker
+	sentry              SentryHealthChecker
+	storage             StorageModule
+	healthCheckValidity map[string]time.Duration
 }
 
 // NewComponent returns the health component.
-func NewComponent(influx InfluxHealthChecker, jaeger JaegerHealthChecker, redis RedisHealthChecker, sentry SentryHealthChecker, storage StorageModule) *Component {
+func NewComponent(influx InfluxHealthChecker, jaeger JaegerHealthChecker, redis RedisHealthChecker, sentry SentryHealthChecker, storage StorageModule, healthCheckValidity map[string]time.Duration) *Component {
 	return &Component{
-		influx:  influx,
-		jaeger:  jaeger,
-		redis:   redis,
-		sentry:  sentry,
-		storage: storage,
+		influx:              influx,
+		jaeger:              jaeger,
+		redis:               redis,
+		sentry:              sentry,
+		storage:             storage,
+		healthCheckValidity: healthCheckValidity,
 	}
 }
 
@@ -88,7 +110,10 @@ type Report struct {
 // ExecInfluxHealthChecks executes the health checks for Influx.
 func (c *Component) ExecInfluxHealthChecks(ctx context.Context) []Report {
 	var reports = c.influx.HealthChecks(ctx)
+
+	var now = time.Now()
 	var out = []Report{}
+	var dbReport = []StoredReport{}
 	for _, r := range reports {
 		out = append(out, Report{
 			Name:     r.Name,
@@ -96,19 +121,32 @@ func (c *Component) ExecInfluxHealthChecks(ctx context.Context) []Report {
 			Status:   r.Status.String(),
 			Error:    err(r.Error),
 		})
+		dbReport = append(dbReport, StoredReport{
+			Name:          r.Name,
+			Duration:      r.Duration,
+			Status:        r.Status,
+			Error:         err(r.Error),
+			LastExecution: now,
+			ValidUntil:    now.Add(c.healthCheckValidity[influxUnitName]),
+		})
 	}
+
+	c.storage.Update(influxUnitName, dbReport)
 	return out
 }
 
 // ReadInfluxHealthChecks read the health checks status in DB.
 func (c *Component) ReadInfluxHealthChecks(ctx context.Context) []Report {
-	return []Report{{Name: "ReadInfluxHealthChecks"}}
+	return c.readFromDB(influxUnitName)
 }
 
 // ExecJaegerHealthChecks executes the health checks for Jaeger.
 func (c *Component) ExecJaegerHealthChecks(ctx context.Context) []Report {
 	var reports = c.jaeger.HealthChecks(ctx)
+
+	var now = time.Now()
 	var out = []Report{}
+	var dbReport = []StoredReport{}
 	for _, r := range reports {
 		out = append(out, Report{
 			Name:     r.Name,
@@ -116,19 +154,32 @@ func (c *Component) ExecJaegerHealthChecks(ctx context.Context) []Report {
 			Status:   r.Status.String(),
 			Error:    err(r.Error),
 		})
+		dbReport = append(dbReport, StoredReport{
+			Name:          r.Name,
+			Duration:      r.Duration,
+			Status:        r.Status,
+			Error:         err(r.Error),
+			LastExecution: now,
+			ValidUntil:    now.Add(c.healthCheckValidity[jaegerUnitName]),
+		})
 	}
+
+	c.storage.Update(jaegerUnitName, dbReport)
 	return out
 }
 
 // ReadJaegerHealthChecks read the health checks status in DB.
 func (c *Component) ReadJaegerHealthChecks(ctx context.Context) []Report {
-	return []Report{{Name: "ReadJaegerHealthChecks"}}
+	return c.readFromDB(jaegerUnitName)
 }
 
 // ExecRedisHealthChecks executes the health checks for Redis.
 func (c *Component) ExecRedisHealthChecks(ctx context.Context) []Report {
 	var reports = c.redis.HealthChecks(ctx)
+
+	var now = time.Now()
 	var out = []Report{}
+	var dbReport = []StoredReport{}
 	for _, r := range reports {
 		out = append(out, Report{
 			Name:     r.Name,
@@ -136,19 +187,32 @@ func (c *Component) ExecRedisHealthChecks(ctx context.Context) []Report {
 			Status:   r.Status.String(),
 			Error:    err(r.Error),
 		})
+		dbReport = append(dbReport, StoredReport{
+			Name:          r.Name,
+			Duration:      r.Duration,
+			Status:        r.Status,
+			Error:         err(r.Error),
+			LastExecution: now,
+			ValidUntil:    now.Add(c.healthCheckValidity[redisUnitName]),
+		})
 	}
+
+	c.storage.Update(redisUnitName, dbReport)
 	return out
 }
 
 // ReadRedisHealthChecks read the health checks status in DB.
 func (c *Component) ReadRedisHealthChecks(ctx context.Context) []Report {
-	return []Report{{Name: "ReadRedisHealthChecks"}}
+	return c.readFromDB(redisUnitName)
 }
 
 // ExecSentryHealthChecks executes the health checks for Sentry.
 func (c *Component) ExecSentryHealthChecks(ctx context.Context) []Report {
 	var reports = c.sentry.HealthChecks(ctx)
+
+	var now = time.Now()
 	var out = []Report{}
+	var dbReport = []StoredReport{}
 	for _, r := range reports {
 		out = append(out, Report{
 			Name:     r.Name,
@@ -156,23 +220,33 @@ func (c *Component) ExecSentryHealthChecks(ctx context.Context) []Report {
 			Status:   r.Status.String(),
 			Error:    err(r.Error),
 		})
+		dbReport = append(dbReport, StoredReport{
+			Name:          r.Name,
+			Duration:      r.Duration,
+			Status:        r.Status,
+			Error:         err(r.Error),
+			LastExecution: now,
+			ValidUntil:    now.Add(c.healthCheckValidity[sentryUnitName]),
+		})
 	}
+
+	c.storage.Update(sentryUnitName, dbReport)
 	return out
 }
 
 // ReadSentryHealthChecks read the health checks status in DB.
 func (c *Component) ReadSentryHealthChecks(ctx context.Context) []Report {
-	return []Report{{Name: "ReadSentryHealthChecks"}}
+	return c.readFromDB(sentryUnitName)
 }
 
 // AllHealthChecks call all component checks and build a general health report.
 func (c *Component) AllHealthChecks(ctx context.Context) map[string]string {
 	var reports = map[string]string{}
 
-	reports["influx"] = determineStatus(c.ExecInfluxHealthChecks(ctx))
-	reports["jaeger"] = determineStatus(c.ExecJaegerHealthChecks(ctx))
-	reports["redis"] = determineStatus(c.ExecRedisHealthChecks(ctx))
-	reports["sentry"] = determineStatus(c.ExecSentryHealthChecks(ctx))
+	reports[influxUnitName] = determineStatus(c.ReadInfluxHealthChecks(ctx))
+	reports[jaegerUnitName] = determineStatus(c.ReadJaegerHealthChecks(ctx))
+	reports[redisUnitName] = determineStatus(c.ReadRedisHealthChecks(ctx))
+	reports[sentryUnitName] = determineStatus(c.ReadSentryHealthChecks(ctx))
 
 	return reports
 }
@@ -204,4 +278,44 @@ func determineStatus(reports []Report) string {
 		return Degraded.String()
 	}
 	return OK.String()
+}
+
+func (c *Component) readFromDB(unit string) []Report {
+	var reports, err = c.storage.Read(unit)
+
+	switch {
+	case err != nil:
+		return []Report{{
+			Name:   unit,
+			Status: Unknown.String(),
+			Error:  fmt.Sprintf("could not read reports from DB: %v", err),
+		}}
+	case len(reports) == 0:
+		return []Report{{
+			Name:   unit,
+			Status: Unknown.String(),
+			Error:  fmt.Sprintf("no reports stored in DB"),
+		}}
+	}
+
+	var out = []Report{}
+	for _, r := range reports {
+		// If the health check was executed too long ago, the health check report
+		// is considered not pertinant and an error is returned.
+		if time.Now().After(r.ValidUntil) {
+			out = append(out, Report{
+				Name:  r.Name,
+				Error: fmt.Sprintf("the health check results are stale because the test was not executed in the last %s", c.healthCheckValidity[r.Name]),
+			})
+		} else {
+			out = append(out, Report{
+				Name:     r.Name,
+				Duration: r.Duration.String(),
+				Status:   r.Status.String(),
+				Error:    r.Error,
+			})
+		}
+	}
+
+	return out
 }

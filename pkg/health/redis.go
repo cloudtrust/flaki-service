@@ -11,17 +11,17 @@ import (
 
 // RedisModule is the health check module for redis.
 type RedisModule struct {
-	redis   redisClient
+	redis   RedisClient
 	enabled bool
 }
 
-// redisClient is the interface of the redis client.
-type redisClient interface {
+// RedisClient is the interface of the redis client.
+type RedisClient interface {
 	Do(cmd string, args ...interface{}) (interface{}, error)
 }
 
 // NewRedisModule returns the redis health module.
-func NewRedisModule(redis redisClient, enabled bool) *RedisModule {
+func NewRedisModule(redis RedisClient, enabled bool) *RedisModule {
 	return &RedisModule{
 		redis:   redis,
 		enabled: enabled,

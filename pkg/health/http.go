@@ -9,71 +9,8 @@ import (
 	http_transport "github.com/go-kit/kit/transport/http"
 )
 
-// MakeInfluxHealthCheckGETHandler makes a HTTP handler for the Influx HealthCheck endpoint.
-func MakeInfluxHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeHealthCheckReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
-// MakeInfluxHealthCheckPOSTHandler makes a HTTP handler for the Influx HealthCheck endpoint.
-func MakeInfluxHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeHealthCheckReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
-// MakeJaegerHealthCheckGETHandler makes a HTTP handler for the Jaeger HealthCheck endpoint.
-func MakeJaegerHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeHealthCheckReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
-// MakeJaegerHealthCheckPOSTHandler makes a HTTP handler for the Jaeger HealthCheck endpoint.
-func MakeJaegerHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeHealthCheckReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
-// MakeRedisHealthCheckGETHandler makes a HTTP handler for the Redis HealthCheck endpoint.
-func MakeRedisHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeHealthCheckReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
-// MakeRedisHealthCheckPOSTHandler makes a HTTP handler for the Redis HealthCheck endpoint.
-func MakeRedisHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeHealthCheckReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
-// MakeSentryHealthCheckGETHandler makes a HTTP handler for the Sentry HealthCheck endpoint.
-func MakeSentryHealthCheckGETHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeHealthCheckReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
-// MakeSentryHealthCheckPOSTHandler makes a HTTP handler for the Sentry HealthCheck endpoint.
-func MakeSentryHealthCheckPOSTHandler(e endpoint.Endpoint) *http_transport.Server {
+// MakeHealthCheckHandler make an HTTP handler for an HealthCheck endpoint.
+func MakeHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 	return http_transport.NewServer(e,
 		decodeHealthCheckRequest,
 		encodeHealthCheckReply,
@@ -112,9 +49,8 @@ type healthCheck struct {
 func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	var reports = rep.([]Report)
 	var reply = reply{}
-	for _, r := range reports {
+	for _, r := range rep.([]Report) {
 		reply.Reports = append(reply.Reports, healthCheck(r))
 	}
 
@@ -134,8 +70,7 @@ func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interf
 func encodeAllHealthChecksReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	var reply = rep.(map[string]string)
-	var data, err = json.MarshalIndent(reply, "", "  ")
+	var data, err = json.MarshalIndent(rep.(map[string]string), "", "  ")
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

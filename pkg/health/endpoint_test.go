@@ -16,11 +16,11 @@ func TestInfluxHealthCheckEndpoint(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
-	var e = MakeInfluxHealthCheckEndpoint(mockComponent)
+	var e = MakeExecInfluxHealthCheckEndpoint(mockComponent)
 
 	// Health success.
 	{
-		mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return([]Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
+		mockComponent.EXPECT().ExecInfluxHealthChecks(context.Background()).Return([]Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]
@@ -32,7 +32,7 @@ func TestInfluxHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	{
-		mockComponent.EXPECT().InfluxHealthChecks(context.Background()).Return([]Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
+		mockComponent.EXPECT().ExecInfluxHealthChecks(context.Background()).Return([]Report{{Name: "influx", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]
@@ -48,11 +48,11 @@ func TestJaegerHealthCheckEndpoint(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
-	var e = MakeJaegerHealthCheckEndpoint(mockComponent)
+	var e = MakeExecJaegerHealthCheckEndpoint(mockComponent)
 
 	// Health success.
 	{
-		mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return([]Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
+		mockComponent.EXPECT().ExecJaegerHealthChecks(context.Background()).Return([]Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]
@@ -64,7 +64,7 @@ func TestJaegerHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	{
-		mockComponent.EXPECT().JaegerHealthChecks(context.Background()).Return([]Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
+		mockComponent.EXPECT().ExecJaegerHealthChecks(context.Background()).Return([]Report{{Name: "jaeger", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]
@@ -80,11 +80,11 @@ func TestRedisHealthCheckEndpoint(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
-	var e = MakeRedisHealthCheckEndpoint(mockComponent)
+	var e = MakeExecRedisHealthCheckEndpoint(mockComponent)
 
 	// Health success.
 	{
-		mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return([]Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
+		mockComponent.EXPECT().ExecRedisHealthChecks(context.Background()).Return([]Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]
@@ -96,7 +96,7 @@ func TestRedisHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	{
-		mockComponent.EXPECT().RedisHealthChecks(context.Background()).Return([]Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
+		mockComponent.EXPECT().ExecRedisHealthChecks(context.Background()).Return([]Report{{Name: "redis", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]
@@ -111,11 +111,11 @@ func TestSentryHealthCheckEndpoint(t *testing.T) {
 	defer mockCtrl.Finish()
 	var mockComponent = mock.NewHealthChecker(mockCtrl)
 
-	var e = MakeSentryHealthCheckEndpoint(mockComponent)
+	var e = MakeExecSentryHealthCheckEndpoint(mockComponent)
 
 	// Health success.
 	{
-		mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return([]Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
+		mockComponent.EXPECT().ExecSentryHealthChecks(context.Background()).Return([]Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: OK.String()}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]
@@ -127,7 +127,7 @@ func TestSentryHealthCheckEndpoint(t *testing.T) {
 
 	// Health error.
 	{
-		mockComponent.EXPECT().SentryHealthChecks(context.Background()).Return([]Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
+		mockComponent.EXPECT().ExecSentryHealthChecks(context.Background()).Return([]Report{{Name: "sentry", Duration: (1 * time.Second).String(), Status: KO.String(), Error: "fail"}}).Times(1)
 		var reports, err = e(context.Background(), nil)
 		assert.Nil(t, err)
 		var report = reports.([]Report)[0]

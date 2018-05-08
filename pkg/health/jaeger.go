@@ -17,24 +17,24 @@ const (
 
 // JaegerModule is the health check module for jaeger.
 type JaegerModule struct {
-	conn                    systemDConn
+	conn                    SystemDConn
 	collectorHealthCheckURL string
-	httpClient              jaegerHTTPClient
+	httpClient              JaegerHTTPClient
 	enabled                 bool
 }
 
-// systemDConn is interface of systemd D-Bus connection.
-type systemDConn interface {
+// SystemDConn is interface of systemd D-Bus connection.
+type SystemDConn interface {
 	ListUnitsByNames(units []string) ([]dbus.UnitStatus, error)
 }
 
-// jaegerHTTPClient is the interface of the http client.
-type jaegerHTTPClient interface {
+// JaegerHTTPClient is the interface of the http client.
+type JaegerHTTPClient interface {
 	Get(string) (*http.Response, error)
 }
 
 // NewJaegerModule returns the jaeger health module.
-func NewJaegerModule(conn systemDConn, httpClient jaegerHTTPClient, collectorHealthCheckURL string, enabled bool) *JaegerModule {
+func NewJaegerModule(conn SystemDConn, httpClient JaegerHTTPClient, collectorHealthCheckURL string, enabled bool) *JaegerModule {
 	return &JaegerModule{
 		conn:                    conn,
 		httpClient:              httpClient,

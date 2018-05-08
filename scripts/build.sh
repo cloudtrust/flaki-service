@@ -7,7 +7,7 @@ function usage()
 	echo "NAME"
 	echo "    build.sh - Build flaki-service"
 	echo "SYNOPSIS"
-	echo "    ${bold}build.sh${normal} ${bold}--env${normal} environment"
+	echo "    ${bold}build.sh${normal} ${bold}--version${normal} version ${bold}--env${normal} environment"
 }
 
 #
@@ -24,13 +24,16 @@ do
 		--env ) shift
 				ENV=$1
 				;;
+		--version ) shift
+				VERSION=$1
+				;;
 		* ) 	usage
 				exit 1
 	esac
 	shift
 done
 
-if [ -z ${ENV} ]; then
+if [ -z ${ENV} ] || [ -z ${VERSION} ]; then
 	usage
 	exit 1
 fi
@@ -58,9 +61,10 @@ cd cmd
 
 # Get the git commit.
 GIT_COMMIT="$(git rev-parse HEAD)"
+GIT_DIRTY="$(test -n "`git status --porcelain`" && echo "+CHANGES" || true)"
 
 # Override the variables GitCommit and Environment in the main package.
-LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.Environment=${ENV}"
+LD_FLAGS="-X main.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X main.Environment=${ENV} -X main.Version=${VERSION}"
 
 #export CGO_ENABLED="0"
 

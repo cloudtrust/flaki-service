@@ -8,19 +8,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-// flaki is the interface of the distributed unique IDs generator.
-type flaki interface {
+// Flaki is the interface of the distributed unique IDs generator.
+type Flaki interface {
 	NextIDString() (string, error)
 	NextValidIDString() string
 }
 
 // Module is the module using the Flaki generator to generate unique IDs.
 type Module struct {
-	flaki flaki
+	flaki Flaki
 }
 
 // NewModule returns a Flaki module.
-func NewModule(flaki flaki) *Module {
+func NewModule(flaki Flaki) *Module {
 	return &Module{
 		flaki: flaki,
 	}

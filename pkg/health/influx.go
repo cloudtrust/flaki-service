@@ -11,17 +11,17 @@ import (
 
 // InfluxModule is the health check module for influx.
 type InfluxModule struct {
-	influx  influx
+	influx  Influx
 	enabled bool
 }
 
-// influx is the interface of the influx client.
-type influx interface {
+// Influx is the interface of the influx client.
+type Influx interface {
 	Ping(timeout time.Duration) (time.Duration, string, error)
 }
 
-// NewInfluxModule returns the influx health module.
-func NewInfluxModule(influx influx, enabled bool) *InfluxModule {
+// NewInfluxModule returns the Influx health module.
+func NewInfluxModule(influx Influx, enabled bool) *InfluxModule {
 	return &InfluxModule{
 		influx:  influx,
 		enabled: enabled,

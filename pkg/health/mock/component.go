@@ -46,50 +46,98 @@ func (mr *HealthCheckerMockRecorder) AllHealthChecks(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllHealthChecks", reflect.TypeOf((*HealthChecker)(nil).AllHealthChecks), arg0)
 }
 
-// InfluxHealthChecks mocks base method
-func (m *HealthChecker) InfluxHealthChecks(arg0 context.Context) []health.Report {
-	ret := m.ctrl.Call(m, "InfluxHealthChecks", arg0)
+// ExecInfluxHealthChecks mocks base method
+func (m *HealthChecker) ExecInfluxHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ExecInfluxHealthChecks", arg0)
 	ret0, _ := ret[0].([]health.Report)
 	return ret0
 }
 
-// InfluxHealthChecks indicates an expected call of InfluxHealthChecks
-func (mr *HealthCheckerMockRecorder) InfluxHealthChecks(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InfluxHealthChecks", reflect.TypeOf((*HealthChecker)(nil).InfluxHealthChecks), arg0)
+// ExecInfluxHealthChecks indicates an expected call of ExecInfluxHealthChecks
+func (mr *HealthCheckerMockRecorder) ExecInfluxHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecInfluxHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ExecInfluxHealthChecks), arg0)
 }
 
-// JaegerHealthChecks mocks base method
-func (m *HealthChecker) JaegerHealthChecks(arg0 context.Context) []health.Report {
-	ret := m.ctrl.Call(m, "JaegerHealthChecks", arg0)
+// ExecJaegerHealthChecks mocks base method
+func (m *HealthChecker) ExecJaegerHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ExecJaegerHealthChecks", arg0)
 	ret0, _ := ret[0].([]health.Report)
 	return ret0
 }
 
-// JaegerHealthChecks indicates an expected call of JaegerHealthChecks
-func (mr *HealthCheckerMockRecorder) JaegerHealthChecks(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JaegerHealthChecks", reflect.TypeOf((*HealthChecker)(nil).JaegerHealthChecks), arg0)
+// ExecJaegerHealthChecks indicates an expected call of ExecJaegerHealthChecks
+func (mr *HealthCheckerMockRecorder) ExecJaegerHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecJaegerHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ExecJaegerHealthChecks), arg0)
 }
 
-// RedisHealthChecks mocks base method
-func (m *HealthChecker) RedisHealthChecks(arg0 context.Context) []health.Report {
-	ret := m.ctrl.Call(m, "RedisHealthChecks", arg0)
+// ExecRedisHealthChecks mocks base method
+func (m *HealthChecker) ExecRedisHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ExecRedisHealthChecks", arg0)
 	ret0, _ := ret[0].([]health.Report)
 	return ret0
 }
 
-// RedisHealthChecks indicates an expected call of RedisHealthChecks
-func (mr *HealthCheckerMockRecorder) RedisHealthChecks(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedisHealthChecks", reflect.TypeOf((*HealthChecker)(nil).RedisHealthChecks), arg0)
+// ExecRedisHealthChecks indicates an expected call of ExecRedisHealthChecks
+func (mr *HealthCheckerMockRecorder) ExecRedisHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecRedisHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ExecRedisHealthChecks), arg0)
 }
 
-// SentryHealthChecks mocks base method
-func (m *HealthChecker) SentryHealthChecks(arg0 context.Context) []health.Report {
-	ret := m.ctrl.Call(m, "SentryHealthChecks", arg0)
+// ExecSentryHealthChecks mocks base method
+func (m *HealthChecker) ExecSentryHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ExecSentryHealthChecks", arg0)
 	ret0, _ := ret[0].([]health.Report)
 	return ret0
 }
 
-// SentryHealthChecks indicates an expected call of SentryHealthChecks
-func (mr *HealthCheckerMockRecorder) SentryHealthChecks(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SentryHealthChecks", reflect.TypeOf((*HealthChecker)(nil).SentryHealthChecks), arg0)
+// ExecSentryHealthChecks indicates an expected call of ExecSentryHealthChecks
+func (mr *HealthCheckerMockRecorder) ExecSentryHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecSentryHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ExecSentryHealthChecks), arg0)
+}
+
+// ReadInfluxHealthChecks mocks base method
+func (m *HealthChecker) ReadInfluxHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ReadInfluxHealthChecks", arg0)
+	ret0, _ := ret[0].([]health.Report)
+	return ret0
+}
+
+// ReadInfluxHealthChecks indicates an expected call of ReadInfluxHealthChecks
+func (mr *HealthCheckerMockRecorder) ReadInfluxHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadInfluxHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ReadInfluxHealthChecks), arg0)
+}
+
+// ReadJaegerHealthChecks mocks base method
+func (m *HealthChecker) ReadJaegerHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ReadJaegerHealthChecks", arg0)
+	ret0, _ := ret[0].([]health.Report)
+	return ret0
+}
+
+// ReadJaegerHealthChecks indicates an expected call of ReadJaegerHealthChecks
+func (mr *HealthCheckerMockRecorder) ReadJaegerHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadJaegerHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ReadJaegerHealthChecks), arg0)
+}
+
+// ReadRedisHealthChecks mocks base method
+func (m *HealthChecker) ReadRedisHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ReadRedisHealthChecks", arg0)
+	ret0, _ := ret[0].([]health.Report)
+	return ret0
+}
+
+// ReadRedisHealthChecks indicates an expected call of ReadRedisHealthChecks
+func (mr *HealthCheckerMockRecorder) ReadRedisHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRedisHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ReadRedisHealthChecks), arg0)
+}
+
+// ReadSentryHealthChecks mocks base method
+func (m *HealthChecker) ReadSentryHealthChecks(arg0 context.Context) []health.Report {
+	ret := m.ctrl.Call(m, "ReadSentryHealthChecks", arg0)
+	ret0, _ := ret[0].([]health.Report)
+	return ret0
+}
+
+// ReadSentryHealthChecks indicates an expected call of ReadSentryHealthChecks
+func (mr *HealthCheckerMockRecorder) ReadSentryHealthChecks(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadSentryHealthChecks", reflect.TypeOf((*HealthChecker)(nil).ReadSentryHealthChecks), arg0)
 }

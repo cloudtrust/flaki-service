@@ -12,13 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type asdf struct{}
-
-func (a *asdf) String() string {
-	fmt.Println("called")
-	return "asdf"
-}
-
 func TestInfluxHealthChecks(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()

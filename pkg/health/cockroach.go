@@ -1,5 +1,7 @@
 package health
 
+//go:generate mockgen -destination=./mock/cockroach.go -package=mock -mock_names=Cockroach=Cockroach  github.com/cloudtrust/flaki-service/pkg/health Cockroach
+
 import (
 	"database/sql"
 	"time"
@@ -8,7 +10,7 @@ import (
 )
 
 const (
-	createHealthTblStmt = `CREATE TABLE health (
+	createHealthTblStmt = `CREATE TABLE IF NOT EXISTS health (
 		component_name STRING,
 		component_id STRING,
 		unit STRING,
@@ -17,8 +19,9 @@ const (
 		status STRING,
 		error STRING,
 		last_updated TIMESTAMPTZ,
+		valid_until TIMESTAMPTZ,
 		PRIMARY KEY (component_name, component_id, unit, name))`
-	insertHealthStmt = `INSERT INTO health (
+	upsertHealthStmt = `UPSERT INTO health (
 		component_name,
 		component_id,
 		unit,
@@ -26,27 +29,37 @@ const (
 		duration,
 		status,
 		error,
-		last_updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	updateHealthStmt = `UPDATE health SET (duration, status, error, last_updated) = ($1, $2, $3, $4) 
-		WHERE (component_name = $5 AND component_id = $6 AND unit = $7 AND name = $8)`
-	selectHealthStmt = `SELECT * FROM health WHERE (component_name = $1 AND component_id = $2 AND unit = $3 AND name = $4)`
+		last_updated,
+		valid_until)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	selectHealthStmt = `SELECT * FROM health WHERE (component_name = $1 AND component_id = $2 AND unit = $3)`
+	cleanHealthStmt  = `DELETE from health WHERE (component_name = $1 AND valid_until < $2)`
 )
 
 // CockroachModule is the module that save health checks results in Cockroach DB.
 type CockroachModule struct {
 	componentName string
 	componentID   string
-	db            cockroachDB
+	db            Cockroach
 }
 
-type cockroachDB interface {
+type Cockroach interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
-	QueryRow(query string, args ...interface{}) *sql.Row
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
+// StoredReport is the health report that is stored in DB.
+type StoredReport struct {
+	Name          string
+	Duration      time.Duration
+	Status        Status
+	Error         string
+	LastExecution time.Time
+	ValidUntil    time.Time
 }
 
 // NewCockroachModule returns the cockroach storage module.
-func NewCockroachModule(componentName, componentID string, db cockroachDB) *CockroachModule {
+func NewCockroachModule(componentName, componentID string, db Cockroach) *CockroachModule {
 	// Init DB: create health table.
 	db.Exec(createHealthTblStmt)
 
@@ -57,48 +70,66 @@ func NewCockroachModule(componentName, componentID string, db cockroachDB) *Cock
 	}
 }
 
-func (c *CockroachModule) Update(reports []Report) error {
+// Update updates the health checks reports stored in DB with the values 'reports'.
+func (c *CockroachModule) Update(unit string, reports []StoredReport) error {
+	for _, r := range reports {
+		var _, err = c.db.Exec(upsertHealthStmt, c.componentName, c.componentID, unit, r.Name, r.Duration.String(), r.Status.String(), r.Error, r.LastExecution.UTC(), r.ValidUntil.UTC())
 
+		if err != nil {
+			return errors.Wrapf(err, "component '%s' with id '%s' could not update health check '%s' for unit '%s'", c.componentName, c.componentID, r.Name, unit)
+		}
+	}
 	return nil
 }
 
-func (c *CockroachModule) Read(name string) ([]Report, error) {
-	var row = c.db.Query(selectHealthStmt, c.componentName, c.componentID, name)
-	var (
-		cName, cID, hcName, hcDuration, hcStatus, hcError string
-		lastUpdated                                       time.Time
-	)
-
-	var err = row.Scan(&cName, &cID, &hcName, &hcDuration, &hcStatus, &hcError, &lastUpdated)
+// Read reads the reports in DB.
+func (c *CockroachModule) Read(unit string) ([]StoredReport, error) {
+	var rows, err = c.db.Query(selectHealthStmt, c.componentName, c.componentID, unit)
 	if err != nil {
-		return nil, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s'", c.componentName, c.componentID, name)
+		return nil, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s'", c.componentName, c.componentID, unit)
 	}
+	defer rows.Close()
 
-	var d time.Duration
-	{
-		var err error
-		d, err = time.ParseDuration(hcDuration)
+	var reports = []StoredReport{}
+	for rows.Next() {
+		var (
+			cName, cID, hcUnit, hcName, hcDuration, hcStatus, hcError string
+			lastUpdated, validUntil                                   time.Time
+		)
+
+		var err = rows.Scan(&cName, &cID, &hcUnit, &hcName, &hcDuration, &hcStatus, &hcError, &lastUpdated, &validUntil)
 		if err != nil {
-			return nil, errors.Wrapf(err, "component '%s' with id '%s' could not parse duration '%s'", c.componentName, c.componentID, hcDuration)
+			return nil, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s'", c.componentName, c.componentID, unit)
 		}
+
+		var d time.Duration
+		{
+			var err error
+			d, err = time.ParseDuration(hcDuration)
+			if err != nil {
+				return nil, errors.Wrapf(err, "component '%s' with id '%s' could not parse duration '%s'", c.componentName, c.componentID, hcDuration)
+			}
+		}
+
+		reports = append(reports, StoredReport{
+			Name:          hcName,
+			Duration:      d,
+			Status:        status(hcStatus),
+			Error:         hcError,
+			LastExecution: lastUpdated.UTC(),
+			ValidUntil:    validUntil.UTC(),
+		})
 	}
 
-	return &table{
-		componentName: cName,
-		componentID:   cID,
-		jobName:       jName,
-		jobID:         jID,
-		enabled:       enabled,
-		status:        status,
-		lockTime:      lockTime.UTC(),
-	}, nil
+	return reports, nil
 }
 
-func (c *CockroachModule) Register(unitName, checkName string) error {
-	var _, err = c.db.Exec(insertHealthStmt, c.componentName, c.componentID, unitName, checkName, time.Duration(0).String(), "", "", time.Time{})
+// Clean deletes the old test reports that are no longer valid from the health DB table.
+func (c *CockroachModule) Clean() error {
+	var _, err = c.db.Exec(cleanHealthStmt, c.componentName, time.Now().UTC())
 
 	if err != nil {
-		return errors.Wrapf(err, "component '%s' with id '%s' could not register health check '%s'", c.componentName, c.componentID, unitName, checkName)
+		return errors.Wrapf(err, "component '%s' with id '%s' could not clean health checks", c.componentName, c.componentID)
 	}
 
 	return nil
