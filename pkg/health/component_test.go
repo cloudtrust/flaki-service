@@ -20,8 +20,14 @@ func TestHealthChecks(t *testing.T) {
 	var mockRedisModule = mock.NewRedisHealthChecker(mockCtrl)
 	var mockSentryModule = mock.NewSentryHealthChecker(mockCtrl)
 	var mockStorage = mock.NewStorageModule(mockCtrl)
+	var m = map[string]time.Duration{
+		"influx": 1 * time.Minute,
+		"jaeger": 1 * time.Minute,
+		"redis":  1 * time.Minute,
+		"sentry": 1 * time.Minute,
+	}
 
-	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule, mockStorage)
+	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule, mockStorage, m)
 
 	var (
 		influxReports    = []InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: OK}}
@@ -36,7 +42,6 @@ func TestHealthChecks(t *testing.T) {
 	// Influx.
 	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return(influxReports).Times(1)
 	mockStorage.EXPECT().Update("influx", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecInfluxHealthChecks(context.Background())[0]
 		assert.Equal(t, "influx", report.Name)
@@ -48,7 +53,6 @@ func TestHealthChecks(t *testing.T) {
 	// Jaeger.
 	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return(jaegerReports).Times(1)
 	mockStorage.EXPECT().Update("jaeger", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecJaegerHealthChecks(context.Background())[0]
 		assert.Equal(t, "jaeger", report.Name)
@@ -60,7 +64,6 @@ func TestHealthChecks(t *testing.T) {
 	// Redis.
 	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return(redisReports).Times(1)
 	mockStorage.EXPECT().Update("redis", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecRedisHealthChecks(context.Background())[0]
 		assert.Equal(t, "redis", report.Name)
@@ -72,7 +75,6 @@ func TestHealthChecks(t *testing.T) {
 	// Sentry.
 	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return(sentryReports).Times(1)
 	mockStorage.EXPECT().Update("sentry", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecSentryHealthChecks(context.Background())[0]
 		assert.Equal(t, "sentry", report.Name)
@@ -103,8 +105,14 @@ func TestHealthChecksFail(t *testing.T) {
 	var mockRedisModule = mock.NewRedisHealthChecker(mockCtrl)
 	var mockSentryModule = mock.NewSentryHealthChecker(mockCtrl)
 	var mockStorage = mock.NewStorageModule(mockCtrl)
+	var m = map[string]time.Duration{
+		"influx": 1 * time.Minute,
+		"jaeger": 1 * time.Minute,
+		"redis":  1 * time.Minute,
+		"sentry": 1 * time.Minute,
+	}
 
-	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule, mockStorage)
+	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule, mockStorage, m)
 
 	var (
 		influxReports    = []InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: Deactivated}}
@@ -119,7 +127,6 @@ func TestHealthChecksFail(t *testing.T) {
 	// Influx.
 	mockInfluxModule.EXPECT().HealthChecks(context.Background()).Return(influxReports).Times(1)
 	mockStorage.EXPECT().Update("influx", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecInfluxHealthChecks(context.Background())[0]
 		assert.Equal(t, "influx", report.Name)
@@ -131,7 +138,6 @@ func TestHealthChecksFail(t *testing.T) {
 	// Jaeger.
 	mockJaegerModule.EXPECT().HealthChecks(context.Background()).Return(jaegerReports).Times(1)
 	mockStorage.EXPECT().Update("jaeger", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecJaegerHealthChecks(context.Background())[0]
 		assert.Equal(t, "jaeger", report.Name)
@@ -143,7 +149,6 @@ func TestHealthChecksFail(t *testing.T) {
 	// Redis.
 	mockRedisModule.EXPECT().HealthChecks(context.Background()).Return(redisReports).Times(1)
 	mockStorage.EXPECT().Update("redis", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecRedisHealthChecks(context.Background())[0]
 		assert.Equal(t, "redis", report.Name)
@@ -155,7 +160,6 @@ func TestHealthChecksFail(t *testing.T) {
 	// Sentry.
 	mockSentryModule.EXPECT().HealthChecks(context.Background()).Return(sentryReports).Times(1)
 	mockStorage.EXPECT().Update("sentry", gomock.Any()).Times(1)
-	mockStorage.EXPECT().Clean().Times(1)
 	{
 		var report = c.ExecSentryHealthChecks(context.Background())[0]
 		assert.Equal(t, "sentry", report.Name)

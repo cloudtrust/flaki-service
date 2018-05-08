@@ -174,18 +174,6 @@ func (m *StorageModule) EXPECT() *StorageModuleMockRecorder {
 	return m.recorder
 }
 
-// Clean mocks base method
-func (m *StorageModule) Clean() error {
-	ret := m.ctrl.Call(m, "Clean")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Clean indicates an expected call of Clean
-func (mr *StorageModuleMockRecorder) Clean() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clean", reflect.TypeOf((*StorageModule)(nil).Clean))
-}
-
 // Read mocks base method
 func (m *StorageModule) Read(arg0 string) ([]health.StoredReport, error) {
 	ret := m.ctrl.Call(m, "Read", arg0)
