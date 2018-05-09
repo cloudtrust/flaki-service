@@ -33,6 +33,12 @@
   version = "2018.01.18"
 
 [[projects]]
+  branch = "initial"
+  name = "github.com/cloudtrust/common-healthcheck"
+  packages = ["."]
+  revision = "1cd174fa1aa46ef52d0dff03d556ec3f9ec50846"
+
+[[projects]]
   branch = "master"
   name = "github.com/cloudtrust/flaki"
   packages = ["."]
@@ -430,6 +436,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "724205970a9f329994fe295c4719104adb03fcb1e66110adeaba101257552e47"
+  inputs-digest = "7f42498d0d1fc15509449c88e49613cc6732145fa9387284a9ab108c98e24e90"
   solver-name = "gps-cdcl"
   solver-version = 1

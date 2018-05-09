@@ -1,6 +1,5 @@
 package health
 
-//go:generate mockgen -destination=./mock/logging.go -package=mock -mock_names=Logger=Logger github.com/go-kit/kit/log Logger
 
 import (
 	"context"
@@ -8,6 +7,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	common "github.com/cloudtrust/common-healthcheck"
 )
 
 // MakeEndpointLoggingMW makes a logging middleware.
@@ -137,7 +137,7 @@ func MakeInfluxModuleLoggingMW(logger log.Logger) func(InfluxHealthChecker) Infl
 }
 
 // influxModuleLoggingMW implements Module.
-func (m *influxModuleLoggingMW) HealthChecks(ctx context.Context) []InfluxReport {
+func (m *influxModuleLoggingMW) HealthChecks(ctx context.Context) []common.InfluxReport {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
@@ -162,7 +162,7 @@ func MakeJaegerModuleLoggingMW(logger log.Logger) func(JaegerHealthChecker) Jaeg
 }
 
 // jaegerModuleLoggingMW implements Module.
-func (m *jaegerModuleLoggingMW) HealthChecks(ctx context.Context) []JaegerReport {
+func (m *jaegerModuleLoggingMW) HealthChecks(ctx context.Context) []common.JaegerReport {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
@@ -187,7 +187,7 @@ func MakeRedisModuleLoggingMW(logger log.Logger) func(RedisHealthChecker) RedisH
 }
 
 // redisModuleLoggingMW implements Module.
-func (m *redisModuleLoggingMW) HealthChecks(ctx context.Context) []RedisReport {
+func (m *redisModuleLoggingMW) HealthChecks(ctx context.Context) []common.RedisReport {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
@@ -212,7 +212,7 @@ func MakeSentryModuleLoggingMW(logger log.Logger) func(SentryHealthChecker) Sent
 }
 
 // sentryModuleLoggingMW implements Module.
-func (m *sentryModuleLoggingMW) HealthChecks(ctx context.Context) []SentryReport {
+func (m *sentryModuleLoggingMW) HealthChecks(ctx context.Context) []common.SentryReport {
 	defer func(begin time.Time) {
 		m.logger.Log("unit", "HealthChecks", "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())

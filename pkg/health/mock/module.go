@@ -6,6 +6,7 @@ package mock
 
 import (
 	context "context"
+	common_healthcheck "github.com/cloudtrust/common-healthcheck"
 	health "github.com/cloudtrust/flaki-service/pkg/health"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -34,10 +35,10 @@ func (m *InfluxHealthChecker) EXPECT() *InfluxHealthCheckerMockRecorder {
 	return m.recorder
 }
 
-// HealthChecks mocks base method
-func (m *InfluxHealthChecker) HealthChecks(arg0 context.Context) []health.InfluxReport {
+// HealthChecks mocks base method 
+func (m *InfluxHealthChecker) HealthChecks(arg0 context.Context) []common_healthcheck.InfluxReport {
 	ret := m.ctrl.Call(m, "HealthChecks", arg0)
-	ret0, _ := ret[0].([]health.InfluxReport)
+	ret0, _ := ret[0].([]common_healthcheck.InfluxReport)
 	return ret0
 }
 
@@ -70,9 +71,9 @@ func (m *JaegerHealthChecker) EXPECT() *JaegerHealthCheckerMockRecorder {
 }
 
 // HealthChecks mocks base method
-func (m *JaegerHealthChecker) HealthChecks(arg0 context.Context) []health.JaegerReport {
+func (m *JaegerHealthChecker) HealthChecks(arg0 context.Context) []common_healthcheck.JaegerReport {
 	ret := m.ctrl.Call(m, "HealthChecks", arg0)
-	ret0, _ := ret[0].([]health.JaegerReport)
+	ret0, _ := ret[0].([]common_healthcheck.JaegerReport)
 	return ret0
 }
 
@@ -105,9 +106,9 @@ func (m *RedisHealthChecker) EXPECT() *RedisHealthCheckerMockRecorder {
 }
 
 // HealthChecks mocks base method
-func (m *RedisHealthChecker) HealthChecks(arg0 context.Context) []health.RedisReport {
+func (m *RedisHealthChecker) HealthChecks(arg0 context.Context) []common_healthcheck.RedisReport {
 	ret := m.ctrl.Call(m, "HealthChecks", arg0)
-	ret0, _ := ret[0].([]health.RedisReport)
+	ret0, _ := ret[0].([]common_healthcheck.RedisReport)
 	return ret0
 }
 
@@ -140,9 +141,9 @@ func (m *SentryHealthChecker) EXPECT() *SentryHealthCheckerMockRecorder {
 }
 
 // HealthChecks mocks base method
-func (m *SentryHealthChecker) HealthChecks(arg0 context.Context) []health.SentryReport {
+func (m *SentryHealthChecker) HealthChecks(arg0 context.Context) []common_healthcheck.SentryReport {
 	ret := m.ctrl.Call(m, "HealthChecks", arg0)
-	ret0, _ := ret[0].([]health.SentryReport)
+	ret0, _ := ret[0].([]common_healthcheck.SentryReport)
 	return ret0
 }
 

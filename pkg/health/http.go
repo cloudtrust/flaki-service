@@ -16,7 +16,7 @@ func MakeHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 		encodeHealthCheckReply,
 		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
 	)
-}
+} 
 
 // MakeAllHealthChecksHandler makes a HTTP handler for all health checks.
 func MakeAllHealthChecksHandler(e endpoint.Endpoint) *http_transport.Server {

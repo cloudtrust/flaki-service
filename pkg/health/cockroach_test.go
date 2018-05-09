@@ -1,5 +1,8 @@
 package health_test
 
+//go:generate mockgen -destination=./mock/cockroach.go -package=mock -mock_names=Cockroach=Cockroach  github.com/cloudtrust/flaki-service/pkg/health Cockroach
+
+
 import (
 	"fmt"
 	"math/rand"

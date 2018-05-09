@@ -1,5 +1,7 @@
 package health_test
 
+//go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=HealthChecker=HealthChecker github.com/cloudtrust/flaki-service/pkg/health HealthChecker
+
 import (
 	"context"
 	"testing"

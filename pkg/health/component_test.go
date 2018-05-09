@@ -1,5 +1,8 @@
 package health_test
 
+//go:generate mockgen -destination=./mock/module.go -package=mock -mock_names=InfluxHealthChecker=InfluxHealthChecker,JaegerHealthChecker=JaegerHealthChecker,RedisHealthChecker=RedisHealthChecker,SentryHealthChecker=SentryHealthChecker,StorageModule=StorageModule  github.com/cloudtrust/flaki-service/pkg/health InfluxHealthChecker,JaegerHealthChecker,RedisHealthChecker,SentryHealthChecker,StorageModule
+
+
 import (
 	"context"
 	"fmt"
@@ -10,6 +13,7 @@ import (
 	"github.com/cloudtrust/flaki-service/pkg/health/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	common "github.com/cloudtrust/common-healthcheck"
 )
 
 func TestHealthChecks(t *testing.T) {
@@ -29,11 +33,11 @@ func TestHealthChecks(t *testing.T) {
 
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule, mockStorage, m)
 
-	var (
-		influxReports    = []InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: OK}}
-		jaegerReports    = []JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second), Status: OK}}
-		redisReports     = []RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second), Status: OK}}
-		sentryReports    = []SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second), Status: OK}}
+	var ( 
+		influxReports    = []common.InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: common.OK}}
+		jaegerReports    = []common.JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second), Status: common.OK}}
+		redisReports     = []common.RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second), Status: common.OK}}
+		sentryReports    = []common.SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second), Status: common.OK}}
 		makeStoredReport = func(name string, s Status) []StoredReport {
 			return []StoredReport{{Name: name, Duration: 1 * time.Second, Status: s, Error: "", LastExecution: time.Now(), ValidUntil: time.Now().Add(1 * time.Hour)}}
 		}
@@ -115,10 +119,10 @@ func TestHealthChecksFail(t *testing.T) {
 	var c = NewComponent(mockInfluxModule, mockJaegerModule, mockRedisModule, mockSentryModule, mockStorage, m)
 
 	var (
-		influxReports    = []InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: Deactivated}}
-		jaegerReports    = []JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second), Status: KO, Error: fmt.Errorf("fail")}}
-		redisReports     = []RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second), Status: Degraded, Error: fmt.Errorf("fail")}}
-		sentryReports    = []SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second), Status: KO, Error: fmt.Errorf("fail")}}
+		influxReports    = []common.InfluxReport{{Name: "influx", Duration: time.Duration(1 * time.Second), Status: common.Deactivated}}
+		jaegerReports    = []common.JaegerReport{{Name: "jaeger", Duration: time.Duration(1 * time.Second), Status: common.KO, Error: fmt.Errorf("fail")}}
+		redisReports     = []common.RedisReport{{Name: "redis", Duration: time.Duration(1 * time.Second), Status: common.Degraded, Error: fmt.Errorf("fail")}}
+		sentryReports    = []common.SentryReport{{Name: "sentry", Duration: time.Duration(1 * time.Second), Status: common.KO, Error: fmt.Errorf("fail")}}
 		makeStoredReport = func(name string, s Status) []StoredReport {
 			return []StoredReport{{Name: name, Duration: 1 * time.Second, Status: s, Error: "fail", LastExecution: time.Now(), ValidUntil: time.Now().Add(1 * time.Hour)}}
 		}

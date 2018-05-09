@@ -1,11 +1,12 @@
 package health
 
-//go:generate mockgen -destination=./mock/module.go -package=mock -mock_names=InfluxHealthChecker=InfluxHealthChecker,JaegerHealthChecker=JaegerHealthChecker,RedisHealthChecker=RedisHealthChecker,SentryHealthChecker=SentryHealthChecker,StorageModule=StorageModule  github.com/cloudtrust/flaki-service/pkg/health InfluxHealthChecker,JaegerHealthChecker,RedisHealthChecker,SentryHealthChecker,StorageModule
 
 import (
 	"context"
 	"fmt"
 	"time"
+
+	common "github.com/cloudtrust/common-healthcheck"
 )
 
 // Status is the status of the health check.
@@ -52,22 +53,22 @@ func (s Status) String() string {
 
 // InfluxHealthChecker is the interface of the influx health check module.
 type InfluxHealthChecker interface {
-	HealthChecks(context.Context) []InfluxReport
+	HealthChecks(context.Context) []common.InfluxReport 
 }
 
 // JaegerHealthChecker is the interface of the jaeger health check module.
 type JaegerHealthChecker interface {
-	HealthChecks(context.Context) []JaegerReport
+	HealthChecks(context.Context) []common.JaegerReport
 }
 
 // RedisHealthChecker is the interface of the redis health check module.
 type RedisHealthChecker interface {
-	HealthChecks(context.Context) []RedisReport
+	HealthChecks(context.Context) []common.RedisReport
 }
 
 // SentryHealthChecker is the interface of the sentry health check module.
 type SentryHealthChecker interface {
-	HealthChecks(context.Context) []SentryReport
+	HealthChecks(context.Context) []common.SentryReport
 }
 
 // StorageModule is the interface of the module that stores the health reports
@@ -124,7 +125,7 @@ func (c *Component) ExecInfluxHealthChecks(ctx context.Context) []Report {
 		dbReport = append(dbReport, StoredReport{
 			Name:          r.Name,
 			Duration:      r.Duration,
-			Status:        r.Status,
+			Status:        status(r.Status.String()), 
 			Error:         err(r.Error),
 			LastExecution: now,
 			ValidUntil:    now.Add(c.healthCheckValidity[influxUnitName]),
@@ -157,7 +158,7 @@ func (c *Component) ExecJaegerHealthChecks(ctx context.Context) []Report {
 		dbReport = append(dbReport, StoredReport{
 			Name:          r.Name,
 			Duration:      r.Duration,
-			Status:        r.Status,
+			Status:        status(r.Status.String()),
 			Error:         err(r.Error),
 			LastExecution: now,
 			ValidUntil:    now.Add(c.healthCheckValidity[jaegerUnitName]),
@@ -190,7 +191,7 @@ func (c *Component) ExecRedisHealthChecks(ctx context.Context) []Report {
 		dbReport = append(dbReport, StoredReport{
 			Name:          r.Name,
 			Duration:      r.Duration,
-			Status:        r.Status,
+			Status:        status(r.Status.String()),
 			Error:         err(r.Error),
 			LastExecution: now,
 			ValidUntil:    now.Add(c.healthCheckValidity[redisUnitName]),
@@ -223,7 +224,7 @@ func (c *Component) ExecSentryHealthChecks(ctx context.Context) []Report {
 		dbReport = append(dbReport, StoredReport{
 			Name:          r.Name,
 			Duration:      r.Duration,
-			Status:        r.Status,
+			Status:        status(r.Status.String()),
 			Error:         err(r.Error),
 			LastExecution: now,
 			ValidUntil:    now.Add(c.healthCheckValidity[sentryUnitName]),
