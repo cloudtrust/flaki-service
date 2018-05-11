@@ -6,7 +6,7 @@ package mock
 
 import (
 	context "context"
-	health "github.com/cloudtrust/flaki-service/pkg/health"
+	json "encoding/json"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -47,9 +47,9 @@ func (mr *HealthCheckerMockRecorder) AllHealthChecks(arg0 interface{}) *gomock.C
 }
 
 // ExecInfluxHealthChecks mocks base method
-func (m *HealthChecker) ExecInfluxHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ExecInfluxHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ExecInfluxHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 
@@ -59,9 +59,9 @@ func (mr *HealthCheckerMockRecorder) ExecInfluxHealthChecks(arg0 interface{}) *g
 }
 
 // ExecJaegerHealthChecks mocks base method
-func (m *HealthChecker) ExecJaegerHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ExecJaegerHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ExecJaegerHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 
@@ -71,9 +71,9 @@ func (mr *HealthCheckerMockRecorder) ExecJaegerHealthChecks(arg0 interface{}) *g
 }
 
 // ExecRedisHealthChecks mocks base method
-func (m *HealthChecker) ExecRedisHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ExecRedisHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ExecRedisHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 
@@ -83,9 +83,9 @@ func (mr *HealthCheckerMockRecorder) ExecRedisHealthChecks(arg0 interface{}) *go
 }
 
 // ExecSentryHealthChecks mocks base method
-func (m *HealthChecker) ExecSentryHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ExecSentryHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ExecSentryHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 
@@ -95,9 +95,9 @@ func (mr *HealthCheckerMockRecorder) ExecSentryHealthChecks(arg0 interface{}) *g
 }
 
 // ReadInfluxHealthChecks mocks base method
-func (m *HealthChecker) ReadInfluxHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ReadInfluxHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ReadInfluxHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 
@@ -107,9 +107,9 @@ func (mr *HealthCheckerMockRecorder) ReadInfluxHealthChecks(arg0 interface{}) *g
 }
 
 // ReadJaegerHealthChecks mocks base method
-func (m *HealthChecker) ReadJaegerHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ReadJaegerHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ReadJaegerHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 
@@ -119,9 +119,9 @@ func (mr *HealthCheckerMockRecorder) ReadJaegerHealthChecks(arg0 interface{}) *g
 }
 
 // ReadRedisHealthChecks mocks base method
-func (m *HealthChecker) ReadRedisHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ReadRedisHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ReadRedisHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 
@@ -131,9 +131,9 @@ func (mr *HealthCheckerMockRecorder) ReadRedisHealthChecks(arg0 interface{}) *go
 }
 
 // ReadSentryHealthChecks mocks base method
-func (m *HealthChecker) ReadSentryHealthChecks(arg0 context.Context) []health.Report {
+func (m *HealthChecker) ReadSentryHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "ReadSentryHealthChecks", arg0)
-	ret0, _ := ret[0].([]health.Report)
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 

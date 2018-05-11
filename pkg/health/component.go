@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"encoding/json"
 
 	common "github.com/cloudtrust/common-healthcheck"
 )
@@ -74,8 +75,8 @@ type SentryHealthChecker interface {
 // StorageModule is the interface of the module that stores the health reports
 // in the DB.
 type StorageModule interface {
-	Read(name string) ([]StoredReport, error)
-	Update(unit string, reports []StoredReport) error
+	Read(name string) (StoredReport, error)
+	Update(unit string, validity time.Duration, reports []byte) error
 }
 
 // Component is the Health component.
@@ -100,143 +101,60 @@ func NewComponent(influx InfluxHealthChecker, jaeger JaegerHealthChecker, redis 
 	}
 }
 
-// Report contains the result of one health test.
-type Report struct {
-	Name     string
-	Duration string
-	Status   string
-	Error    string
-}
-
 // ExecInfluxHealthChecks executes the health checks for Influx.
-func (c *Component) ExecInfluxHealthChecks(ctx context.Context) []Report {
+func (c *Component) ExecInfluxHealthChecks(ctx context.Context) json.RawMessage {
 	var reports = c.influx.HealthChecks(ctx)
+	var jsonReports, _ = json.Marshal(reports)
 
-	var now = time.Now()
-	var out = []Report{}
-	var dbReport = []StoredReport{}
-	for _, r := range reports {
-		out = append(out, Report{
-			Name:     r.Name,
-			Duration: r.Duration.String(),
-			Status:   r.Status.String(),
-			Error:    err(r.Error),
-		})
-		dbReport = append(dbReport, StoredReport{
-			Name:          r.Name,
-			Duration:      r.Duration,
-			Status:        status(r.Status.String()), 
-			Error:         err(r.Error),
-			LastExecution: now,
-			ValidUntil:    now.Add(c.healthCheckValidity[influxUnitName]),
-		})
-	}
-
-	c.storage.Update(influxUnitName, dbReport)
-	return out
+	c.storage.Update(influxUnitName, c.healthCheckValidity[influxUnitName], jsonReports)
+	return json.RawMessage(jsonReports)
 }
 
 // ReadInfluxHealthChecks read the health checks status in DB.
-func (c *Component) ReadInfluxHealthChecks(ctx context.Context) []Report {
+func (c *Component) ReadInfluxHealthChecks(ctx context.Context) json.RawMessage {
 	return c.readFromDB(influxUnitName)
 }
 
 // ExecJaegerHealthChecks executes the health checks for Jaeger.
-func (c *Component) ExecJaegerHealthChecks(ctx context.Context) []Report {
+func (c *Component) ExecJaegerHealthChecks(ctx context.Context) json.RawMessage {
 	var reports = c.jaeger.HealthChecks(ctx)
+	var jsonReports, _ = json.Marshal(reports)
 
-	var now = time.Now()
-	var out = []Report{}
-	var dbReport = []StoredReport{}
-	for _, r := range reports {
-		out = append(out, Report{
-			Name:     r.Name,
-			Duration: r.Duration.String(),
-			Status:   r.Status.String(),
-			Error:    err(r.Error),
-		})
-		dbReport = append(dbReport, StoredReport{
-			Name:          r.Name,
-			Duration:      r.Duration,
-			Status:        status(r.Status.String()),
-			Error:         err(r.Error),
-			LastExecution: now,
-			ValidUntil:    now.Add(c.healthCheckValidity[jaegerUnitName]),
-		})
-	}
-
-	c.storage.Update(jaegerUnitName, dbReport)
-	return out
+	c.storage.Update(jaegerUnitName, c.healthCheckValidity[jaegerUnitName], jsonReports)
+	return json.RawMessage(jsonReports)
 }
 
 // ReadJaegerHealthChecks read the health checks status in DB.
-func (c *Component) ReadJaegerHealthChecks(ctx context.Context) []Report {
+func (c *Component) ReadJaegerHealthChecks(ctx context.Context) json.RawMessage {
 	return c.readFromDB(jaegerUnitName)
 }
 
 // ExecRedisHealthChecks executes the health checks for Redis.
-func (c *Component) ExecRedisHealthChecks(ctx context.Context) []Report {
+func (c *Component) ExecRedisHealthChecks(ctx context.Context) json.RawMessage {
 	var reports = c.redis.HealthChecks(ctx)
+	var jsonReports, _ = json.Marshal(reports)
 
-	var now = time.Now()
-	var out = []Report{}
-	var dbReport = []StoredReport{}
-	for _, r := range reports {
-		out = append(out, Report{
-			Name:     r.Name,
-			Duration: r.Duration.String(),
-			Status:   r.Status.String(),
-			Error:    err(r.Error),
-		})
-		dbReport = append(dbReport, StoredReport{
-			Name:          r.Name,
-			Duration:      r.Duration,
-			Status:        status(r.Status.String()),
-			Error:         err(r.Error),
-			LastExecution: now,
-			ValidUntil:    now.Add(c.healthCheckValidity[redisUnitName]),
-		})
-	}
+	c.storage.Update(redisUnitName, c.healthCheckValidity[redisUnitName], jsonReports)
+	return json.RawMessage(jsonReports)
 
-	c.storage.Update(redisUnitName, dbReport)
-	return out
 }
 
 // ReadRedisHealthChecks read the health checks status in DB.
-func (c *Component) ReadRedisHealthChecks(ctx context.Context) []Report {
+func (c *Component) ReadRedisHealthChecks(ctx context.Context) json.RawMessage {
 	return c.readFromDB(redisUnitName)
 }
 
 // ExecSentryHealthChecks executes the health checks for Sentry.
-func (c *Component) ExecSentryHealthChecks(ctx context.Context) []Report {
+func (c *Component) ExecSentryHealthChecks(ctx context.Context) json.RawMessage {
 	var reports = c.sentry.HealthChecks(ctx)
+	var jsonReports, _ = json.Marshal(reports)
 
-	var now = time.Now()
-	var out = []Report{}
-	var dbReport = []StoredReport{}
-	for _, r := range reports {
-		out = append(out, Report{
-			Name:     r.Name,
-			Duration: r.Duration.String(),
-			Status:   r.Status.String(),
-			Error:    err(r.Error),
-		})
-		dbReport = append(dbReport, StoredReport{
-			Name:          r.Name,
-			Duration:      r.Duration,
-			Status:        status(r.Status.String()),
-			Error:         err(r.Error),
-			LastExecution: now,
-			ValidUntil:    now.Add(c.healthCheckValidity[sentryUnitName]),
-		})
-	}
-
-	c.storage.Update(sentryUnitName, dbReport)
-	return out
+	c.storage.Update(sentryUnitName, c.healthCheckValidity[sentryUnitName], jsonReports)
+	return json.RawMessage(jsonReports)
 }
 
 // ReadSentryHealthChecks read the health checks status in DB.
-func (c *Component) ReadSentryHealthChecks(ctx context.Context) []Report {
+func (c *Component) ReadSentryHealthChecks(ctx context.Context) json.RawMessage {
 	return c.readFromDB(sentryUnitName)
 }
 
@@ -261,62 +179,35 @@ func err(err error) string {
 }
 
 // determineStatus parse all the tests reports and output a global status.
-func determineStatus(reports []Report) string {
-	var degraded = false
-	for _, r := range reports {
-		switch r.Status {
-		case Deactivated.String():
-			// If the status is Deactivated, we do not need to go through all tests reports, all
-			// status will be the same.
-			return Deactivated.String()
-		case KO.String():
-			return KO.String()
-		case Degraded.String():
-			degraded = true
-		}
-	}
-	if degraded {
-		return Degraded.String()
-	}
+func determineStatus(reports json.RawMessage) string {
+	//TODO
 	return OK.String()
 }
 
-func (c *Component) readFromDB(unit string) []Report {
-	var reports, err = c.storage.Read(unit)
+func (c *Component) readFromDB(unit string) json.RawMessage {
+	var storedReport, err = c.storage.Read(unit)
 
-	switch {
-	case err != nil:
-		return []Report{{
-			Name:   unit,
-			Status: Unknown.String(),
-			Error:  fmt.Sprintf("could not read reports from DB: %v", err),
-		}}
-	case len(reports) == 0:
-		return []Report{{
-			Name:   unit,
-			Status: Unknown.String(),
-			Error:  fmt.Sprintf("no reports stored in DB"),
-		}}
+	if err != nil {
+		var error = fmt.Sprintf("could not read reports from DB: %v", err)
+		var jsonReport = fmt.Sprintf(`{"Name":"%s", "Status":"Unknown", "Error": "%s"}`, unit, error)
+		return json.RawMessage(jsonReport)
 	}
 
-	var out = []Report{}
-	for _, r := range reports {
-		// If the health check was executed too long ago, the health check report
-		// is considered not pertinant and an error is returned.
-		if time.Now().After(r.ValidUntil) {
-			out = append(out, Report{
-				Name:  r.Name,
-				Error: fmt.Sprintf("the health check results are stale because the test was not executed in the last %s", c.healthCheckValidity[r.Name]),
-			})
-		} else {
-			out = append(out, Report{
-				Name:     r.Name,
-				Duration: r.Duration.String(),
-				Status:   r.Status.String(),
-				Error:    r.Error,
-			})
-		}
+	if storedReport.ComponentID == "" {
+		var error = fmt.Sprintf("no reports stored in DB")
+		var jsonReport = fmt.Sprintf(`{"Name":"%s", "Status":"Unknown", "Error": "%s"}`, unit, error)
+		return json.RawMessage(jsonReport)
 	}
 
-	return out
+
+	// If the health check was executed too long ago, the health check report
+	// is considered not pertinant and an error is returned.
+	if time.Now().After(storedReport.ValidUntil) {
+		var error = fmt.Sprintf("the health check results are stale because the test was not executed in the last %s", c.healthCheckValidity[storedReport.HealthcheckUnit])
+		var jsonReport = fmt.Sprintf(`{"Name":"%s", "Error": "%s"}`, unit, error)
+		return json.RawMessage(jsonReport)
+	} else {
+		return storedReport.Reports
+	}
+	
 }

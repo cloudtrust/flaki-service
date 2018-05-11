@@ -10,6 +10,7 @@ import (
 	health "github.com/cloudtrust/flaki-service/pkg/health"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
+	time "time"
 )
 
 // InfluxHealthChecker is a mock of InfluxHealthChecker interface
@@ -35,7 +36,7 @@ func (m *InfluxHealthChecker) EXPECT() *InfluxHealthCheckerMockRecorder {
 	return m.recorder
 }
 
-// HealthChecks mocks base method 
+// HealthChecks mocks base method
 func (m *InfluxHealthChecker) HealthChecks(arg0 context.Context) []common_healthcheck.InfluxReport {
 	ret := m.ctrl.Call(m, "HealthChecks", arg0)
 	ret0, _ := ret[0].([]common_healthcheck.InfluxReport)
@@ -176,9 +177,9 @@ func (m *StorageModule) EXPECT() *StorageModuleMockRecorder {
 }
 
 // Read mocks base method
-func (m *StorageModule) Read(arg0 string) ([]health.StoredReport, error) {
+func (m *StorageModule) Read(arg0 string) (health.StoredReport, error) {
 	ret := m.ctrl.Call(m, "Read", arg0)
-	ret0, _ := ret[0].([]health.StoredReport)
+	ret0, _ := ret[0].(health.StoredReport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -189,13 +190,13 @@ func (mr *StorageModuleMockRecorder) Read(arg0 interface{}) *gomock.Call {
 }
 
 // Update mocks base method
-func (m *StorageModule) Update(arg0 string, arg1 []health.StoredReport) error {
-	ret := m.ctrl.Call(m, "Update", arg0, arg1)
+func (m *StorageModule) Update(arg0 string, arg1 time.Duration, arg2 []byte) error {
+	ret := m.ctrl.Call(m, "Update", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update
-func (mr *StorageModuleMockRecorder) Update(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*StorageModule)(nil).Update), arg0, arg1)
+func (mr *StorageModuleMockRecorder) Update(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*StorageModule)(nil).Update), arg0, arg1, arg2)
 }

@@ -49,12 +49,7 @@ type healthCheck struct {
 func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	var reply = reply{}
-	for _, r := range rep.([]Report) {
-		reply.Reports = append(reply.Reports, healthCheck(r))
-	}
-
-	var data, err = json.MarshalIndent(reply, "", "  ")
+	var data, err = json.MarshalIndent(&rep, "", "  ")
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
