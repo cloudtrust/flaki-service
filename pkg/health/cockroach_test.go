@@ -2,7 +2,6 @@ package health_test
 
 //go:generate mockgen -destination=./mock/cockroach.go -package=mock -mock_names=Cockroach=Cockroach  github.com/cloudtrust/flaki-service/pkg/health Cockroach
 
-
 import (
 	"encoding/json"
 	"fmt"
@@ -53,7 +52,7 @@ func TestNewCockroachModule(t *testing.T) {
 	mockCockroach.EXPECT().Exec(createHealthTblStmt).Return(nil, nil).Times(1)
 	_ = NewCockroachModule(componentName, componentID, mockCockroach)
 }
- 
+
 func TestUpdate(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -81,7 +80,7 @@ func TestUpdateFail(t *testing.T) {
 	var mockCockroach = mock.NewCockroach(mockCtrl)
 	rand.Seed(time.Now().UnixNano())
 
-	var ( 
+	var (
 		componentName = "flaki-service"
 		componentID   = strconv.FormatUint(rand.Uint64(), 10)
 		unit          = "influx"

@@ -19,3 +19,11 @@
 # [[override]]
 #  name = "github.com/x/y"
 #  version = "2.4.0"
+
+[[constraint]]
+  name = "github.com/cloudtrust/go-jobs"
+  branch = "initial"
+
+  [[constraint]]
+  name = "github.com/cloudtrust/common-healthcheck"
+  branch = "initial"

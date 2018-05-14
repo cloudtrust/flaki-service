@@ -3,8 +3,9 @@ package job
 import (
 	"context"
 	"time"
+	"encoding/json"
 
-	"github.com/cloudtrust/flaki-service/pkg/health"
+	common "github.com/cloudtrust/common-healthcheck"
 	"github.com/cloudtrust/go-jobs/job"
 	"github.com/go-kit/kit/log"
 )
@@ -12,7 +13,7 @@ import (
 // Cockroach is the interface of the module that stores the health reports
 // in the DB.
 type Cockroach interface {
-	Update(unit string, reports []health.StoredReport) error
+	Update(unit string, validity time.Duration, jsonReports json.RawMessage) error
 	Clean() error
 }
 
@@ -23,22 +24,22 @@ type Flaki interface {
 
 // InfluxHealthChecker is the interface of the influx health check module.
 type InfluxHealthChecker interface {
-	HealthChecks(context.Context) []health.InfluxReport
+	HealthChecks(context.Context) []common.InfluxReport
 }
 
 // JaegerHealthChecker is the interface of the jaeger health check module.
 type JaegerHealthChecker interface {
-	HealthChecks(context.Context) []health.JaegerReport
+	HealthChecks(context.Context) []common.JaegerReport
 }
 
 // RedisHealthChecker is the interface of the redis health check module.
 type RedisHealthChecker interface {
-	HealthChecks(context.Context) []health.RedisReport
+	HealthChecks(context.Context) []common.RedisReport
 }
 
 // SentryHealthChecker is the interface of the sentry health check module.
 type SentryHealthChecker interface {
-	HealthChecks(context.Context) []health.SentryReport
+	HealthChecks(context.Context) []common.SentryReport
 }
 
 // MakeInfluxJob creates the job that periodically exectutes the health checks and save the result in DB.
@@ -46,20 +47,11 @@ func MakeInfluxJob(influx InfluxHealthChecker, healthCheckValidity time.Duration
 	var step1 = func(ctx context.Context, r interface{}) (interface{}, error) {
 		return influx.HealthChecks(ctx), nil
 	}
+
 	var step2 = func(_ context.Context, r interface{}) (interface{}, error) {
-		var reports = []health.StoredReport{}
-		var now = time.Now()
-		for _, r := range r.([]health.InfluxReport) {
-			reports = append(reports, health.StoredReport{
-				Name:          r.Name,
-				Duration:      r.Duration,
-				Status:        r.Status,
-				Error:         err(r.Error),
-				LastExecution: now,
-				ValidUntil:    now.Add(healthCheckValidity),
-			})
-		}
-		var err = cockroach.Update("influx", reports)
+		var jsonReports, _ = json.Marshal(r)
+	
+		var err = cockroach.Update("influx", healthCheckValidity, jsonReports)
 		return nil, err
 	}
 	return job.NewJob("influx", job.Steps(step1, step2))
@@ -71,19 +63,9 @@ func MakeJaegerJob(jaeger JaegerHealthChecker, healthCheckValidity time.Duration
 		return jaeger.HealthChecks(ctx), nil
 	}
 	var step2 = func(_ context.Context, r interface{}) (interface{}, error) {
-		var reports = []health.StoredReport{}
-		var now = time.Now()
-		for _, r := range r.([]health.JaegerReport) {
-			reports = append(reports, health.StoredReport{
-				Name:          r.Name,
-				Duration:      r.Duration,
-				Status:        r.Status,
-				Error:         err(r.Error),
-				LastExecution: now,
-				ValidUntil:    now.Add(healthCheckValidity),
-			})
-		}
-		var err = cockroach.Update("jaeger", reports)
+		var jsonReports, _ = json.Marshal(r)
+	
+		var err = cockroach.Update("jaeger", healthCheckValidity, jsonReports)
 		return nil, err
 	}
 	return job.NewJob("jaeger", job.Steps(step1, step2))
@@ -95,19 +77,9 @@ func MakeRedisJob(redis RedisHealthChecker, healthCheckValidity time.Duration, c
 		return redis.HealthChecks(ctx), nil
 	}
 	var step2 = func(_ context.Context, r interface{}) (interface{}, error) {
-		var reports = []health.StoredReport{}
-		var now = time.Now()
-		for _, r := range r.([]health.RedisReport) {
-			reports = append(reports, health.StoredReport{
-				Name:          r.Name,
-				Duration:      r.Duration,
-				Status:        r.Status,
-				Error:         err(r.Error),
-				LastExecution: now,
-				ValidUntil:    now.Add(healthCheckValidity),
-			})
-		}
-		var err = cockroach.Update("redis", reports)
+		var jsonReports, _ = json.Marshal(r)
+	
+		var err = cockroach.Update("redis", healthCheckValidity, jsonReports)
 		return nil, err
 	}
 	return job.NewJob("redis", job.Steps(step1, step2))
@@ -119,19 +91,9 @@ func MakeSentryJob(sentry SentryHealthChecker, healthCheckValidity time.Duration
 		return sentry.HealthChecks(ctx), nil
 	}
 	var step2 = func(_ context.Context, r interface{}) (interface{}, error) {
-		var reports = []health.StoredReport{}
-		var now = time.Now()
-		for _, r := range r.([]health.SentryReport) {
-			reports = append(reports, health.StoredReport{
-				Name:          r.Name,
-				Duration:      r.Duration,
-				Status:        r.Status,
-				Error:         err(r.Error),
-				LastExecution: now,
-				ValidUntil:    now.Add(healthCheckValidity),
-			})
-		}
-		var err = cockroach.Update("sentry", reports)
+		var jsonReports, _ = json.Marshal(r)
+	
+		var err = cockroach.Update("sentry", healthCheckValidity, jsonReports)
 		return nil, err
 	}
 	return job.NewJob("sentry", job.Steps(step1, step2))

@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	common "github.com/cloudtrust/common-healthcheck"
 	flaki_gen "github.com/cloudtrust/flaki"
 	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/cloudtrust/flaki-service/internal/flakid"
@@ -347,23 +348,23 @@ func main() {
 
 	var influxHM health.InfluxHealthChecker
 	{
-		influxHM = health.NewInfluxModule(influxMetrics, influxEnabled)
-		influxHM = health.MakeInfluxModuleLoggingMW(log.With(healthLogger, "mw", "module"))(influxHM)
+		influxHM = common.NewInfluxModule(influxMetrics, influxEnabled)
+		influxHM = common.MakeInfluxModuleLoggingMW(log.With(healthLogger, "mw", "module"))(influxHM)
 	}
 	var jaegerHM health.JaegerHealthChecker
 	{
-		jaegerHM = health.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
-		jaegerHM = health.MakeJaegerModuleLoggingMW(log.With(healthLogger, "mw", "module"))(jaegerHM)
+		jaegerHM = common.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
+		jaegerHM = common.MakeJaegerModuleLoggingMW(log.With(healthLogger, "mw", "module"))(jaegerHM)
 	}
 	var redisHM health.RedisHealthChecker
 	{
-		redisHM = health.NewRedisModule(redisClient, redisEnabled)
-		redisHM = health.MakeRedisModuleLoggingMW(log.With(healthLogger, "mw", "module"))(redisHM)
+		redisHM = common.NewRedisModule(redisClient, redisEnabled)
+		redisHM = common.MakeRedisModuleLoggingMW(log.With(healthLogger, "mw", "module"))(redisHM)
 	}
 	var sentryHM health.SentryHealthChecker
 	{
-		sentryHM = health.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
-		sentryHM = health.MakeSentryModuleLoggingMW(log.With(healthLogger, "mw", "module"))(sentryHM)
+		sentryHM = common.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
+		sentryHM = common.MakeSentryModuleLoggingMW(log.With(healthLogger, "mw", "module"))(sentryHM)
 	}
 	var healthComponent health.HealthChecker
 	{
@@ -571,7 +572,7 @@ func main() {
 		// Health checks.
 		var healthSubroute = route.PathPrefix("/health").Subrouter()
 
-		var allHealthChecksHandler = health.MakeAllHealthChecksHandler(healthEndpoints.AllHealthChecks)
+		var allHealthChecksHandler = health.MakeHealthCheckHandler(healthEndpoints.AllHealthChecks)
 		healthSubroute.Handle("", allHealthChecksHandler)
 
 		healthSubroute.Handle("/influx", health.MakeHealthCheckHandler(healthEndpoints.InfluxReadHealthCheck)).Methods("GET")

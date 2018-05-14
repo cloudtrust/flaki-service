@@ -75,7 +75,7 @@ type SentryHealthChecker interface {
 // in the DB.
 type StorageModule interface {
 	Read(name string) (StoredReport, error)
-	Update(unit string, validity time.Duration, reports []byte) error
+	Update(unit string, validity time.Duration, reports json.RawMessage) error
 }
 
 // Component is the Health component.

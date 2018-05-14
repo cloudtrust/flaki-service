@@ -4,6 +4,7 @@ package health_test
 
 import (
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -18,7 +19,7 @@ import (
 
 var (
 	hostPort = flag.String("hostport", "127.0.0.1:26257", "cockroach host:port")
-	user     = flag.String("user", "health", "user name")
+	user     = flag.String("user", "cockroach", "user name")
 	db       = flag.String("db", "health", "database name")
 )
 
@@ -50,8 +51,7 @@ func TestIntRead(t *testing.T) {
 		componentName = "flaki-service"
 		componentID   = strconv.FormatUint(rand.Uint64(), 10)
 		unit          = "influx"
-		now           = time.Now().UTC().Round(time.Millisecond)
-		reports       = []StoredReport{{Name: "ping", Duration: 1 * time.Second, Status: OK, Error: "", LastExecution: now, ValidUntil: now.Add(1 * time.Hour)}}
+		reports       = json.RawMessage(`[{"name":"ping", "duration":"1s", "status":"OK", "error":"Error"}]`)
 	)
 
 	var m = NewCockroachModule(componentName, componentID, db)
@@ -59,16 +59,23 @@ func TestIntRead(t *testing.T) {
 	// Read health checks report for 'influx', it should be empty now.
 	var r, err = m.Read(unit)
 	assert.Nil(t, err)
-	assert.Zero(t, len(r))
+	fmt.Println(string(r.Reports))
+	assert.Zero(t, len(r.Reports))
 
 	// Save a health check report in DB.
-	err = m.Update(unit, reports)
+	err = m.Update(unit, 10 * time.Second, reports)
 	assert.Nil(t, err)
 
 	// Read health checks report for 'influx', now there is one result.
 	r, err = m.Read(unit)
 	assert.Nil(t, err)
-	assert.Equal(t, reports, r)
+
+	var aaa []map[string]string
+	json.Unmarshal(r.Reports, &aaa)
+	assert.Equal(t, "ping", aaa[0]["name"])
+	assert.Equal(t, "1s", aaa[0]["duration"])
+	assert.Equal(t, "OK", aaa[0]["status"])
+	assert.Equal(t, "Error", aaa[0]["error"])
 }
 
 func setupCleanDB(t *testing.T) *sql.DB {

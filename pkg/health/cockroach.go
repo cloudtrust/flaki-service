@@ -66,7 +66,7 @@ func NewCockroachModule(componentName, componentID string, db Cockroach) *Cockro
 // Update updates the health checks reports stored in DB with the values 'jsonReports'.
 func (c *CockroachModule) Update(unit string, validity time.Duration, jsonReports json.RawMessage) error {
 	var now = time.Now()
-	var _, err = c.db.Exec(upsertHealthStmt, c.componentName, c.componentID, unit, jsonReports, now.UTC(), now.Add(validity).UTC())
+	var _, err = c.db.Exec(upsertHealthStmt, c.componentName, c.componentID, unit, string(jsonReports), now.UTC(), now.Add(validity).UTC())
 
 	if err != nil {
 		return errors.Wrapf(err, "component '%s' with id '%s' could not update health check for unit '%s'", c.componentName, c.componentID, unit)
