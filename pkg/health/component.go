@@ -1,11 +1,10 @@
 package health
 
-
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
-	"encoding/json"
 
 	common "github.com/cloudtrust/common-healthcheck"
 )
@@ -54,7 +53,7 @@ func (s Status) String() string {
 
 // InfluxHealthChecker is the interface of the influx health check module.
 type InfluxHealthChecker interface {
-	HealthChecks(context.Context) []common.InfluxReport 
+	HealthChecks(context.Context) []common.InfluxReport
 }
 
 // JaegerHealthChecker is the interface of the jaeger health check module.
@@ -159,29 +158,16 @@ func (c *Component) ReadSentryHealthChecks(ctx context.Context) json.RawMessage 
 }
 
 // AllHealthChecks call all component checks and build a general health report.
-func (c *Component) AllHealthChecks(ctx context.Context) map[string]string {
-	var reports = map[string]string{}
+func (c *Component) AllHealthChecks(ctx context.Context) json.RawMessage {
+	var reports = map[string]json.RawMessage{}
 
-	reports[influxUnitName] = determineStatus(c.ReadInfluxHealthChecks(ctx))
-	reports[jaegerUnitName] = determineStatus(c.ReadJaegerHealthChecks(ctx))
-	reports[redisUnitName] = determineStatus(c.ReadRedisHealthChecks(ctx))
-	reports[sentryUnitName] = determineStatus(c.ReadSentryHealthChecks(ctx))
+	reports[influxUnitName] = c.ReadInfluxHealthChecks(ctx)
+	reports[jaegerUnitName] = c.ReadJaegerHealthChecks(ctx)
+	reports[redisUnitName] = c.ReadRedisHealthChecks(ctx)
+	reports[sentryUnitName] = c.ReadSentryHealthChecks(ctx)
 
-	return reports
-}
-
-// err return the string error that will be in the health report
-func err(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
-}
-
-// determineStatus parse all the tests reports and output a global status.
-func determineStatus(reports json.RawMessage) string {
-	//TODO
-	return OK.String()
+	var jsonReports, _ = json.Marshal(reports)
+	return json.RawMessage(jsonReports)
 }
 
 func (c *Component) readFromDB(unit string) json.RawMessage {
@@ -199,15 +185,14 @@ func (c *Component) readFromDB(unit string) json.RawMessage {
 		return json.RawMessage(jsonReport)
 	}
 
-
 	// If the health check was executed too long ago, the health check report
 	// is considered not pertinant and an error is returned.
 	if time.Now().After(storedReport.ValidUntil) {
 		var error = fmt.Sprintf("the health check results are stale because the test was not executed in the last %s", c.healthCheckValidity[storedReport.HealthcheckUnit])
 		var jsonReport = fmt.Sprintf(`{"Name":"%s", "Error": "%s"}`, unit, error)
 		return json.RawMessage(jsonReport)
-	} else {
-		return storedReport.Reports
 	}
-	
+
+	return storedReport.Reports
+
 }

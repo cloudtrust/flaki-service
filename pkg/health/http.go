@@ -18,15 +18,6 @@ func MakeHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 	)
 } 
 
-// MakeAllHealthChecksHandler makes a HTTP handler for all health checks.
-func MakeAllHealthChecksHandler(e endpoint.Endpoint) *http_transport.Server {
-	return http_transport.NewServer(e,
-		decodeHealthCheckRequest,
-		encodeAllHealthChecksReply,
-		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
-	)
-}
-
 // decodeHealthCheckRequest decodes the health check request.
 func decodeHealthCheckRequest(_ context.Context, r *http.Request) (rep interface{}, err error) {
 	return nil, nil
@@ -50,22 +41,6 @@ func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interf
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	var data, err = json.MarshalIndent(&rep, "", "  ")
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
-		w.WriteHeader(http.StatusOK)
-		w.Write(data)
-	}
-
-	return nil
-}
-
-// encodeAllHealthChecksReply encodes the health checks reply.
-func encodeAllHealthChecksReply(_ context.Context, w http.ResponseWriter, rep interface{}) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-	var data, err = json.MarshalIndent(rep.(map[string]string), "", "  ")
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

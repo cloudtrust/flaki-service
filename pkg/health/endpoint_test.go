@@ -3,8 +3,8 @@ package health_test
 //go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=HealthChecker=HealthChecker github.com/cloudtrust/flaki-service/pkg/health HealthChecker
 
 import (
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"testing"
 
 	. "github.com/cloudtrust/flaki-service/pkg/health"
@@ -127,6 +127,24 @@ func TestSentryHealthCheckEndpoint(t *testing.T) {
 		assert.Nil(t, err)
 		var json, _ = json.Marshal(&reports)
 		assert.Equal(t, `{"Name":"Test","Status":"OK"}`, string(json))
+	}
+
+}
+
+func TestAllHealthCheckEndpoint(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewHealthChecker(mockCtrl)
+
+	var e = MakeAllHealthChecksEndpoint(mockComponent)
+
+	{
+		var j = json.RawMessage(`{"Redis":[{"Name":"Test","Status":"OK"}]}`)
+		mockComponent.EXPECT().AllHealthChecks(context.Background()).Return(j).Times(1)
+		var reports, err = e(context.Background(), nil)
+		assert.Nil(t, err)
+		var json, _ = json.Marshal(&reports)
+		assert.Equal(t, `{"Redis":[{"Name":"Test","Status":"OK"}]}`, string(json))
 	}
 
 }

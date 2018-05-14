@@ -30,7 +30,7 @@ type HealthChecker interface {
 	ReadRedisHealthChecks(context.Context) json.RawMessage
 	ExecSentryHealthChecks(context.Context) json.RawMessage
 	ReadSentryHealthChecks(context.Context) json.RawMessage
-	AllHealthChecks(context.Context) map[string]string
+	AllHealthChecks(context.Context) json.RawMessage
 }
 
 // MakeExecInfluxHealthCheckEndpoint makes the InfluxHealthCheck endpoint
