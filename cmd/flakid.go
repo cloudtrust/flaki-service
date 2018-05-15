@@ -341,9 +341,9 @@ func main() {
 	// Health service.
 	var healthLogger = log.With(logger, "svc", "health")
 
-	var cockroachModule *health.CockroachModule
+	var cockroachModule *health.StorageModule
 	{
-		cockroachModule = health.NewCockroachModule(ComponentName, ComponentID, cHealthDB)
+		cockroachModule = health.NewStorageModule(ComponentName, ComponentID, cHealthDB)
 	}
 
 	var influxHM health.InfluxHealthChecker

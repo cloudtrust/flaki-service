@@ -37,7 +37,7 @@ func (m *HealthChecker) EXPECT() *HealthCheckerMockRecorder {
 // AllHealthChecks mocks base method
 func (m *HealthChecker) AllHealthChecks(arg0 context.Context) json.RawMessage {
 	ret := m.ctrl.Call(m, "AllHealthChecks", arg0)
-	ret0, _ := ret[0].(json.RawMessage) 
+	ret0, _ := ret[0].(json.RawMessage)
 	return ret0
 }
 

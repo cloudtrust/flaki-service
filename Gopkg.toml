@@ -24,6 +24,6 @@
   name = "github.com/cloudtrust/go-jobs"
   branch = "initial"
 
-  [[constraint]]
+[[constraint]]
   name = "github.com/cloudtrust/common-healthcheck"
   branch = "initial"

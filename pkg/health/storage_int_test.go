@@ -23,7 +23,7 @@ var (
 	db       = flag.String("db", "health", "database name")
 )
 
-func TestIntNewCockroachModule(t *testing.T) {
+func TestIntNewStorageModule(t *testing.T) {
 	var db = setupCleanDB(t)
 	rand.Seed(time.Now().UnixNano())
 
@@ -36,9 +36,9 @@ func TestIntNewCockroachModule(t *testing.T) {
 	_, err := db.Exec("SELECT * from health")
 	assert.NotNil(t, err)
 
-	var _ = NewCockroachModule(componentName, componentID, db)
+	var _ = NewStorageModule(componentName, componentID, db)
 
-	// NewCockroachModule create table health.
+	// NewStorageModule create table health.
 	_, err = db.Exec("SELECT * from health")
 	assert.Nil(t, err)
 }
@@ -54,7 +54,7 @@ func TestIntRead(t *testing.T) {
 		reports       = json.RawMessage(`[{"name":"ping", "duration":"1s", "status":"OK", "error":"Error"}]`)
 	)
 
-	var m = NewCockroachModule(componentName, componentID, db)
+	var m = NewStorageModule(componentName, componentID, db)
 
 	// Read health checks report for 'influx', it should be empty now.
 	var r, err = m.Read(unit)
