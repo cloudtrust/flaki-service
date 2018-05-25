@@ -32,6 +32,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	gokit_influx "github.com/go-kit/kit/metrics/influx"
+	"github.com/go-kit/kit/ratelimit"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/gorilla/mux"
@@ -41,6 +42,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	jaeger "github.com/uber/jaeger-client-go/config"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 )
 
@@ -145,6 +147,19 @@ func main() {
 			redisKey:  c.GetDuration("job-redis-health-validity"),
 			sentryKey: c.GetDuration("job-sentry-health-validity"),
 		}
+
+		// Rate limiting
+		rateNextID           = c.GetInt("rate-next-id")
+		rateNextValidID      = c.GetInt("rate-next-valid-id")
+		rateHealthInfluxExec = c.GetInt("rate-influx-health-exec")
+		rateHealthInfluxRead = c.GetInt("rate-influx-health-read")
+		rateHealthJaegerExec = c.GetInt("rate-jaeger-health-exec")
+		rateHealthJaegerRead = c.GetInt("rate-jaeger-health-read")
+		rateHealthRedisExec  = c.GetInt("rate-redis-health-exec")
+		rateHealthRedisRead  = c.GetInt("rate-redis-health-read")
+		rateHealthSentryExec = c.GetInt("rate-sentry-health-exec")
+		rateHealthSentryRead = c.GetInt("rate-sentry-health-read")
+		rateHealthAll        = c.GetInt("rate-all-health")
 	)
 
 	// Redis.
@@ -333,6 +348,10 @@ func main() {
 		nextValidIDEndpoint = flaki.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint")(nextValidIDEndpoint)
 	}
 
+	// Rate limiting
+	nextIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateNextID))(nextIDEndpoint)
+	nextValidIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateNextValidID))(nextValidIDEndpoint)
+
 	var flakiEndpoints = flaki.Endpoints{
 		NextIDEndpoint:      nextIDEndpoint,
 		NextValidIDEndpoint: nextValidIDEndpoint,
@@ -426,6 +445,17 @@ func main() {
 		allHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "AllHealthCheck"))(allHealthEndpoint)
 		allHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(allHealthEndpoint)
 	}
+
+	// Rate limiting
+	influxExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthInfluxExec))(influxExecHealthEndpoint)
+	influxReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthInfluxRead))(influxReadHealthEndpoint)
+	jaegerExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthJaegerExec))(jaegerExecHealthEndpoint)
+	jaegerReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthJaegerRead))(jaegerReadHealthEndpoint)
+	redisExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthRedisExec))(redisExecHealthEndpoint)
+	redisReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthRedisRead))(redisReadHealthEndpoint)
+	sentryExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthSentryExec))(sentryExecHealthEndpoint)
+	sentryReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthSentryRead))(sentryReadHealthEndpoint)
+	allHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthAll))(allHealthEndpoint)
 
 	var healthEndpoints = health.Endpoints{
 		InfluxExecHealthCheck: influxExecHealthEndpoint,
@@ -722,6 +752,19 @@ func config(logger log.Logger) *viper.Viper {
 	v.SetDefault("job-jaeger-health-validity", "1m")
 	v.SetDefault("job-redis-health-validity", "1m")
 	v.SetDefault("job-sentry-health-validity", "1m")
+
+	// Rate limiting
+	v.SetDefault("rate-next-id", 1000)
+	v.SetDefault("rate-next-valid-id", 1000)
+	v.SetDefault("rate-influx-health-exec", 1000)
+	v.SetDefault("rate-influx-health-read", 1000)
+	v.SetDefault("rate-jaeger-health-exec", 1000)
+	v.SetDefault("rate-jaeger-health-read", 1000)
+	v.SetDefault("rate-redis-health-exec", 1000)
+	v.SetDefault("rate-redis-health-read", 1000)
+	v.SetDefault("rate-sentry-health-exec", 1000)
+	v.SetDefault("rate-sentry-health-read", 1000)
+	v.SetDefault("rate-all-health", 1000)
 
 	// First level of override.
 	pflag.String("config-file", v.GetString("config-file"), "The configuration file path can be relative or absolute.")
