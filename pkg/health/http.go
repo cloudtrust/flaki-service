@@ -16,7 +16,7 @@ func MakeHealthCheckHandler(e endpoint.Endpoint) *http_transport.Server {
 		encodeHealthCheckReply,
 		http_transport.ServerErrorEncoder(healthCheckErrorHandler),
 	)
-} 
+}
 
 // decodeHealthCheckRequest decodes the health check request.
 func decodeHealthCheckRequest(_ context.Context, r *http.Request) (rep interface{}, err error) {
@@ -56,8 +56,14 @@ func encodeHealthCheckReply(_ context.Context, w http.ResponseWriter, rep interf
 func healthCheckErrorHandler(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
+	switch err.Error() {
+	case "rate limit exceeded":
+		w.WriteHeader(http.StatusTooManyRequests)
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
 	// Write error.
 	var reply, _ = json.MarshalIndent(map[string]string{"error": err.Error()}, "", "  ")
-	w.WriteHeader(http.StatusInternalServerError)
 	w.Write(reply)
 }

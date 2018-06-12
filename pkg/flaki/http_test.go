@@ -14,9 +14,12 @@ import (
 
 	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/cloudtrust/flaki-service/pkg/flaki/mock"
+
+	"github.com/go-kit/kit/ratelimit"
 	"github.com/golang/mock/gomock"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/time/rate"
 )
 
 func TestHTTPNextIDHandler(t *testing.T) {
@@ -141,4 +144,44 @@ func TestFetchHTTPCorrelationID(t *testing.T) {
 
 	mockComponent.EXPECT().NextID(ctx, req).Return(reply, nil).Times(1)
 	nextIDHandler.ServeHTTP(w, httpReq)
+}
+
+func TestTooManyRequests(t *testing.T) {
+	var mockCtrl = gomock.NewController(t)
+	defer mockCtrl.Finish()
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
+
+	var rateLimit = 1
+
+	var e = MakeNextIDEndpoint(mockComponent)
+	e = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit))(e)
+	var h = MakeHTTPNextIDHandler(e)
+
+	// Flatbuffer request.
+	var b = flatbuffers.NewBuilder(0)
+	fb.FlakiRequestStart(b)
+	b.Finish(fb.FlakiRequestEnd(b))
+
+	rand.Seed(time.Now().UnixNano())
+	var flakiID = strconv.FormatUint(rand.Uint64(), 10)
+	var reply = createFlakiReply(flakiID)
+	var req = createFlakiRequest()
+
+	mockComponent.EXPECT().NextID(context.Background(), req).Return(reply, nil).Times(rateLimit)
+
+	// Make too many requests, to trigger the rate limitation.
+	var w *httptest.ResponseRecorder
+	for i := 0; i < rateLimit+1; i++ {
+		w = httptest.NewRecorder()
+		var httpReq = httptest.NewRequest("POST", "http://cloudtrust.io/nextid", bytes.NewReader(b.FinishedBytes()))
+		h.ServeHTTP(w, httpReq)
+	}
+
+	// Check the error returned by the rate limiter. The package ratelimit return the error
+	// ErrLimited = errors.New("rate limit exceeded") when the rate is limited. In our http
+	// package, we return a 429 status code when such an error arises.
+	var resp = w.Result()
+	var _, err = ioutil.ReadAll(resp.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 }

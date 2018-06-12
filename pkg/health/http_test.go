@@ -12,8 +12,10 @@ import (
 
 	. "github.com/cloudtrust/flaki-service/pkg/health"
 	"github.com/cloudtrust/flaki-service/pkg/health/mock"
+	"github.com/go-kit/kit/ratelimit"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/time/rate"
 )
 
 func TestInfluxHealthCheckHandler(t *testing.T) {
@@ -263,4 +265,33 @@ func TestHTTPErrorHandler(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "fail", m["error"])
 	}
+}
+
+func TestTooManyRequests(t *testing.T) {
+	var e = func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		return nil, nil
+	}
+
+	var rateLimit = 1
+
+	e = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit))(e)
+	var h = MakeHealthCheckHandler(e)
+
+	// HTTP request.
+	var req = httptest.NewRequest("GET", "http://cloudtrust.io/health/sentry", nil)
+
+	// Make too many requests, to trigger the rate limitation.
+	var w *httptest.ResponseRecorder
+	for i := 0; i < rateLimit+1; i++ {
+		w = httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+	}
+
+	// Check the error returned by the rate limiter. The package ratelimit return the error
+	// ErrLimited = errors.New("rate limit exceeded") when the rate is limited. In our http
+	// package, we return a 429 status code when such an error arises.
+	var resp = w.Result()
+	var _, err = ioutil.ReadAll(resp.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 }

@@ -73,6 +73,13 @@ func encodeHTTPReply(_ context.Context, w http.ResponseWriter, rep interface{}) 
 // httpErrorHandler encodes the flatbuffer flaki reply when there is an error.
 func httpErrorHandler(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.WriteHeader(http.StatusInternalServerError)
+
+	switch err.Error() {
+	case "rate limit exceeded":
+		w.WriteHeader(http.StatusTooManyRequests)
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
 	w.Write([]byte(err.Error()))
 }
