@@ -23,8 +23,8 @@
 [[projects]]
   name = "github.com/Workiva/go-datastructures"
   packages = ["queue"]
-  revision = "01f52d4880ca171ab1033bb0ee03cda8e0a31cc3"
-  version = "v1.0.46"
+  revision = "511e37352fb4690049a9fadebb243cb46e06c069"
+  version = "v1.0.47"
 
 [[projects]]
   name = "github.com/certifi/gocertifi"
@@ -36,7 +36,7 @@
   branch = "initial"
   name = "github.com/cloudtrust/common-healthcheck"
   packages = ["."]
-  revision = "d4b44155b8d9fa904f3817bca3345441502d9818"
+  revision = "94df4624e31cf0c33f9344049f3bbb19b684116b"
 
 [[projects]]
   branch = "master"
@@ -94,19 +94,10 @@
   version = "v1.4.7"
 
 [[projects]]
-  name = "github.com/garyburd/redigo"
-  packages = [
-    "internal",
-    "redis"
-  ]
-  revision = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
-  version = "v1.6.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
-  revision = "263040ce1a362270b5897a5982572ddc1fe807be"
+  revision = "ed7bcb39ff10f39ab08e317ce16df282845852fa"
 
 [[projects]]
   name = "github.com/go-kit/kit"
@@ -117,6 +108,7 @@
     "metrics/generic",
     "metrics/influx",
     "metrics/internal/lv",
+    "ratelimit",
     "transport/grpc",
     "transport/http"
   ]
@@ -170,6 +162,15 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/gomodule/redigo"
+  packages = [
+    "internal",
+    "redis"
+  ]
+  revision = "9c11da706d9b7902c6da69c592f75637793fe121"
+  version = "v2.0.0"
+
+[[projects]]
   name = "github.com/google/flatbuffers"
   packages = ["go"]
   revision = "20a400e940634108bad812f571582eeffc728eac"
@@ -178,8 +179,8 @@
 [[projects]]
   name = "github.com/gorilla/context"
   packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
+  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/gorilla/mux"
@@ -211,8 +212,8 @@
     "models",
     "pkg/escape"
   ]
-  revision = "02d7d4f043b34ecb4e9b2dbec298c6f9450c2a32"
-  version = "v1.5.2"
+  revision = "89e084a80fb1e0bf5e7d38038e3367f821fdf3d7"
+  version = "v1.5.3"
 
 [[projects]]
   branch = "master"
@@ -227,13 +228,13 @@
     ".",
     "oid"
   ]
-  revision = "d34b9ff171c21ad295489235aec8b6626023cd04"
+  revision = "90697d60dd844d5ef6ff15135d0203f65d2f53b8"
 
 [[projects]]
   name = "github.com/magiconair/properties"
   packages = ["."]
-  revision = "c3beff4c2358b44d0493c7dda585e7db7ff28ae6"
-  version = "v1.7.6"
+  revision = "c2353362d570a7bfa228149c62842019201cfb71"
+  version = "v1.8.0"
 
 [[projects]]
   branch = "master"
@@ -260,8 +261,8 @@
 [[projects]]
   name = "github.com/pelletier/go-toml"
   packages = ["."]
-  revision = "acdc4509485b587f5e675510c4f2c63e90ff68a8"
-  version = "v1.1.0"
+  revision = "c01d1270ff3e442a8a57cddc1c92dc1138598194"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -281,8 +282,8 @@
     ".",
     "mem"
   ]
-  revision = "63644898a8da0bc22138abf860edaf5277b6102e"
-  version = "v1.1.0"
+  revision = "787d034dfe70e44075ccc060d346146ef53270ad"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/spf13/cast"
@@ -311,8 +312,8 @@
 [[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
-  version = "v1.2.1"
+  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
+  version = "v1.2.2"
 
 [[projects]]
   name = "github.com/uber/jaeger-client-go"
@@ -346,8 +347,8 @@
 [[projects]]
   name = "github.com/victorcoder/dkron"
   packages = ["cron"]
-  revision = "c1cf8fff41321ca422add70bf1783c309b669cbc"
-  version = "v0.9.8"
+  revision = "d2eb5174f85bdfe6b33094343651e8d4a6ea5f8b"
+  version = "v0.10.2"
 
 [[projects]]
   branch = "master"
@@ -361,13 +362,13 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "2491c5de3490fced2f6cff376127c667efeed857"
+  revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "d0faeb539838e250bd0a9db4182d48d4a1915181"
+  revision = "bff228c7b664c5fce602223a05fb708fd8654986"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -392,9 +393,15 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
+
+[[projects]]
+  branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "86e600f69ee4704c6efbf6a2a40a5c10700e76c2"
+  revision = "32ee49c4dd805befd833990acba36cb75042378c"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -424,8 +431,8 @@
     "tap",
     "transport"
   ]
-  revision = "41344da2231b913fa3d983840a57a6b1b7b631a1"
-  version = "v1.12.0"
+  revision = "7a6a684ca69eb4cae85ad0a484f2e531598c047b"
+  version = "v1.12.2"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -436,6 +443,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3062068a7ad8a8a6211188080bb8b9cd6de9c4295d65cc9cca942dbb7c66927c"
+  inputs-digest = "6b3439275275710db89ab5519cdc565e9164f3bd35ae53aa4cc934c41b3fecb8"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -18,6 +18,7 @@ import (
 	flaki_gen "github.com/cloudtrust/flaki"
 	"github.com/cloudtrust/flaki-service/api/fb"
 	"github.com/cloudtrust/flaki-service/internal/flakid"
+	"github.com/cloudtrust/flaki-service/internal/redis"
 	"github.com/cloudtrust/flaki-service/pkg/flaki"
 	"github.com/cloudtrust/flaki-service/pkg/health"
 	health_job "github.com/cloudtrust/flaki-service/pkg/job"
@@ -26,7 +27,6 @@ import (
 	job_lock "github.com/cloudtrust/go-jobs/lock"
 	job_status "github.com/cloudtrust/go-jobs/status"
 	"github.com/coreos/go-systemd/dbus"
-	"github.com/garyburd/redigo/redis"
 	sentry "github.com/getsentry/raven-go"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -173,7 +173,7 @@ func main() {
 	var redisClient Redis = &flakid.NoopRedis{}
 	if redisEnabled {
 		var err error
-		redisClient, err = redis.Dial("tcp", redisURL, redis.DialDatabase(redisDatabase), redis.DialPassword(redisPassword))
+		redisClient, err = redis.NewResilientConn(redisURL, redisPassword, redisDatabase)
 		if err != nil {
 			logger.Log("msg", "could not create redis client", "error", err)
 			return
@@ -636,7 +636,6 @@ func main() {
 		defer tic.Stop()
 		influxMetrics.WriteLoop(tic.C)
 	}()
-
 	// Redis writing.
 	if redisEnabled {
 		go func() {
