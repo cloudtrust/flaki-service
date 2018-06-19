@@ -23,8 +23,8 @@
 [[projects]]
   name = "github.com/Workiva/go-datastructures"
   packages = ["queue"]
-  revision = "511e37352fb4690049a9fadebb243cb46e06c069"
-  version = "v1.0.47"
+  revision = "f338bf48899950e415caffa02222a7273fbdeaf6"
+  version = "v1.0.48"
 
 [[projects]]
   name = "github.com/certifi/gocertifi"
@@ -33,10 +33,10 @@
   version = "2018.01.18"
 
 [[projects]]
-  branch = "initial"
   name = "github.com/cloudtrust/common-healthcheck"
   packages = ["."]
-  revision = "94df4624e31cf0c33f9344049f3bbb19b684116b"
+  revision = "fac77d6b1c5901e982f25d0e7246a3bafd791e5e"
+  version = "1.0"
 
 [[projects]]
   branch = "master"
@@ -45,7 +45,6 @@
   revision = "0a406845e41525fa5b1469b5b28e838adf8b95b1"
 
 [[projects]]
-  branch = "initial"
   name = "github.com/cloudtrust/go-jobs"
   packages = [
     ".",
@@ -54,7 +53,8 @@
     "lock",
     "status"
   ]
-  revision = "09972d0b71cc2c130e750d4019157891445147f7"
+  revision = "97dcd5290ef1cd6f10d64f9b736042a862a65cc4"
+  version = "1.0"
 
 [[projects]]
   branch = "master"
@@ -368,7 +368,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "bff228c7b664c5fce602223a05fb708fd8654986"
+  revision = "6c888cc515d3ed83fc103cf1d84468aad274b0a7"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -443,6 +443,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6b3439275275710db89ab5519cdc565e9164f3bd35ae53aa4cc934c41b3fecb8"
+  inputs-digest = "675d3a4d53e8054176c575cb97dc4dc47f94ce9ad647d3dc397a535db83a7321"
   solver-name = "gps-cdcl"
   solver-version = 1

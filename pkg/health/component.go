@@ -9,22 +9,6 @@ import (
 	common "github.com/cloudtrust/common-healthcheck"
 )
 
-// Status is the status of the health check.
-type Status int
-
-const (
-	// OK is the status for a successful health check.
-	OK Status = iota
-	// KO is the status for an unsuccessful health check.
-	KO
-	// Degraded is the status for a degraded service, e.g. the service still works, but the metrics DB is KO.
-	Degraded
-	// Deactivated is the status for a service that is deactivated, e.g. we can disable error tracking, instrumenting, tracing,...
-	Deactivated
-	// Unknown is the status set when there is unexpected errors, e.g. parsing status from DB.
-	Unknown
-)
-
 const (
 	// Names of the units in the health check http response and in the DB.
 	influxUnitName = "influx"
@@ -32,24 +16,6 @@ const (
 	redisUnitName  = "redis"
 	sentryUnitName = "sentry"
 )
-
-var statusName = []string{"OK", "KO", "Degraded", "Deactivated", "Unknown"}
-
-func status(s string) Status {
-	for i, n := range statusName {
-		if n == s {
-			return Status(i)
-		}
-	}
-	return Unknown
-}
-
-func (s Status) String() string {
-	if s >= 0 && int(s) <= len(statusName) {
-		return statusName[s]
-	}
-	return Unknown.String()
-}
 
 // InfluxHealthChecker is the interface of the influx health check module.
 type InfluxHealthChecker interface {
@@ -173,26 +139,43 @@ func (c *Component) AllHealthChecks(ctx context.Context) json.RawMessage {
 func (c *Component) readFromDB(unit string) json.RawMessage {
 	var storedReport, err = c.storage.Read(unit)
 
+	type report struct {
+		Name   string `json:"name"`
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+
 	if err != nil {
-		var error = fmt.Sprintf("could not read reports from DB: %v", err)
-		var jsonReport = fmt.Sprintf(`{"Name":"%s", "Status":"Unknown", "Error": "%s"}`, unit, error)
+		var jsonReport, _ = json.Marshal(report{
+			Name:   unit,
+			Status: common.KO.String(),
+			Error:  fmt.Sprintf("could not read reports from DB: %v", err),
+		})
+
 		return json.RawMessage(jsonReport)
 	}
 
 	if storedReport.ComponentID == "" {
-		var error = fmt.Sprintf("no reports stored in DB")
-		var jsonReport = fmt.Sprintf(`{"Name":"%s", "Status":"Unknown", "Error": "%s"}`, unit, error)
+		var jsonReport, _ = json.Marshal(report{
+			Name:   unit,
+			Status: common.KO.String(),
+			Error:  "no reports stored in DB",
+		})
+
 		return json.RawMessage(jsonReport)
 	}
 
 	// If the health check was executed too long ago, the health check report
 	// is considered not pertinant and an error is returned.
 	if time.Now().After(storedReport.ValidUntil) {
-		var error = fmt.Sprintf("the health check results are stale because the test was not executed in the last %s", c.healthCheckValidity[storedReport.HealthcheckUnit])
-		var jsonReport = fmt.Sprintf(`{"Name":"%s", "Error": "%s"}`, unit, error)
+		var jsonReport, _ = json.Marshal(report{
+			Name:   unit,
+			Status: common.KO.String(),
+			Error:  fmt.Sprintf("the health check results are stale because the test was not executed in the last %s", c.healthCheckValidity[storedReport.HealthcheckUnit]),
+		})
+
 		return json.RawMessage(jsonReport)
 	}
 
 	return storedReport.Reports
-
 }

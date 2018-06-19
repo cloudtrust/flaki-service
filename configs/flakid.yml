@@ -16,11 +16,10 @@ redis-database: 0
 redis-write-interval: 1s
 
 # Cockroach configs
-cockroach-host-port: localhost:26257
-cockroach-username: cockroach
-cockroach-password: cockroach
-cockroach-health-database: health
-cockroach-jobs-database: jobs
+cockroach-host-port: 
+cockroach-username: 
+cockroach-password: 
+cockroach-database: 
 cockroach-clean-interval: 1m
 
 # Influx DB configs

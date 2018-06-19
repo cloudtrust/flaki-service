@@ -136,8 +136,7 @@ func main() {
 		cockroachHostPort      = c.GetString("cockroach-host-port")
 		cockroachUsername      = c.GetString("cockroach-username")
 		cockroachPassword      = c.GetString("cockroach-password")
-		cockroachHealthDB      = c.GetString("cockroach-health-database")
-		cockroachJobsDB        = c.GetString("cockroach-jobs-database")
+		cockroachDB            = c.GetString("cockroach-database")
 		cockroachCleanInterval = c.GetDuration("cockroach-clean-interval")
 
 		// Jobs
@@ -149,17 +148,19 @@ func main() {
 		}
 
 		// Rate limiting
-		rateNextID           = c.GetInt("rate-next-id")
-		rateNextValidID      = c.GetInt("rate-next-valid-id")
-		rateHealthInfluxExec = c.GetInt("rate-influx-health-exec")
-		rateHealthInfluxRead = c.GetInt("rate-influx-health-read")
-		rateHealthJaegerExec = c.GetInt("rate-jaeger-health-exec")
-		rateHealthJaegerRead = c.GetInt("rate-jaeger-health-read")
-		rateHealthRedisExec  = c.GetInt("rate-redis-health-exec")
-		rateHealthRedisRead  = c.GetInt("rate-redis-health-read")
-		rateHealthSentryExec = c.GetInt("rate-sentry-health-exec")
-		rateHealthSentryRead = c.GetInt("rate-sentry-health-read")
-		rateHealthAll        = c.GetInt("rate-all-health")
+		rateLimit = map[string]int{
+			"nextID":           c.GetInt("rate-next-id"),
+			"nextValidID":      c.GetInt("rate-next-valid-id"),
+			"influxHealthExec": c.GetInt("rate-influx-health-exec"),
+			"influxHealthRead": c.GetInt("rate-influx-health-read"),
+			"jaegerHealthExec": c.GetInt("rate-jaeger-health-exec"),
+			"jaegerHealthRead": c.GetInt("rate-jaeger-health-read"),
+			"redisHealthExec":  c.GetInt("rate-redis-health-exec"),
+			"redisHealthRead":  c.GetInt("rate-redis-health-read"),
+			"sentryHealthExec": c.GetInt("rate-sentry-health-exec"),
+			"sentryHealthRead": c.GetInt("rate-sentry-health-read"),
+			"allHealth":        c.GetInt("rate-all-health"),
+		}
 	)
 
 	// Redis.
@@ -295,16 +296,10 @@ func main() {
 		QueryRow(query string, args ...interface{}) *sql.Row
 	}
 
-	var cHealthDB Cockroach
-	var cJobsDB Cockroach
+	var cockroachConn Cockroach
 	if cockroachEnabled {
 		var err error
-		cHealthDB, err = sql.Open("postgres", fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable", cockroachUsername, cockroachPassword, cockroachHostPort, cockroachHealthDB))
-		if err != nil {
-			logger.Log("msg", "could not create cockroach DB connection for health DB", "error", err)
-			return
-		}
-		cJobsDB, err = sql.Open("postgres", fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable", cockroachUsername, cockroachPassword, cockroachHostPort, cockroachJobsDB))
+		cockroachConn, err = sql.Open("postgres", fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable", cockroachUsername, cockroachPassword, cockroachHostPort, cockroachDB))
 		if err != nil {
 			logger.Log("msg", "could not create cockroach DB connection for health DB", "error", err)
 			return
@@ -349,8 +344,8 @@ func main() {
 	}
 
 	// Rate limiting
-	nextIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateNextID))(nextIDEndpoint)
-	nextValidIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateNextValidID))(nextValidIDEndpoint)
+	nextIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["nextID"]))(nextIDEndpoint)
+	nextValidIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["nextValidID"]))(nextValidIDEndpoint)
 
 	var flakiEndpoints = flaki.Endpoints{
 		NextIDEndpoint:      nextIDEndpoint,
@@ -362,7 +357,7 @@ func main() {
 
 	var cockroachModule *health.StorageModule
 	{
-		cockroachModule = health.NewStorageModule(ComponentName, ComponentID, cHealthDB)
+		cockroachModule = health.NewStorageModule(ComponentName, ComponentID, cockroachConn)
 	}
 
 	var influxHM health.InfluxHealthChecker
@@ -447,15 +442,15 @@ func main() {
 	}
 
 	// Rate limiting
-	influxExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthInfluxExec))(influxExecHealthEndpoint)
-	influxReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthInfluxRead))(influxReadHealthEndpoint)
-	jaegerExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthJaegerExec))(jaegerExecHealthEndpoint)
-	jaegerReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthJaegerRead))(jaegerReadHealthEndpoint)
-	redisExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthRedisExec))(redisExecHealthEndpoint)
-	redisReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthRedisRead))(redisReadHealthEndpoint)
-	sentryExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthSentryExec))(sentryExecHealthEndpoint)
-	sentryReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthSentryRead))(sentryReadHealthEndpoint)
-	allHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateHealthAll))(allHealthEndpoint)
+	influxExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["influxHealthExec"]))(influxExecHealthEndpoint)
+	influxReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["influxHealthRead"]))(influxReadHealthEndpoint)
+	jaegerExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["jaegerHealthExec"]))(jaegerExecHealthEndpoint)
+	jaegerReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["jaegerHealthRead"]))(jaegerReadHealthEndpoint)
+	redisExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["redisHealthExec"]))(redisExecHealthEndpoint)
+	redisReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["redisHealthRead"]))(redisReadHealthEndpoint)
+	sentryExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["sentryHealthExec"]))(sentryExecHealthEndpoint)
+	sentryReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["sentryHealthRead"]))(sentryReadHealthEndpoint)
+	allHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["allHealth"]))(allHealthEndpoint)
 
 	var healthEndpoints = health.Endpoints{
 		InfluxExecHealthCheck: influxExecHealthEndpoint,
@@ -471,7 +466,7 @@ func main() {
 
 	// Jobs
 	{
-		var ctrl = controller.NewController(ComponentName, ComponentID, &idGenerator{flakiGen}, &job_lock.NoopLocker{}, controller.EnableStatusStorage(job_status.New(cJobsDB)))
+		var ctrl = controller.NewController(ComponentName, ComponentID, &idGenerator{flakiGen}, &job_lock.NoopLocker{}, controller.EnableStatusStorage(job_status.New(cockroachConn)))
 
 		var influxJob *job.Job
 		{
@@ -657,22 +652,20 @@ func (g *idGenerator) NextID() string {
 	return g.flaki.NextValidIDString()
 }
 
-type info struct {
-	Name    string `json:"name"`
-	ID      string `json:"id"`
-	Version string `json:"version"`
-	Env     string `json:"environment"`
-	Commit  string `json:"commit"`
-}
-
 // makeVersion makes a HTTP handler that returns information about the version of the service.
 func makeVersion(componentName, componentID, version, environment, gitCommit string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		var infos = info{
-			Name:    componentName,
-			ID:      componentID,
+		var infos = struct {
+			Name    string `json:"name"`
+			ID      string `json:"id"`
+			Version string `json:"version"`
+			Env     string `json:"environment"`
+			Commit  string `json:"commit"`
+		}{
+			Name:    ComponentName,
+			ID:      ComponentID,
 			Version: version,
 			Env:     environment,
 			Commit:  gitCommit,
@@ -734,7 +727,6 @@ func config(logger log.Logger) *viper.Viper {
 	v.SetDefault("redis-host-port", "")
 	v.SetDefault("redis-password", "")
 	v.SetDefault("redis-database", 0)
-	v.SetDefault("redis-database", 0)
 	v.SetDefault("redis-write-interval", "1s")
 
 	// Cockroach.
@@ -742,8 +734,7 @@ func config(logger log.Logger) *viper.Viper {
 	v.SetDefault("cockroach-host-port", "")
 	v.SetDefault("cockroach-username", "")
 	v.SetDefault("cockroach-password", "")
-	v.SetDefault("cockroach-health-database", "")
-	v.SetDefault("cockroach-jobs-database", "")
+	v.SetDefault("cockroach-database", "")
 	v.SetDefault("cockroach-clean-interval", "24h")
 
 	// Jobs
