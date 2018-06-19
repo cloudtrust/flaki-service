@@ -1,5 +1,7 @@
 package flaki
 
+//go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=IDGeneratorComponent=IDGeneratorComponent github.com/cloudtrust/flaki-service/pkg/flaki IDGeneratorComponent
+
 import (
 	"context"
 	"fmt"
@@ -14,8 +16,14 @@ type Endpoints struct {
 	NextValidIDEndpoint endpoint.Endpoint
 }
 
+// IDGeneratorComponent is the flaki component interface.
+type IDGeneratorComponent interface {
+	NextID(context.Context, *fb.FlakiRequest) (*fb.FlakiReply, error)
+	NextValidID(context.Context, *fb.FlakiRequest) *fb.FlakiReply
+}
+
 // MakeNextIDEndpoint makes the NextIDEndpoint.
-func MakeNextIDEndpoint(c Component) endpoint.Endpoint {
+func MakeNextIDEndpoint(c IDGeneratorComponent) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		switch r := req.(type) {
 		case *fb.FlakiRequest:
@@ -27,7 +35,7 @@ func MakeNextIDEndpoint(c Component) endpoint.Endpoint {
 }
 
 // MakeNextValidIDEndpoint makes the NextValidIDEndpoint.
-func MakeNextValidIDEndpoint(c Component) endpoint.Endpoint {
+func MakeNextValidIDEndpoint(c IDGeneratorComponent) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		switch r := req.(type) {
 		case *fb.FlakiRequest:

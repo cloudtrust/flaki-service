@@ -1,22 +1,20 @@
 package health
 
-//go:generate mockgen -destination=./mock/flakiModule.go -package=mock -mock_names=Module=FlakiModule github.com/cloudtrust/flaki-service/pkg/flaki Module
 
 import (
 	"context"
 
-	"github.com/cloudtrust/flaki-service/pkg/flaki"
 	"github.com/go-kit/kit/endpoint"
 )
 
 // IDGenerator is the interface of the distributed unique IDs generator.
 type IDGenerator interface {
-	NextValidIDString(context.Context) (string, error)
+	NextValidID(context.Context) string
 }
 
 // MakeEndpointCorrelationIDMW makes a middleware that adds a correlation ID
 // in the context if there is not already one.
-func MakeEndpointCorrelationIDMW(g flaki.Module) endpoint.Middleware {
+func MakeEndpointCorrelationIDMW(g IDGenerator) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			var id = ctx.Value("correlation_id")

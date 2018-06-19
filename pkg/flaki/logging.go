@@ -38,12 +38,12 @@ func MakeEndpointLoggingMW(logger log.Logger) endpoint.Middleware {
 // Logging middleware at component level.
 type componentLoggingMW struct {
 	logger log.Logger
-	next   Component
+	next   IDGeneratorComponent
 }
 
 // MakeComponentLoggingMW makes a logging middleware at component level.
-func MakeComponentLoggingMW(logger log.Logger) func(Component) Component {
-	return func(next Component) Component {
+func MakeComponentLoggingMW(logger log.Logger) func(IDGeneratorComponent) IDGeneratorComponent {
+	return func(next IDGeneratorComponent) IDGeneratorComponent {
 		return &componentLoggingMW{
 			logger: logger,
 			next:   next,
@@ -92,12 +92,12 @@ func (m *componentLoggingMW) NextValidID(ctx context.Context, req *fb.FlakiReque
 // Logging middleware at module level.
 type moduleLoggingMW struct {
 	logger log.Logger
-	next   Module
+	next   IDGeneratorModule
 }
 
 // MakeModuleLoggingMW makes a logging middleware at module level.
-func MakeModuleLoggingMW(logger log.Logger) func(Module) Module {
-	return func(next Module) Module {
+func MakeModuleLoggingMW(logger log.Logger) func(IDGeneratorModule) IDGeneratorModule {
+	return func(next IDGeneratorModule) IDGeneratorModule {
 		return &moduleLoggingMW{
 			logger: logger,
 			next:   next,

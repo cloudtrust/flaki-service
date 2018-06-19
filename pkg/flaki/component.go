@@ -1,6 +1,6 @@
 package flaki
 
-//go:generate mockgen -destination=./mock/component.go -package=mock -mock_names=Component=Component github.com/cloudtrust/flaki-service/pkg/flaki Component
+//go:generate mockgen -destination=./mock/module.go -package=mock -mock_names=IDGeneratorModule=IDGeneratorModule github.com/cloudtrust/flaki-service/pkg/flaki IDGeneratorModule
 
 import (
 	"context"
@@ -10,26 +10,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Component is the flaki component interface.
-type Component interface {
-	NextID(context.Context, *fb.FlakiRequest) (*fb.FlakiReply, error)
-	NextValidID(context.Context, *fb.FlakiRequest) *fb.FlakiReply
+// IDGeneratorModule is the interface of the flaki Module.
+type IDGeneratorModule interface {
+	NextID(context.Context) (string, error)
+	NextValidID(context.Context) string
 }
 
 // Component is the flaki component.
-type component struct {
-	module Module
+type Component struct {
+	module IDGeneratorModule
 }
 
 // NewComponent returns a flaki component.
-func NewComponent(module Module) Component {
-	return &component{
+func NewComponent(module IDGeneratorModule) *Component {
+	return &Component{
 		module: module,
 	}
 }
 
 // NextID generates a unique string ID.
-func (c *component) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
+func (c *Component) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.FlakiReply, error) {
 	var id, err = c.module.NextID(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "module could not generate ID")
@@ -39,7 +39,7 @@ func (c *component) NextID(ctx context.Context, req *fb.FlakiRequest) (*fb.Flaki
 }
 
 // NextValidID generates a unique string ID.
-func (c *component) NextValidID(ctx context.Context, req *fb.FlakiRequest) *fb.FlakiReply {
+func (c *Component) NextValidID(ctx context.Context, req *fb.FlakiRequest) *fb.FlakiReply {
 	var id = c.module.NextValidID(ctx)
 	return encodeFlakiReply(id)
 }

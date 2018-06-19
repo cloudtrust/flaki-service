@@ -18,7 +18,7 @@ import (
 func TestNewComponent(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockModule = mock.NewModule(mockCtrl)
+	var mockModule = mock.NewIDGeneratorModule(mockCtrl)
 
 	var c = NewComponent(mockModule)
 

@@ -15,7 +15,7 @@ import (
 func TestComponentTrackingMW(t *testing.T) {
 	var mockCtrl = gomock.NewController(t)
 	defer mockCtrl.Finish()
-	var mockComponent = mock.NewComponent(mockCtrl)
+	var mockComponent = mock.NewIDGeneratorComponent(mockCtrl)
 	var mockSentry = mock.NewSentry(mockCtrl)
 	var mockLogger = mock.NewLogger(mockCtrl)
 
