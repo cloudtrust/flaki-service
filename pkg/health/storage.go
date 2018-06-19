@@ -78,7 +78,10 @@ func (c *StorageModule) Update(unit string, validity time.Duration, jsonReports 
 func (c *StorageModule) Read(unit string) (StoredReport, error) {
 	var rows, err = c.db.Query(selectHealthStmt, c.componentName, c.componentID, unit)
 	if err != nil {
-		return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s'", c.componentName, c.componentID, unit)
+		return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s': %s", c.componentName, c.componentID, unit, err)
+	}
+	if rows == nil {
+		return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s': rows should not be nil", c.componentName, c.componentID, unit)
 	}
 	defer rows.Close()
 

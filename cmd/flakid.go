@@ -296,7 +296,7 @@ func main() {
 		QueryRow(query string, args ...interface{}) *sql.Row
 	}
 
-	var cockroachConn Cockroach
+	var cockroachConn Cockroach = flakid.NoopCockroach{}
 	if cockroachEnabled {
 		var err error
 		cockroachConn, err = sql.Open("postgres", fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable", cockroachUsername, cockroachPassword, cockroachHostPort, cockroachDB))
