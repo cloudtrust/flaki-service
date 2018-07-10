@@ -34,7 +34,7 @@ RUN install -v -m0644 deploy/etc/security/limits.d/* /etc/security/limits.d/ && 
 WORKDIR /cloudtrust
 RUN wget ${flaki_service_release} -O flaki.tar.gz && \
     mkdir flaki && \
-    tar -xzf flaki.tar.gz -C flaki --strip-components 1 && \
+    tar -xf flaki.tar.gz -C flaki --strip-components 1 && \
     install -v -m0755 flaki/flakid /opt/flaki/flakid && \
     rm flaki.tar.gz && \
     rm -rf flaki/
@@ -51,7 +51,7 @@ RUN install -v -o flaki -g flaki -m 644 deploy/etc/systemd/system/flaki.service 
 WORKDIR /cloudtrust
 RUN wget ${jaeger_release} -O jaeger.tar.gz && \
     mkdir jaeger && \
-    tar -xzf jaeger.tar.gz -C jaeger --strip-components 1 && \
+    tar -xf jaeger.tar.gz -C jaeger --strip-components 1 && \
     install -v -m0755 jaeger/agent-linux /opt/agent/agent && \
     rm jaeger.tar.gz && \
     rm -rf jaeger/
