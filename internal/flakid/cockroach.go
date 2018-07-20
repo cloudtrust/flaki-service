@@ -22,6 +22,11 @@ func (NoopCockroach) QueryRow(query string, args ...interface{}) *sql.Row {
 	return nil
 }
 
+// Ping does nothing.
+func (NoopCockroach) Ping() error {
+	return nil
+}
+
 // NoopResult is a sql.Result that does nothing.
 type NoopResult struct{}
 

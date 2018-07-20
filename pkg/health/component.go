@@ -4,178 +4,161 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
-	common "github.com/cloudtrust/common-healthcheck"
+	"github.com/pkg/errors"
 )
+
+// ModuleNames contains the list of all valid module names.
+var ModuleNames = map[string]struct{}{
+	"":          struct{}{},
+	"cockroach": struct{}{},
+	"influx":    struct{}{},
+	"jaeger":    struct{}{},
+	"redis":     struct{}{},
+	"sentry":    struct{}{},
+}
 
 const (
 	// Names of the units in the health check http response and in the DB.
-	influxUnitName = "influx"
-	jaegerUnitName = "jaeger"
-	redisUnitName  = "redis"
-	sentryUnitName = "sentry"
+	cockroachUnitName = "cockroach"
+	influxUnitName    = "influx"
+	jaegerUnitName    = "jaeger"
+	redisUnitName     = "redis"
+	sentryUnitName    = "sentry"
 )
 
-// InfluxHealthChecker is the interface of the influx health check module.
-type InfluxHealthChecker interface {
-	HealthChecks(context.Context) []common.InfluxReport
-}
-
-// JaegerHealthChecker is the interface of the jaeger health check module.
-type JaegerHealthChecker interface {
-	HealthChecks(context.Context) []common.JaegerReport
-}
-
-// RedisHealthChecker is the interface of the redis health check module.
-type RedisHealthChecker interface {
-	HealthChecks(context.Context) []common.RedisReport
-}
-
-// SentryHealthChecker is the interface of the sentry health check module.
-type SentryHealthChecker interface {
-	HealthChecks(context.Context) []common.SentryReport
-}
-
-// StoreModule is the interface of the module that stores the health reports
+// HealthCheckStorage is the interface of the module that stores the health reports
 // in the DB.
-type StoreModule interface {
-	Read(name string) (StoredReport, error)
-	Update(unit string, validity time.Duration, reports json.RawMessage) error
+type HealthCheckStorage interface {
+	Read(module, healthcheck string) (json.RawMessage, error)
+	Update(module, jsonReport json.RawMessage, validity time.Duration) error 
+}
+
+// HealthChecker is the interface of the health check modules.
+type HealthChecker interface {
+	HealthCheck(context.Context, string) (json.RawMessage, error)
 }
 
 // Component is the Health component.
 type Component struct {
-	influx              InfluxHealthChecker
-	jaeger              JaegerHealthChecker
-	redis               RedisHealthChecker
-	sentry              SentryHealthChecker
-	storage             StoreModule
+	healthCheckModules  map[string]HealthChecker
 	healthCheckValidity map[string]time.Duration
+	storage             HealthCheckStorage
 }
 
 // NewComponent returns the health component.
-func NewComponent(influx InfluxHealthChecker, jaeger JaegerHealthChecker, redis RedisHealthChecker, sentry SentryHealthChecker, storage StoreModule, healthCheckValidity map[string]time.Duration) *Component {
+func NewComponent(healthCheckModules map[string]HealthChecker, healthCheckValidity map[string]time.Duration, storage HealthCheckStorage) *Component {
 	return &Component{
-		influx:              influx,
-		jaeger:              jaeger,
-		redis:               redis,
-		sentry:              sentry,
-		storage:             storage,
+		healthCheckModules:  healthCheckModules,
 		healthCheckValidity: healthCheckValidity,
+		storage:             storage,
 	}
 }
 
-// ExecInfluxHealthChecks executes the health checks for Influx.
-func (c *Component) ExecInfluxHealthChecks(ctx context.Context) json.RawMessage {
-	var reports = c.influx.HealthChecks(ctx)
-	var jsonReports, _ = json.Marshal(reports)
-
-	c.storage.Update(influxUnitName, c.healthCheckValidity[influxUnitName], jsonReports)
-	return json.RawMessage(jsonReports)
-}
-
-// ReadInfluxHealthChecks read the health checks status in DB.
-func (c *Component) ReadInfluxHealthChecks(ctx context.Context) json.RawMessage {
-	return c.readFromDB(influxUnitName)
-}
-
-// ExecJaegerHealthChecks executes the health checks for Jaeger.
-func (c *Component) ExecJaegerHealthChecks(ctx context.Context) json.RawMessage {
-	var reports = c.jaeger.HealthChecks(ctx)
-	var jsonReports, _ = json.Marshal(reports)
-
-	c.storage.Update(jaegerUnitName, c.healthCheckValidity[jaegerUnitName], jsonReports)
-	return json.RawMessage(jsonReports)
-}
-
-// ReadJaegerHealthChecks read the health checks status in DB.
-func (c *Component) ReadJaegerHealthChecks(ctx context.Context) json.RawMessage {
-	return c.readFromDB(jaegerUnitName)
-}
-
-// ExecRedisHealthChecks executes the health checks for Redis.
-func (c *Component) ExecRedisHealthChecks(ctx context.Context) json.RawMessage {
-	var reports = c.redis.HealthChecks(ctx)
-	var jsonReports, _ = json.Marshal(reports)
-
-	c.storage.Update(redisUnitName, c.healthCheckValidity[redisUnitName], jsonReports)
-	return json.RawMessage(jsonReports)
-
-}
-
-// ReadRedisHealthChecks read the health checks status in DB.
-func (c *Component) ReadRedisHealthChecks(ctx context.Context) json.RawMessage {
-	return c.readFromDB(redisUnitName)
-}
-
-// ExecSentryHealthChecks executes the health checks for Sentry.
-func (c *Component) ExecSentryHealthChecks(ctx context.Context) json.RawMessage {
-	var reports = c.sentry.HealthChecks(ctx)
-	var jsonReports, _ = json.Marshal(reports)
-
-	c.storage.Update(sentryUnitName, c.healthCheckValidity[sentryUnitName], jsonReports)
-	return json.RawMessage(jsonReports)
-}
-
-// ReadSentryHealthChecks read the health checks status in DB.
-func (c *Component) ReadSentryHealthChecks(ctx context.Context) json.RawMessage {
-	return c.readFromDB(sentryUnitName)
-}
-
-// AllHealthChecks call all component checks and build a general health report.
-func (c *Component) AllHealthChecks(ctx context.Context) json.RawMessage {
-	var reports = map[string]json.RawMessage{}
-
-	reports[influxUnitName] = c.ReadInfluxHealthChecks(ctx)
-	reports[jaegerUnitName] = c.ReadJaegerHealthChecks(ctx)
-	reports[redisUnitName] = c.ReadRedisHealthChecks(ctx)
-	reports[sentryUnitName] = c.ReadSentryHealthChecks(ctx)
-
-	var jsonReports, _ = json.Marshal(reports)
-	return json.RawMessage(jsonReports)
-}
-
-func (c *Component) readFromDB(unit string) json.RawMessage {
-	var storedReport, err = c.storage.Read(unit)
-
-	type report struct {
-		Name   string `json:"name"`
-		Status string `json:"status"`
-		Error  string `json:"error"`
+func (c *Component) HealthChecks(ctx context.Context, moduleName string) (json.RawMessage, error) {
+	var healthCheckName = ctx.Value("healthcheck").(string)
+	var noCache bool
+	{
+		if ctx.Value("nocache").(string) == "1" {
+			noCache = true
+		}
 	}
 
+	ctx = filterContext(ctx)
+
+	if moduleName == "" {
+		return c.allHealthChecks(ctx, noCache)
+	}
+	return c.healthCheck(ctx, moduleName, healthCheckName, noCache)
+}
+
+func (c *Component) allHealthChecks(ctx context.Context, noCache bool) (json.RawMessage, error) {
+	var reports = []json.RawMessage{}
+
+	var names = allKeys(c.healthCheckModules)
+	sort.Strings(names)
+
+	for _, k := range names {
+		var module, ok = c.healthCheckModules[k]
+		if !ok {
+			// Should not happen: there is a middleware validating the inputs.
+			panic(fmt.Sprintf("Unknown health check module: %v", module))
+		}
+
+		var r, err = module.HealthCheck(ctx, "")
+		if err != nil {
+			return nil, errors.Wrapf(err, "health checks for module %s failed", module)
+		}
+		reports = append(reports, r)
+	}
+	var jsonReports json.RawMessage
+	{
+		var err error
+		jsonReports, err = json.MarshalIndent(reports, "", "  ")
+		if err != nil {
+			return nil, errors.Wrap(err, "could not marshall reports")
+		}
+	}
+	return jsonReports, nil
+}
+
+func (c *Component) (ctx context.Context, moduleName, healthCheckName string) (json.RawMessage, error) {
+	var report, err = c.storage.Read(moduleName, healthCheckName)
 	if err != nil {
-		var jsonReport, _ = json.Marshal(report{
-			Name:   unit,
-			Status: common.KO.String(),
-			Error:  fmt.Sprintf("could not read reports from DB: %v", err),
-		})
+		switch err {
+		case ErrInvalid:
 
-		return json.RawMessage(jsonReport)
+			fmt.Println(err.Error())
+		}
+	}
+}
+
+// Single health check
+func (c *Component) healthCheck(ctx context.Context, moduleName, healthCheckName string, noCache bool) (json.RawMessage, error) {
+	if noCache {
+		var module, ok = c.healthCheckModules[moduleName]
+		if !ok {
+			// Should not happen: there is a middleware validating the inputs.
+			panic(fmt.Sprintf("Unknown health check module: %v", module))
+		}
+		return module.HealthCheck(ctx, healthCheckName)
 	}
 
-	if storedReport.ComponentID == "" {
-		var jsonReport, _ = json.Marshal(report{
-			Name:   unit,
-			Status: common.KO.String(),
-			Error:  "no reports stored in DB",
-		})
+	// If there is no report or the report is stale, execute the test
 
-		return json.RawMessage(jsonReport)
+}
+
+// // ExecInfluxHealthChecks executes the health checks for Influx.
+// func (c *Component) ExecInfluxHealthChecks(ctx context.Context) json.RawMessage {
+
+// 	c.storage.Update(influxUnitName, c.healthCheckValidity[influxUnitName], jsonReports)
+// 	return json.RawMessage(jsonReports)
+// }
+
+// // ReadInfluxHealthChecks read the health checks status in DB.
+// func (c *Component) ReadInfluxHealthChecks(ctx context.Context) json.RawMessage {
+// 	return c.readFromDB(influxUnitName)
+// }
+
+func allKeys(m map[string]HealthChecker) []string {
+	var keys = []string{}
+
+	for k := range m {
+		keys = append(keys, k)
 	}
 
-	// If the health check was executed too long ago, the health check report
-	// is considered not pertinant and an error is returned.
-	if time.Now().After(storedReport.ValidUntil) {
-		var jsonReport, _ = json.Marshal(report{
-			Name:   unit,
-			Status: common.KO.String(),
-			Error:  fmt.Sprintf("the health check results are stale because the test was not executed in the last %s", c.healthCheckValidity[storedReport.HealthcheckUnit]),
-		})
+	return keys
+}
 
-		return json.RawMessage(jsonReport)
-	}
+// The modules get a clean version of the context. This function create a new empty context
+// and copy only the required keys into it.
+func filterContext(ctx context.Context) context.Context {
+	// New context for the modules
+	var mctx = context.Background()
 
-	return storedReport.Reports
+	mctx = context.WithValue(mctx, "correlation_id", ctx.Value("correlation_id").(string))
+
+	return mctx
 }

@@ -8,115 +8,125 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	createHealthTblStmt = `CREATE TABLE IF NOT EXISTS health (
-		component_name STRING,
-		component_id STRING,
-		unit STRING,
-		json JSONB,
-		last_updated TIMESTAMPTZ,
-		valid_until TIMESTAMPTZ,
-		PRIMARY KEY (component_name, component_id, unit))`
-	upsertHealthStmt = `UPSERT INTO health (
-		component_name,
-		component_id,
-		unit,
-		json,
-		last_updated,
-		valid_until)
-		VALUES ($1, $2, $3, $4, $5, $6)`
-	selectHealthStmt = `SELECT * FROM health WHERE (component_name = $1 AND component_id = $2 AND unit = $3)`
-	cleanHealthStmt  = `DELETE from health WHERE (component_name = $1 AND valid_until < $2)`
+var (
+	ErrInvalid  = errors.New("report not valid")
+	ErrNotFound = errors.New("health check report not found")
 )
 
 type StoredReport struct {
-	ComponentName   string
-	ComponentID     string
-	HealthcheckUnit string
-	Reports         json.RawMessage
-	LastUpdated     time.Time
-	ValidUntil      time.Time
+	ComponentName string
+	ComponentID   string
+	Module        string
+	HealthCheck   string
+	Report        json.RawMessage
+	LastUpdated   time.Time
+	ValidUntil    time.Time
 }
 
 // StorageModule is the module that save health checks results in Storage DB.
 type StorageModule struct {
 	componentName string
 	componentID   string
-	db            Storage
+	s             Storage
 }
 
 type Storage interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
-	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
+const createHealthTblStmt = `
+CREATE TABLE IF NOT EXISTS health (
+	component_name STRING,
+	component_id STRING,
+	module STRING,
+	healthcheck STRING,
+	json JSONB,
+	last_updated TIMESTAMPTZ,
+	valid_until TIMESTAMPTZ,
+PRIMARY KEY (component_name, component_id, module, healthcheck)
+)`
+
 // NewStorageModule returns the storage module.
-func NewStorageModule(componentName, componentID string, db Storage) *StorageModule {
+func NewStorageModule(componentName, componentID string, s Storage) *StorageModule {
 	// Init DB: create health table.
-	db.Exec(createHealthTblStmt)
+	s.Exec(createHealthTblStmt)
 
 	return &StorageModule{
 		componentName: componentName,
 		componentID:   componentID,
-		db:            db,
+		s:             s,
 	}
 }
 
-// Update updates the health checks reports stored in DB with the values 'jsonReports'.
-func (c *StorageModule) Update(unit string, validity time.Duration, jsonReports json.RawMessage) error {
+const upsertHealthStmt = `
+UPSERT INTO health (
+	component_name,
+	component_id,
+	module,
+	healthcheck,
+	json,
+	last_updated,
+	valid_until)
+VALUES ($1, $2, $3, $4, $5, $6, $7)`
+
+// Update updates the health checks reports stored in DB with the values 'jsonReport'.
+func (sm *StorageModule) Update(module, jsonReport json.RawMessage, validity time.Duration) error {
 	var now = time.Now()
-	var _, err = c.db.Exec(upsertHealthStmt, c.componentName, c.componentID, unit, string(jsonReports), now.UTC(), now.Add(validity).UTC())
+	var _, err = sm.s.Exec(upsertHealthStmt, sm.componentName, sm.componentID, module, healthcheck, string(jsonReport), now.UTC(), now.Add(validity).UTC())
 
 	if err != nil {
-		return errors.Wrapf(err, "component '%s' with id '%s' could not update health check for unit '%s'", c.componentName, c.componentID, unit)
+		return errors.Wrapf(err, "component '%s' with id '%s' could not update health check '%s' for unit '%s'", sm.componentName, sm.componentID, healthcheck, module)
 	}
 
 	return nil
 }
 
+const selectHealthStmt = `
+SELECT * FROM health 
+WHERE (component_name = $1 AND component_id = $2 AND module = $3 AND healthcheck = $4)`
+
 // Read reads the reports in DB.
-func (c *StorageModule) Read(unit string) (StoredReport, error) {
-	var rows, err = c.db.Query(selectHealthStmt, c.componentName, c.componentID, unit)
+func (sm *StorageModule) Read(module, healthcheck string) (StoredReport, error) {
+	var row = sm.s.QueryRow(selectHealthStmt, sm.componentName, sm.componentID, module, healthcheck)
+	var (
+		cName, cID, m, hc       string
+		report                  json.RawMessage
+		lastUpdated, validUntil time.Time
+	)
+
+	var err = row.Scan(&cName, &cID, &m, &hc, &report, &lastUpdated, &validUntil)
 	if err != nil {
-		return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s': %s", c.componentName, c.componentID, unit, err)
-	}
-	if rows == nil {
-		return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s': rows should not be nil", c.componentName, c.componentID, unit)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var (
-			cName, cID, hcUnit      string
-			reports                 json.RawMessage
-			lastUpdated, validUntil time.Time
-		)
-
-		var err = rows.Scan(&cName, &cID, &hcUnit, &reports, &lastUpdated, &validUntil)
-		if err != nil {
-			return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s'", c.componentName, c.componentID, unit)
-		}
-
-		return StoredReport{
-			ComponentName:   cName,
-			ComponentID:     cID,
-			HealthcheckUnit: hcUnit,
-			Reports:         reports,
-			LastUpdated:     lastUpdated.UTC(),
-			ValidUntil:      validUntil.UTC(),
-		}, nil
-
+		return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s' for module '%s': %s", sm.componentName, sm.componentID, healthcheck, module, err)
 	}
 
-	return StoredReport{}, nil
+	// If the health check was executed too long ago, the health check report
+	// is considered not pertinant and an error is returned.
+	if time.Now().After(validUntil) {
+		return StoredReport{}, ErrInvalid
+	}
+
+	return StoredReport{
+		ComponentName: cName,
+		ComponentID:   cID,
+		Module:        m,
+		HealthCheck:   hc,
+		Report:        report,
+		LastUpdated:   lastUpdated.UTC(),
+		ValidUntil:    validUntil.UTC(),
+	}, nil
 }
 
+const cleanHealthStmt = `
+DELETE from health 
+WHERE (component_name = $1 AND valid_until < $2)`
+
 // Clean deletes the old test reports that are no longer valid from the health DB table.
-func (c *StorageModule) Clean() error {
-	var _, err = c.db.Exec(cleanHealthStmt, c.componentName, time.Now().UTC())
+func (sm *StorageModule) Clean() error {
+	var _, err = sm.s.Exec(cleanHealthStmt, sm.componentName, time.Now().UTC())
 
 	if err != nil {
-		return errors.Wrapf(err, "component '%s' with id '%s' could not clean health checks", c.componentName, c.componentID)
+		return errors.Wrapf(err, "component '%s' with id '%s' could not clean health checks", sm.componentName, sm.componentID)
 	}
 
 	return nil

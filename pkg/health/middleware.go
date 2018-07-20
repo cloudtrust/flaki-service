@@ -1,8 +1,9 @@
 package health
 
-
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/go-kit/kit/endpoint"
 )
@@ -26,4 +27,38 @@ func MakeEndpointCorrelationIDMW(g IDGenerator) endpoint.Middleware {
 			return next(ctx, req)
 		}
 	}
+}
+
+// MakeValidationMiddleware makes a middleware that validate the health check module comming from
+// the HTTP route.
+func MakeValidationMiddleware(validValues map[string]struct{}) func(HealthCheckers) HealthCheckers {
+	return func(next HealthCheckers) HealthCheckers {
+		return &validationMW{
+			validValues: validValues,
+			next:        next,
+		}
+	}
+}
+
+type validationMW struct {
+	validValues map[string]struct{}
+	next        HealthCheckers
+}
+
+type ErrInvalidHCModule struct {
+	s string
+}
+
+func (e *ErrInvalidHCModule) Error() string {
+	return fmt.Sprintf("no health check module with name '%s'", e.s)
+}
+
+func (m *validationMW) HealthChecks(ctx context.Context, module string) (json.RawMessage, error) {
+	// Check health check module validity.
+	var _, ok = m.validValues[module]
+	if !ok {
+		return nil, &ErrInvalidHCModule{module}
+	}
+
+	return m.next.HealthChecks(ctx, module)
 }

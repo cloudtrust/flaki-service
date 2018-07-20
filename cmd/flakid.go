@@ -294,6 +294,7 @@ func main() {
 		Exec(query string, args ...interface{}) (sql.Result, error)
 		Query(query string, args ...interface{}) (*sql.Rows, error)
 		QueryRow(query string, args ...interface{}) *sql.Row
+		Ping() error
 	}
 
 	var cockroachConn Cockroach = flakid.NoopCockroach{}
@@ -355,113 +356,70 @@ func main() {
 	// Health service.
 	var healthLogger = log.With(logger, "svc", "health")
 
-	var cockroachModule *health.StorageModule
+	var healthStorage *health.StorageModule
 	{
-		cockroachModule = health.NewStorageModule(ComponentName, ComponentID, cockroachConn)
+		healthStorage = health.NewStorageModule(ComponentName, ComponentID, cockroachConn)
 	}
 
-	var influxHM health.InfluxHealthChecker
+	var cockroachHM common.HealthChecker
+	{
+		cockroachHM = common.NewCockroachModule(cockroachConn, cockroachEnabled)
+		cockroachHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "cockroach"))(cockroachHM)
+		cockroachHM = common.MakeValidationMiddleware(common.CockroachCheckNames)(cockroachHM)
+	}
+	var influxHM common.HealthChecker
 	{
 		influxHM = common.NewInfluxModule(influxMetrics, influxEnabled)
-		influxHM = common.MakeInfluxModuleLoggingMW(log.With(healthLogger, "mw", "module"))(influxHM)
+		influxHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "influx"))(influxHM)
+		influxHM = common.MakeValidationMiddleware(common.InfluxCheckNames)(influxHM)
 	}
-	var jaegerHM health.JaegerHealthChecker
+	var jaegerHM common.HealthChecker
 	{
 		jaegerHM = common.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
-		jaegerHM = common.MakeJaegerModuleLoggingMW(log.With(healthLogger, "mw", "module"))(jaegerHM)
+		jaegerHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "jaeger"))(jaegerHM)
+		jaegerHM = common.MakeValidationMiddleware(common.JaegerCheckNames)(jaegerHM)
+
 	}
-	var redisHM health.RedisHealthChecker
+	var redisHM common.HealthChecker
 	{
 		redisHM = common.NewRedisModule(redisClient, redisEnabled)
-		redisHM = common.MakeRedisModuleLoggingMW(log.With(healthLogger, "mw", "module"))(redisHM)
+		redisHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "redis"))(redisHM)
+		redisHM = common.MakeValidationMiddleware(common.JaegerCheckNames)(redisHM)
 	}
-	var sentryHM health.SentryHealthChecker
+	var sentryHM common.HealthChecker
 	{
 		sentryHM = common.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
-		sentryHM = common.MakeSentryModuleLoggingMW(log.With(healthLogger, "mw", "module"))(sentryHM)
-	}
-	var healthComponent health.HealthChecker
-	{
-		healthComponent = health.NewComponent(influxHM, jaegerHM, redisHM, sentryHM, cockroachModule, healthChecksValidity)
-		healthComponent = health.MakeComponentLoggingMW(log.With(healthLogger, "mw", "component"))(healthComponent)
+		sentryHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "sentry"))(sentryHM)
+		sentryHM = common.MakeValidationMiddleware(common.JaegerCheckNames)(sentryHM)
 	}
 
-	var influxExecHealthEndpoint endpoint.Endpoint
-	{
-		influxExecHealthEndpoint = health.MakeExecInfluxHealthCheckEndpoint(healthComponent)
-		influxExecHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ExecInfluxHealthCheck"))(influxExecHealthEndpoint)
-		influxExecHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(influxExecHealthEndpoint)
+	var healthCheckers = map[string]health.HealthChecker{
+		"cockroach": cockroachHM,
+		"influx":    influxHM,
+		"jaeger":    jaegerHM,
+		"redis":     redisHM,
+		"sentry":    sentryHM,
 	}
-	var influxReadHealthEndpoint endpoint.Endpoint
+
+	var healthComponent health.HealthCheckers
 	{
-		influxReadHealthEndpoint = health.MakeReadInfluxHealthCheckEndpoint(healthComponent)
-		influxReadHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ReadInfluxHealthCheck"))(influxReadHealthEndpoint)
-		influxReadHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(influxReadHealthEndpoint)
+		healthComponent = health.NewComponent(healthCheckers, healthChecksValidity, healthStorage)
+		healthComponent = health.MakeComponentLoggingMW(log.With(healthLogger, "mw", "component"))(healthComponent)
+		healthComponent = health.MakeValidationMiddleware(health.ModuleNames)(healthComponent)
 	}
-	var jaegerExecHealthEndpoint endpoint.Endpoint
+
+	var healthChecksEndpoint endpoint.Endpoint
 	{
-		jaegerExecHealthEndpoint = health.MakeExecJaegerHealthCheckEndpoint(healthComponent)
-		jaegerExecHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ExecJaegerHealthCheck"))(jaegerExecHealthEndpoint)
-		jaegerExecHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(jaegerExecHealthEndpoint)
-	}
-	var jaegerReadHealthEndpoint endpoint.Endpoint
-	{
-		jaegerReadHealthEndpoint = health.MakeReadJaegerHealthCheckEndpoint(healthComponent)
-		jaegerReadHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ReadJaegerHealthCheck"))(jaegerReadHealthEndpoint)
-		jaegerReadHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(jaegerReadHealthEndpoint)
-	}
-	var redisExecHealthEndpoint endpoint.Endpoint
-	{
-		redisExecHealthEndpoint = health.MakeExecRedisHealthCheckEndpoint(healthComponent)
-		redisExecHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ExecRedisHealthCheck"))(redisExecHealthEndpoint)
-		redisExecHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(redisExecHealthEndpoint)
-	}
-	var redisReadHealthEndpoint endpoint.Endpoint
-	{
-		redisReadHealthEndpoint = health.MakeReadRedisHealthCheckEndpoint(healthComponent)
-		redisReadHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ReadRedisHealthCheck"))(redisReadHealthEndpoint)
-		redisReadHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(redisReadHealthEndpoint)
-	}
-	var sentryExecHealthEndpoint endpoint.Endpoint
-	{
-		sentryExecHealthEndpoint = health.MakeExecSentryHealthCheckEndpoint(healthComponent)
-		sentryExecHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ExecSentryHealthCheck"))(sentryExecHealthEndpoint)
-		sentryExecHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(sentryExecHealthEndpoint)
-	}
-	var sentryReadHealthEndpoint endpoint.Endpoint
-	{
-		sentryReadHealthEndpoint = health.MakeReadSentryHealthCheckEndpoint(healthComponent)
-		sentryReadHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "ReadSentryHealthCheck"))(sentryReadHealthEndpoint)
-		sentryReadHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(sentryReadHealthEndpoint)
-	}
-	var allHealthEndpoint endpoint.Endpoint
-	{
-		allHealthEndpoint = health.MakeAllHealthChecksEndpoint(healthComponent)
-		allHealthEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "AllHealthCheck"))(allHealthEndpoint)
-		allHealthEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(allHealthEndpoint)
+		healthChecksEndpoint = health.MakeHealthChecksEndpoint(healthComponent)
+		healthChecksEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "HealthChecks"))(healthChecksEndpoint)
+		healthChecksEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(healthChecksEndpoint)
 	}
 
 	// Rate limiting
-	influxExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["influxHealthExec"]))(influxExecHealthEndpoint)
-	influxReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["influxHealthRead"]))(influxReadHealthEndpoint)
-	jaegerExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["jaegerHealthExec"]))(jaegerExecHealthEndpoint)
-	jaegerReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["jaegerHealthRead"]))(jaegerReadHealthEndpoint)
-	redisExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["redisHealthExec"]))(redisExecHealthEndpoint)
-	redisReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["redisHealthRead"]))(redisReadHealthEndpoint)
-	sentryExecHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["sentryHealthExec"]))(sentryExecHealthEndpoint)
-	sentryReadHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["sentryHealthRead"]))(sentryReadHealthEndpoint)
-	allHealthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["allHealth"]))(allHealthEndpoint)
+	healthChecksEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["influxHealthExec"]))(healthChecksEndpoint)
 
 	var healthEndpoints = health.Endpoints{
-		InfluxExecHealthCheck: influxExecHealthEndpoint,
-		InfluxReadHealthCheck: influxReadHealthEndpoint,
-		JaegerExecHealthCheck: jaegerExecHealthEndpoint,
-		JaegerReadHealthCheck: jaegerReadHealthEndpoint,
-		RedisExecHealthCheck:  redisExecHealthEndpoint,
-		RedisReadHealthCheck:  redisReadHealthEndpoint,
-		SentryExecHealthCheck: sentryExecHealthEndpoint,
-		SentryReadHealthCheck: sentryReadHealthEndpoint,
-		AllHealthChecks:       allHealthEndpoint,
+		HealthCheckEndpoint: healthChecksEndpoint,
 	}
 
 	// Jobs
@@ -471,7 +429,7 @@ func main() {
 		var influxJob *job.Job
 		{
 			var err error
-			influxJob, err = health_job.MakeInfluxJob(influxHM, healthChecksValidity[influxKey], cockroachModule)
+			influxJob, err = health_job.MakeHealthJob(influxHM, "influx", healthChecksValidity[influxKey], healthStorage)
 			if err != nil {
 				logger.Log("msg", "could not create influx health job", "error", err)
 				return
@@ -483,7 +441,7 @@ func main() {
 		var jaegerJob *job.Job
 		{
 			var err error
-			jaegerJob, err = health_job.MakeJaegerJob(jaegerHM, healthChecksValidity[jaegerKey], cockroachModule)
+			jaegerJob, err = health_job.MakeHealthJob(jaegerHM, "jaeger", healthChecksValidity[jaegerKey], healthStorage)
 			if err != nil {
 				logger.Log("msg", "could not create jaeger health job", "error", err)
 				return
@@ -495,7 +453,7 @@ func main() {
 		var redisJob *job.Job
 		{
 			var err error
-			redisJob, err = health_job.MakeRedisJob(redisHM, healthChecksValidity[redisKey], cockroachModule)
+			redisJob, err = health_job.MakeHealthJob(redisHM, "redis", healthChecksValidity[redisKey], healthStorage)
 			if err != nil {
 				logger.Log("msg", "could not create redis health job", "error", err)
 				return
@@ -507,7 +465,7 @@ func main() {
 		var sentryJob *job.Job
 		{
 			var err error
-			sentryJob, err = health_job.MakeSentryJob(sentryHM, healthChecksValidity[sentryKey], cockroachModule)
+			sentryJob, err = health_job.MakeHealthJob(sentryHM, "redis", healthChecksValidity[sentryKey], healthStorage)
 			if err != nil {
 				logger.Log("msg", "could not create sentry health job", "error", err)
 				return
@@ -519,7 +477,7 @@ func main() {
 		var cleanJob *job.Job
 		{
 			var err error
-			cleanJob, err = health_job.MakeCleanCockroachJob(cockroachModule, log.With(logger, "job", "clean health checks"))
+			cleanJob, err = health_job.MakeStorageCleaningJob(healthStorage, log.With(logger, "job", "clean health checks"))
 			if err != nil {
 				logger.Log("msg", "could not create clean job", "error", err)
 				return
@@ -595,22 +553,12 @@ func main() {
 		route.Handle("/", http.HandlerFunc(makeVersion(ComponentName, ComponentID, Version, Environment, GitCommit)))
 
 		// Health checks.
-		var healthSubroute = route.PathPrefix("/health").Subrouter()
-
-		var allHealthChecksHandler = health.MakeHealthCheckHandler(healthEndpoints.AllHealthChecks)
-		healthSubroute.Handle("", allHealthChecksHandler)
-
-		healthSubroute.Handle("/influx", health.MakeHealthCheckHandler(healthEndpoints.InfluxReadHealthCheck)).Methods("GET")
-		healthSubroute.Handle("/influx", health.MakeHealthCheckHandler(healthEndpoints.InfluxExecHealthCheck)).Methods("POST")
-
-		healthSubroute.Handle("/jaeger", health.MakeHealthCheckHandler(healthEndpoints.JaegerReadHealthCheck)).Methods("GET")
-		healthSubroute.Handle("/jaeger", health.MakeHealthCheckHandler(healthEndpoints.JaegerExecHealthCheck)).Methods("POST")
-
-		healthSubroute.Handle("/redis", health.MakeHealthCheckHandler(healthEndpoints.RedisReadHealthCheck)).Methods("GET")
-		healthSubroute.Handle("/redis", health.MakeHealthCheckHandler(healthEndpoints.RedisExecHealthCheck)).Methods("POST")
-
-		healthSubroute.Handle("/sentry", health.MakeHealthCheckHandler(healthEndpoints.SentryReadHealthCheck)).Methods("GET")
-		healthSubroute.Handle("/sentry", health.MakeHealthCheckHandler(healthEndpoints.SentryExecHealthCheck)).Methods("POST")
+		route.Path("/health").Handler(health.MakeHealthCheckHandler(healthEndpoints.HealthCheckEndpoint))
+		route.Path("/health/{module}").Handler(health.MakeHealthCheckHandler(healthEndpoints.HealthCheckEndpoint))
+		route.Path("/health/{module}/{healthcheck}").Handler(health.MakeHealthCheckHandler(healthEndpoints.HealthCheckEndpoint))
+		route.Path("/health").Queries("nocache", "{nocache}").Handler(health.MakeHealthCheckHandler(healthEndpoints.HealthCheckEndpoint))
+		route.Path("/health/{module}").Queries("nocache", "{nocache}").Handler(health.MakeHealthCheckHandler(healthEndpoints.HealthCheckEndpoint))
+		route.Path("/health/{module}/{healthcheck}").Queries("nocache", "{nocache}").Handler(health.MakeHealthCheckHandler(healthEndpoints.HealthCheckEndpoint))
 
 		// Debug.
 		if pprofRouteEnabled {
