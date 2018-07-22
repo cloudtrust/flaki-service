@@ -57,7 +57,7 @@ ls -hl "$FLATBUF_DIR"/fb
 echo
 echo "==> Build:"
 
-cd cmd
+cd cmd/flaki
 
 # Get the git commit.
 GIT_COMMIT="$(git rev-parse HEAD)"

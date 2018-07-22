@@ -1,6 +1,7 @@
 package health
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"time"
@@ -13,7 +14,7 @@ var (
 	ErrNotFound = errors.New("health check report not found")
 )
 
-type StoredReport struct {
+type storedReport struct {
 	ComponentName string
 	ComponentID   string
 	Module        string
@@ -32,7 +33,7 @@ type StorageModule struct {
 
 type Storage interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
-	QueryRow(query string, args ...interface{}) *sql.Row
+	Query(query string, args ...interface{}) (*sql.Rows, error)
 }
 
 const createHealthTblStmt = `
@@ -65,56 +66,82 @@ UPSERT INTO health (
 	component_id,
 	module,
 	healthcheck,
-	json,
+	json, 
 	last_updated,
 	valid_until)
 VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 // Update updates the health checks reports stored in DB with the values 'jsonReport'.
-func (sm *StorageModule) Update(module, jsonReport json.RawMessage, validity time.Duration) error {
-	var now = time.Now()
-	var _, err = sm.s.Exec(upsertHealthStmt, sm.componentName, sm.componentID, module, healthcheck, string(jsonReport), now.UTC(), now.Add(validity).UTC())
+func (sm *StorageModule) Update(ctx context.Context, module string, jsonReports json.RawMessage, validity time.Duration) error {
+	var reports = []json.RawMessage{}
+	json.Unmarshal(jsonReports, &reports)
 
-	if err != nil {
-		return errors.Wrapf(err, "component '%s' with id '%s' could not update health check '%s' for unit '%s'", sm.componentName, sm.componentID, healthcheck, module)
+	var now = time.Now()
+	for _, report := range reports {
+		var m = map[string]string{}
+		json.Unmarshal(report, &m)
+
+		var _, err = sm.s.Exec(upsertHealthStmt, sm.componentName, sm.componentID, module, m["name"], string(report), now.UTC(), now.Add(validity).UTC())
+
+		if err != nil {
+			return errors.Wrapf(err, "component '%s' with id '%s' could not update health check '%s' for module '%s'", sm.componentName, sm.componentID, m["name"], module)
+		}
 	}
 
 	return nil
 }
 
-const selectHealthStmt = `
-SELECT * FROM health 
+const selectOneHealthStmt = `
+SELECT * FROM health
 WHERE (component_name = $1 AND component_id = $2 AND module = $3 AND healthcheck = $4)`
 
+const selectAllHealthStmt = `
+SELECT * FROM health
+WHERE (component_name = $1 AND component_id = $2 AND module = $3)`
+
 // Read reads the reports in DB.
-func (sm *StorageModule) Read(module, healthcheck string) (StoredReport, error) {
-	var row = sm.s.QueryRow(selectHealthStmt, sm.componentName, sm.componentID, module, healthcheck)
-	var (
-		cName, cID, m, hc       string
-		report                  json.RawMessage
-		lastUpdated, validUntil time.Time
-	)
+func (sm *StorageModule) Read(ctx context.Context, module, healthcheck string) (json.RawMessage, error) {
+	var rows *sql.Rows
+	{
+		var err error
+		if healthcheck == "" {
+			rows, err = sm.s.Query(selectAllHealthStmt, sm.componentName, sm.componentID, module)
+		} else {
+			rows, err = sm.s.Query(selectOneHealthStmt, sm.componentName, sm.componentID, module, healthcheck)
+		}
 
-	var err = row.Scan(&cName, &cID, &m, &hc, &report, &lastUpdated, &validUntil)
-	if err != nil {
-		return StoredReport{}, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s' for module '%s': %s", sm.componentName, sm.componentID, healthcheck, module, err)
+		if err != nil {
+			return nil, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s' for module %s", sm.componentName, sm.componentID, healthcheck, module)
+		}
+	}
+	if rows != nil {
+		defer rows.Close()
 	}
 
-	// If the health check was executed too long ago, the health check report
-	// is considered not pertinant and an error is returned.
-	if time.Now().After(validUntil) {
-		return StoredReport{}, ErrInvalid
+	var reports []json.RawMessage
+
+	for rows.Next() {
+		var (
+			componentName, componentID, module, healthcheck string
+			report                                          json.RawMessage
+			lastUpdated, validUntil                         time.Time
+		)
+
+		var err = rows.Scan(&componentName, &componentID, &module, &healthcheck, &report, &lastUpdated, &validUntil)
+		if err != nil {
+			return nil, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s' for module %s", sm.componentName, sm.componentID, healthcheck, module)
+		}
+
+		// If the health check was executed too long ago, the health check report
+		// is considered not pertinant and an error is returned.
+		if time.Now().After(validUntil) {
+			return nil, ErrInvalid
+		}
+
+		reports = append(reports, report)
 	}
 
-	return StoredReport{
-		ComponentName: cName,
-		ComponentID:   cID,
-		Module:        m,
-		HealthCheck:   hc,
-		Report:        report,
-		LastUpdated:   lastUpdated.UTC(),
-		ValidUntil:    validUntil.UTC(),
-	}, nil
+	return json.MarshalIndent(reports, "", "  ")
 }
 
 const cleanHealthStmt = `

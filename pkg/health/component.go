@@ -10,30 +10,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ModuleNames contains the list of all valid module names.
-var ModuleNames = map[string]struct{}{
-	"":          struct{}{},
-	"cockroach": struct{}{},
-	"influx":    struct{}{},
-	"jaeger":    struct{}{},
-	"redis":     struct{}{},
-	"sentry":    struct{}{},
-}
-
-const (
-	// Names of the units in the health check http response and in the DB.
-	cockroachUnitName = "cockroach"
-	influxUnitName    = "influx"
-	jaegerUnitName    = "jaeger"
-	redisUnitName     = "redis"
-	sentryUnitName    = "sentry"
-)
-
 // HealthCheckStorage is the interface of the module that stores the health reports
 // in the DB.
 type HealthCheckStorage interface {
-	Read(module, healthcheck string) (json.RawMessage, error)
-	Update(module, jsonReport json.RawMessage, validity time.Duration) error 
+	Read(ctx context.Context, module, healthcheck string) (json.RawMessage, error)
+	Update(ctx context.Context, module string, jsonReports json.RawMessage, validity time.Duration) error
 }
 
 // HealthChecker is the interface of the health check modules.
@@ -57,90 +38,120 @@ func NewComponent(healthCheckModules map[string]HealthChecker, healthCheckValidi
 	}
 }
 
-func (c *Component) HealthChecks(ctx context.Context, moduleName string) (json.RawMessage, error) {
-	var healthCheckName = ctx.Value("healthcheck").(string)
-	var noCache bool
-	{
-		if ctx.Value("nocache").(string) == "1" {
-			noCache = true
-		}
-	}
+func (c *Component) HealthChecks(ctx context.Context, req map[string]string) (json.RawMessage, error) {
+	var module = req["module"]
 
 	ctx = filterContext(ctx)
 
-	if moduleName == "" {
-		return c.allHealthChecks(ctx, noCache)
+	if module == "" {
+		return c.allHealthChecks(ctx, req)
 	}
-	return c.healthCheck(ctx, moduleName, healthCheckName, noCache)
+	return c.healthCheck(ctx, module, req)
 }
 
-func (c *Component) allHealthChecks(ctx context.Context, noCache bool) (json.RawMessage, error) {
+func (c *Component) allHealthChecks(ctx context.Context, req map[string]string) (json.RawMessage, error) {
+	var useCache = true
+	if req["nocache"] == "1" {
+		useCache = false
+	}
+
+	var moduleNames = allKeys(c.healthCheckModules)
+	sort.Strings(moduleNames)
+
 	var reports = []json.RawMessage{}
+	for _, moduleName := range moduleNames {
+		if useCache {
+			var jsonReports, err = c.storage.Read(ctx, moduleName, "")
+			if err == nil {
+				var r = []json.RawMessage{}
+				json.Unmarshal(jsonReports, &r)
 
-	var names = allKeys(c.healthCheckModules)
-	sort.Strings(names)
+				for _, report := range r {
+					reports = append(reports, report)
+				}
 
-	for _, k := range names {
-		var module, ok = c.healthCheckModules[k]
-		if !ok {
-			// Should not happen: there is a middleware validating the inputs.
-			panic(fmt.Sprintf("Unknown health check module: %v", module))
+				continue
+			}
+			// If the error is of type ErrInvalid, it means that the stored health check validity expired
+			// and we can simply execute it again and update the storage.
+			// In any other case, we cannot recover and return the error.
+			if err != ErrInvalid {
+				return nil, err
+			}
 		}
 
-		var r, err = module.HealthCheck(ctx, "")
+		var module, ok = c.healthCheckModules[moduleName]
+		if !ok {
+			// Should not happen: there is a middleware validating the inputs.
+			panic(fmt.Sprintf("Unknown health check module: %v", moduleName))
+		}
+
+		// Execute health check
+		var jsonReports, err = module.HealthCheck(ctx, "")
 		if err != nil {
 			return nil, errors.Wrapf(err, "health checks for module %s failed", module)
 		}
-		reports = append(reports, r)
+
+		var r = []json.RawMessage{}
+		json.Unmarshal(jsonReports, &r)
+		for _, report := range r {
+			reports = append(reports, report)
+		}
+
+		// Store report
+		c.storage.Update(ctx, moduleName, jsonReports, c.healthCheckValidity[moduleName])
 	}
+
 	var jsonReports json.RawMessage
 	{
 		var err error
 		jsonReports, err = json.MarshalIndent(reports, "", "  ")
 		if err != nil {
-			return nil, errors.Wrap(err, "could not marshall reports")
+			return nil, errors.Wrap(err, "could not marshall all healthcheck reports")
 		}
 	}
 	return jsonReports, nil
 }
 
-func (c *Component) (ctx context.Context, moduleName, healthCheckName string) (json.RawMessage, error) {
-	var report, err = c.storage.Read(moduleName, healthCheckName)
-	if err != nil {
-		switch err {
-		case ErrInvalid:
-
-			fmt.Println(err.Error())
-		}
-	}
-}
-
 // Single health check
-func (c *Component) healthCheck(ctx context.Context, moduleName, healthCheckName string, noCache bool) (json.RawMessage, error) {
-	if noCache {
-		var module, ok = c.healthCheckModules[moduleName]
-		if !ok {
-			// Should not happen: there is a middleware validating the inputs.
-			panic(fmt.Sprintf("Unknown health check module: %v", module))
-		}
-		return module.HealthCheck(ctx, healthCheckName)
+func (c *Component) healthCheck(ctx context.Context, moduleName string, req map[string]string) (json.RawMessage, error) {
+	var healthCheck = req["healthcheck"]
+
+	var useCache = true
+	if req["nocache"] == "1" {
+		useCache = false
 	}
 
-	// If there is no report or the report is stale, execute the test
+	if useCache {
+		var report, err = c.storage.Read(ctx, moduleName, healthCheck)
+		if err == nil {
+			return report, err
+		}
+		// If the error is of type ErrInvalid, it means that the stored health check validity expired
+		// and we can simply execute it again and update the storage.
+		// In any other case, we cannot recover and return the error.
+		if err != ErrInvalid {
+			return nil, err
+		}
+	}
 
+	var module, ok = c.healthCheckModules[moduleName]
+	if !ok {
+		// Should not happen: there is a middleware validating the inputs.
+		panic(fmt.Sprintf("Unknown health check module: %v", moduleName))
+	}
+
+	// Execute health check
+	var report, err = module.HealthCheck(ctx, healthCheck)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store report
+	c.storage.Update(ctx, moduleName, report, c.healthCheckValidity[moduleName])
+
+	return report, err
 }
-
-// // ExecInfluxHealthChecks executes the health checks for Influx.
-// func (c *Component) ExecInfluxHealthChecks(ctx context.Context) json.RawMessage {
-
-// 	c.storage.Update(influxUnitName, c.healthCheckValidity[influxUnitName], jsonReports)
-// 	return json.RawMessage(jsonReports)
-// }
-
-// // ReadInfluxHealthChecks read the health checks status in DB.
-// func (c *Component) ReadInfluxHealthChecks(ctx context.Context) json.RawMessage {
-// 	return c.readFromDB(influxUnitName)
-// }
 
 func allKeys(m map[string]HealthChecker) []string {
 	var keys = []string{}

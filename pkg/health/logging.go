@@ -39,10 +39,10 @@ func MakeComponentLoggingMW(logger log.Logger) func(HealthCheckers) HealthChecke
 }
 
 // componentLoggingMW implements Component.
-func (m *componentLoggingMW) HealthChecks(ctx context.Context, module string) (json.RawMessage, error) {
+func (m *componentLoggingMW) HealthChecks(ctx context.Context, req map[string]string) (json.RawMessage, error) {
 	defer func(begin time.Time) {
-		m.logger.Log("module", module, "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
+		m.logger.Log("request", req, "correlation_id", ctx.Value("correlation_id").(string), "took", time.Since(begin))
 	}(time.Now())
 
-	return m.next.HealthChecks(ctx, module)
+	return m.next.HealthChecks(ctx, req)
 }
