@@ -18,6 +18,7 @@ func MakeHTTPNextIDHandler(e endpoint.Endpoint) *http_transport.Server {
 		decodeHTTPRequest,
 		encodeHTTPReply,
 		http_transport.ServerErrorEncoder(httpErrorHandler),
+		http_transport.ServerBefore(fetchHTTPCorrelationID),
 	)
 }
 
@@ -27,7 +28,18 @@ func MakeHTTPNextValidIDHandler(e endpoint.Endpoint) *http_transport.Server {
 		decodeHTTPRequest,
 		encodeHTTPReply,
 		http_transport.ServerErrorEncoder(httpErrorHandler),
+		http_transport.ServerBefore(fetchHTTPCorrelationID),
 	)
+}
+
+// fetchHTTPCorrelationID reads the correlation ID from the http header "X-Correlation-ID".
+// If the ID is not zero, we put it in the context.
+func fetchHTTPCorrelationID(ctx context.Context, req *http.Request) context.Context {
+	var correlationID = req.Header.Get("X-Correlation-ID")
+	if correlationID != "" {
+		ctx = context.WithValue(ctx, "correlation_id", correlationID)
+	}
+	return ctx
 }
 
 // decodeHTTPRequest decodes the flatbuffer flaki request.

@@ -72,19 +72,41 @@ UPSERT INTO health (
 VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 // Update updates the health checks reports stored in DB with the values 'jsonReport'.
+// jsonReport is an array of healthcheck reports for a given module, e.g. for jaeger:
+// [
+//   {
+//     "name": "agent systemd unit",
+//     "status": "OK",
+//     "duration": "43.034µs"
+//   },
+//   {
+//     "name": "ping collector",
+//     "status": "OK",
+//     "duration": "830.443µs"
+//   }
+// ]
+//
 func (sm *StorageModule) Update(ctx context.Context, module string, jsonReports json.RawMessage, validity time.Duration) error {
-	var reports = []json.RawMessage{}
+	var reports = []map[string]string{}
 	json.Unmarshal(jsonReports, &reports)
 
 	var now = time.Now()
+	// Iterate over each healtcheck report
 	for _, report := range reports {
-		var m = map[string]string{}
-		json.Unmarshal(report, &m)
+		// Store each report as json
+		var jsonReport []byte
+		{
+			var err error
+			jsonReport, err = json.Marshal(report)
+			if err != nil {
+				return err
+			}
+		}
 
-		var _, err = sm.s.Exec(upsertHealthStmt, sm.componentName, sm.componentID, module, m["name"], string(report), now.UTC(), now.Add(validity).UTC())
+		var _, err = sm.s.Exec(upsertHealthStmt, sm.componentName, sm.componentID, module, report["name"], string(jsonReport), now.UTC(), now.Add(validity).UTC())
 
 		if err != nil {
-			return errors.Wrapf(err, "component '%s' with id '%s' could not update health check '%s' for module '%s'", sm.componentName, sm.componentID, m["name"], module)
+			return errors.Wrapf(err, "component '%s' with id '%s' could not update health check '%s' for module '%s'", sm.componentName, sm.componentID, report["name"], module)
 		}
 	}
 
@@ -99,7 +121,21 @@ const selectAllHealthStmt = `
 SELECT * FROM health
 WHERE (component_name = $1 AND component_id = $2 AND module = $3)`
 
-// Read reads the reports in DB.
+// Read reads the reports in DB. Like the healthcheck modules, it returns the healthcheck report specified by the
+// paramters 'module' and 'healtcheck' as an json encoded array, e.g. for jaeger:
+// [
+//   {
+//     "name": "agent systemd unit",
+//     "status": "OK",
+//     "duration": "43.034µs"
+//   },
+//   {
+//     "name": "ping collector",
+//     "status": "OK",
+//     "duration": "830.443µs"
+//   }
+// ]
+// The parameter 'healthcheck' can be the empty string, in that case all reports for the given module are returned.
 func (sm *StorageModule) Read(ctx context.Context, module, healthcheck string) (json.RawMessage, error) {
 	var rows *sql.Rows
 	{
@@ -113,10 +149,12 @@ func (sm *StorageModule) Read(ctx context.Context, module, healthcheck string) (
 		if err != nil {
 			return nil, errors.Wrapf(err, "component '%s' with id '%s' could not read health check '%s' for module %s", sm.componentName, sm.componentID, healthcheck, module)
 		}
+		// If there is no results, return an empty array
+		if rows == nil {
+			return json.RawMessage(`[]`), nil
+		}
 	}
-	if rows != nil {
-		defer rows.Close()
-	}
+	defer rows.Close()
 
 	var reports []json.RawMessage
 

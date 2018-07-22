@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -57,13 +58,6 @@ var (
 	Environment = "unknown"
 	// GitCommit is filled by the compiler.
 	GitCommit = "unknown"
-)
-
-const (
-	influxKey = "influx"
-	jaegerKey = "jaeger"
-	redisKey  = "redis"
-	sentryKey = "sentry"
 )
 
 func main() {
@@ -141,25 +135,26 @@ func main() {
 
 		// Jobs
 		healthChecksValidity = map[string]time.Duration{
-			influxKey: c.GetDuration("job-influx-health-validity"),
-			jaegerKey: c.GetDuration("job-jaeger-health-validity"),
-			redisKey:  c.GetDuration("job-redis-health-validity"),
-			sentryKey: c.GetDuration("job-sentry-health-validity"),
+			"influx": c.GetDuration("job-influx-health-validity"),
+			"jaeger": c.GetDuration("job-jaeger-health-validity"),
+			"redis":  c.GetDuration("job-redis-health-validity"),
+			"sentry": c.GetDuration("job-sentry-health-validity"),
 		}
 
 		// Rate limiting
 		rateLimit = map[string]int{
-			"nextID":           c.GetInt("rate-next-id"),
-			"nextValidID":      c.GetInt("rate-next-valid-id"),
-			"influxHealthExec": c.GetInt("rate-influx-health-exec"),
-			"influxHealthRead": c.GetInt("rate-influx-health-read"),
-			"jaegerHealthExec": c.GetInt("rate-jaeger-health-exec"),
-			"jaegerHealthRead": c.GetInt("rate-jaeger-health-read"),
-			"redisHealthExec":  c.GetInt("rate-redis-health-exec"),
-			"redisHealthRead":  c.GetInt("rate-redis-health-read"),
-			"sentryHealthExec": c.GetInt("rate-sentry-health-exec"),
-			"sentryHealthRead": c.GetInt("rate-sentry-health-read"),
-			"allHealth":        c.GetInt("rate-all-health"),
+			"nextID":      c.GetInt("rate-next-id"),
+			"nextValidID": c.GetInt("rate-next-valid-id"),
+		}
+
+		// Validation for healthchecks
+		validModules = map[string]struct{}{
+			"":          struct{}{},
+			"cockroach": struct{}{},
+			"influx":    struct{}{},
+			"jaeger":    struct{}{},
+			"redis":     struct{}{},
+			"sentry":    struct{}{},
 		}
 	)
 
@@ -356,7 +351,13 @@ func main() {
 	// Health service.
 	var healthLogger = log.With(logger, "svc", "health")
 
-	var healthStorage *health.StorageModule
+	type HealthCheckStorage interface {
+		Read(ctx context.Context, module, healthcheck string) (json.RawMessage, error)
+		Update(ctx context.Context, module string, jsonReports json.RawMessage, validity time.Duration) error
+		Clean() error
+	}
+
+	var healthStorage HealthCheckStorage
 	{
 		healthStorage = health.NewStorageModule(ComponentName, ComponentID, cockroachConn)
 	}
@@ -405,7 +406,7 @@ func main() {
 	{
 		healthComponent = health.NewComponent(healthCheckers, healthChecksValidity, healthStorage)
 		healthComponent = health.MakeComponentLoggingMW(log.With(healthLogger, "mw", "component"))(healthComponent)
-		healthComponent = health.MakeValidationMiddleware(health.ModuleNames)(healthComponent)
+		healthComponent = health.MakeValidationMiddleware(validModules)(healthComponent)
 	}
 
 	var healthChecksEndpoint endpoint.Endpoint
@@ -414,9 +415,6 @@ func main() {
 		healthChecksEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "HealthChecks"))(healthChecksEndpoint)
 		healthChecksEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(healthChecksEndpoint)
 	}
-
-	// Rate limiting
-	healthChecksEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["influxHealthExec"]))(healthChecksEndpoint)
 
 	var healthEndpoints = health.Endpoints{
 		HealthCheckEndpoint: healthChecksEndpoint,
@@ -429,7 +427,7 @@ func main() {
 		var influxJob *job.Job
 		{
 			var err error
-			influxJob, err = health_job.MakeHealthJob(influxHM, "influx", healthChecksValidity[influxKey], healthStorage)
+			influxJob, err = health_job.MakeHealthJob(influxHM, "influx", healthChecksValidity["influx"], healthStorage, logger)
 			if err != nil {
 				logger.Log("msg", "could not create influx health job", "error", err)
 				return
@@ -441,7 +439,7 @@ func main() {
 		var jaegerJob *job.Job
 		{
 			var err error
-			jaegerJob, err = health_job.MakeHealthJob(jaegerHM, "jaeger", healthChecksValidity[jaegerKey], healthStorage)
+			jaegerJob, err = health_job.MakeHealthJob(jaegerHM, "jaeger", healthChecksValidity["jaeger"], healthStorage, logger)
 			if err != nil {
 				logger.Log("msg", "could not create jaeger health job", "error", err)
 				return
@@ -453,7 +451,7 @@ func main() {
 		var redisJob *job.Job
 		{
 			var err error
-			redisJob, err = health_job.MakeHealthJob(redisHM, "redis", healthChecksValidity[redisKey], healthStorage)
+			redisJob, err = health_job.MakeHealthJob(redisHM, "redis", healthChecksValidity["redis"], healthStorage, logger)
 			if err != nil {
 				logger.Log("msg", "could not create redis health job", "error", err)
 				return
@@ -465,7 +463,7 @@ func main() {
 		var sentryJob *job.Job
 		{
 			var err error
-			sentryJob, err = health_job.MakeHealthJob(sentryHM, "redis", healthChecksValidity[sentryKey], healthStorage)
+			sentryJob, err = health_job.MakeHealthJob(sentryHM, "redis", healthChecksValidity["sentry"], healthStorage, logger)
 			if err != nil {
 				logger.Log("msg", "could not create sentry health job", "error", err)
 				return
@@ -697,15 +695,6 @@ func config(logger log.Logger) *viper.Viper {
 	// Rate limiting
 	v.SetDefault("rate-next-id", 1000)
 	v.SetDefault("rate-next-valid-id", 1000)
-	v.SetDefault("rate-influx-health-exec", 1000)
-	v.SetDefault("rate-influx-health-read", 1000)
-	v.SetDefault("rate-jaeger-health-exec", 1000)
-	v.SetDefault("rate-jaeger-health-read", 1000)
-	v.SetDefault("rate-redis-health-exec", 1000)
-	v.SetDefault("rate-redis-health-read", 1000)
-	v.SetDefault("rate-sentry-health-exec", 1000)
-	v.SetDefault("rate-sentry-health-read", 1000)
-	v.SetDefault("rate-all-health", 1000)
 
 	// First level of override.
 	pflag.String("config-file", v.GetString("config-file"), "The configuration file path can be relative or absolute.")

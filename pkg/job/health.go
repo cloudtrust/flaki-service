@@ -13,7 +13,7 @@ import (
 // Storage is the interface of the module that stores the health reports
 // in the DB.
 type Storage interface {
-	Update(unit string, validity time.Duration, jsonReports json.RawMessage) error
+	Update(ctx context.Context, module string, jsonReports json.RawMessage, validity time.Duration) error
 	Clean() error
 }
 
@@ -28,21 +28,30 @@ type HealthChecker interface {
 }
 
 // MakeHealthJob creates the job that periodically executes the health checks and save the result in DB.
-func MakeHealthJob(module HealthChecker, moduleName string, healthCheckValidity time.Duration, storage Storage) (*job.Job, error) {
-	var step1 = func(_ context.Context, _ interface{}) (interface{}, error) {
-		return module.HealthCheck(context.Background(), "")
+func MakeHealthJob(module HealthChecker, moduleName string, healthCheckValidity time.Duration, storage Storage, logger log.Logger) (*job.Job, error) {
+	var step1 = func(ctx context.Context, _ interface{}) (interface{}, error) {
+		defer func(begin time.Time) {
+			logger.Log("correlation_id", ctx.Value("correlation_id").(string), "healthcheckJob", moduleName, "step", "execute health check", "took", time.Since(begin))
+		}(time.Now())
+
+		return module.HealthCheck(ctx, "")
 	}
 
-	var step2 = func(_ context.Context, r interface{}) (interface{}, error) {
+	var step2 = func(ctx context.Context, r interface{}) (interface{}, error) {
+		defer func(begin time.Time) {
+			logger.Log("correlation_id", ctx.Value("correlation_id").(string), "healthcheckJob", moduleName, "step", "store health check", "took", time.Since(begin))
+		}(time.Now())
+
 		var jsonReports, ok = r.(json.RawMessage)
 		if !ok {
 			return nil, fmt.Errorf("health report should be a json.Rawmessage not %T", r)
 		}
 
-		var err = storage.Update("influx", healthCheckValidity, jsonReports)
+		var err = storage.Update(ctx, moduleName, jsonReports, healthCheckValidity)
+
 		return nil, err
 	}
-	return job.NewJob("influx", job.Steps(step1, step2))
+	return job.NewJob(moduleName, job.Steps(step1, step2))
 }
 
 // MakeStorageCleaningJob creates the job that periodically clean the DB from the outdated health check reports.
