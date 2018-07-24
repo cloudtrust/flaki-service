@@ -58,25 +58,21 @@ func (c *Component) allHealthChecks(ctx context.Context, req map[string]string) 
 	var moduleNames = allKeys(c.healthCheckModules)
 	sort.Strings(moduleNames)
 
-	var reports = []json.RawMessage{}
+	var reports = map[string]json.RawMessage{}
 	for _, moduleName := range moduleNames {
 		if useCache {
 			var jsonReports, err = c.storage.Read(ctx, moduleName, "")
 			if err == nil {
-				var r = []json.RawMessage{}
-				json.Unmarshal(jsonReports, &r)
-
-				for _, report := range r {
-					reports = append(reports, report)
-				}
-
+				reports[moduleName] = jsonReports
 				continue
 			}
-			// If the error is of type ErrInvalid, it means that the stored health check validity expired
-			// and we can simply execute it again and update the storage.
-			// In any other case, we cannot recover and return the error.
-			if err != ErrInvalid {
+
+			switch err {
+			// By default, we return the error.
+			default:
 				return nil, err
+			// If the error is ErrInvalid or ErrNotFound, we can recover by simply executing the health checks.
+			case ErrInvalid, ErrNotFound:
 			}
 		}
 
@@ -92,11 +88,7 @@ func (c *Component) allHealthChecks(ctx context.Context, req map[string]string) 
 			return nil, errors.Wrapf(err, "health checks for module %s failed", module)
 		}
 
-		var r = []json.RawMessage{}
-		json.Unmarshal(jsonReports, &r)
-		for _, report := range r {
-			reports = append(reports, report)
-		}
+		reports[moduleName] = jsonReports
 
 		// Store report
 		c.storage.Update(ctx, moduleName, jsonReports, c.healthCheckValidity[moduleName])
@@ -127,11 +119,13 @@ func (c *Component) healthCheck(ctx context.Context, moduleName string, req map[
 		if err == nil {
 			return report, err
 		}
-		// If the error is of type ErrInvalid, it means that the stored health check validity expired
-		// and we can simply execute it again and update the storage.
-		// In any other case, we cannot recover and return the error.
-		if err != ErrInvalid {
+
+		switch err {
+		// By default, we return the error.
+		default:
 			return nil, err
+		// If the error is ErrInvalid or ErrNotFound, we can recover by simply executing the health checks.
+		case ErrInvalid, ErrNotFound:
 		}
 	}
 

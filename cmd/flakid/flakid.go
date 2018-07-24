@@ -303,188 +303,194 @@ func main() {
 	}
 
 	// Flaki service.
-	var flakiLogger = log.With(logger, "svc", "flaki")
-
-	var flakiModule flaki.IDGeneratorModule
+	var flakiEndpoints = flaki.Endpoints{}
 	{
-		flakiModule = flaki.NewModule(flakiGen)
-		flakiModule = flaki.MakeModuleInstrumentingCounterMW(influxMetrics.NewCounter("flaki_module_ctr"))(flakiModule)
-		flakiModule = flaki.MakeModuleInstrumentingMW(influxMetrics.NewHistogram("flaki_module"))(flakiModule)
-		flakiModule = flaki.MakeModuleLoggingMW(log.With(flakiLogger, "mw", "module"))(flakiModule)
-		flakiModule = flaki.MakeModuleTracingMW(tracer)(flakiModule)
-	}
+		var flakiLogger = log.With(logger, "svc", "flaki")
 
-	var flakiComponent flaki.IDGeneratorComponent
-	{
-		flakiComponent = flaki.NewComponent(flakiModule)
-		flakiComponent = flaki.MakeComponentInstrumentingMW(influxMetrics.NewHistogram("flaki_component"))(flakiComponent)
-		flakiComponent = flaki.MakeComponentLoggingMW(log.With(flakiLogger, "mw", "component"))(flakiComponent)
-		flakiComponent = flaki.MakeComponentTracingMW(tracer)(flakiComponent)
-		flakiComponent = flaki.MakeComponentTrackingMW(sentryClient, log.With(flakiLogger, "mw", "component"))(flakiComponent)
-	}
+		var flakiModule flaki.IDGeneratorModule
+		{
+			flakiModule = flaki.NewModule(flakiGen)
+			flakiModule = flaki.MakeModuleInstrumentingCounterMW(influxMetrics.NewCounter("flaki_module_ctr"))(flakiModule)
+			flakiModule = flaki.MakeModuleInstrumentingMW(influxMetrics.NewHistogram("flaki_module"))(flakiModule)
+			flakiModule = flaki.MakeModuleLoggingMW(log.With(flakiLogger, "mw", "module"))(flakiModule)
+			flakiModule = flaki.MakeModuleTracingMW(tracer)(flakiModule)
+		}
 
-	var nextIDEndpoint endpoint.Endpoint
-	{
-		nextIDEndpoint = flaki.MakeNextIDEndpoint(flakiComponent)
-		nextIDEndpoint = flaki.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint"))(nextIDEndpoint)
-		nextIDEndpoint = flaki.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextID"))(nextIDEndpoint)
-		nextIDEndpoint = flaki.MakeEndpointTracingMW(tracer, "nextid_endpoint")(nextIDEndpoint)
-	}
+		var flakiComponent flaki.IDGeneratorComponent
+		{
+			flakiComponent = flaki.NewComponent(flakiModule)
+			flakiComponent = flaki.MakeComponentInstrumentingMW(influxMetrics.NewHistogram("flaki_component"))(flakiComponent)
+			flakiComponent = flaki.MakeComponentLoggingMW(log.With(flakiLogger, "mw", "component"))(flakiComponent)
+			flakiComponent = flaki.MakeComponentTracingMW(tracer)(flakiComponent)
+			flakiComponent = flaki.MakeComponentTrackingMW(sentryClient, log.With(flakiLogger, "mw", "component"))(flakiComponent)
+		}
 
-	var nextValidIDEndpoint endpoint.Endpoint
-	{
-		nextValidIDEndpoint = flaki.MakeNextValidIDEndpoint(flakiComponent)
-		nextValidIDEndpoint = flaki.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint"))(nextValidIDEndpoint)
-		nextValidIDEndpoint = flaki.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextValidID"))(nextValidIDEndpoint)
-		nextValidIDEndpoint = flaki.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint")(nextValidIDEndpoint)
-	}
+		var nextIDEndpoint endpoint.Endpoint
+		{
+			nextIDEndpoint = flaki.MakeNextIDEndpoint(flakiComponent)
+			nextIDEndpoint = flaki.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextid_endpoint"))(nextIDEndpoint)
+			nextIDEndpoint = flaki.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextID"))(nextIDEndpoint)
+			nextIDEndpoint = flaki.MakeEndpointTracingMW(tracer, "nextid_endpoint")(nextIDEndpoint)
+		}
 
-	// Rate limiting
-	nextIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["nextID"]))(nextIDEndpoint)
-	nextValidIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["nextValidID"]))(nextValidIDEndpoint)
+		var nextValidIDEndpoint endpoint.Endpoint
+		{
+			nextValidIDEndpoint = flaki.MakeNextValidIDEndpoint(flakiComponent)
+			nextValidIDEndpoint = flaki.MakeEndpointInstrumentingMW(influxMetrics.NewHistogram("nextvalidid_endpoint"))(nextValidIDEndpoint)
+			nextValidIDEndpoint = flaki.MakeEndpointLoggingMW(log.With(flakiLogger, "mw", "endpoint", "unit", "NextValidID"))(nextValidIDEndpoint)
+			nextValidIDEndpoint = flaki.MakeEndpointTracingMW(tracer, "nextvalidid_endpoint")(nextValidIDEndpoint)
+		}
 
-	var flakiEndpoints = flaki.Endpoints{
-		NextIDEndpoint:      nextIDEndpoint,
-		NextValidIDEndpoint: nextValidIDEndpoint,
+		// Rate limiting
+		nextIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["nextID"]))(nextIDEndpoint)
+		nextValidIDEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), rateLimit["nextValidID"]))(nextValidIDEndpoint)
+
+		flakiEndpoints = flaki.Endpoints{
+			NextIDEndpoint:      nextIDEndpoint,
+			NextValidIDEndpoint: nextValidIDEndpoint,
+		}
 	}
 
 	// Health service.
-	var healthLogger = log.With(logger, "svc", "health")
-
-	type HealthCheckStorage interface {
-		Read(ctx context.Context, module, healthcheck string) (json.RawMessage, error)
-		Update(ctx context.Context, module string, jsonReports json.RawMessage, validity time.Duration) error
-		Clean() error
-	}
-
-	var healthStorage HealthCheckStorage
+	var healthEndpoints = health.Endpoints{}
 	{
-		healthStorage = health.NewStorageModule(ComponentName, ComponentID, cockroachConn)
-	}
+		var healthLogger = log.With(logger, "svc", "health")
 
-	var cockroachHM common.HealthChecker
-	{
-		cockroachHM = common.NewCockroachModule(cockroachConn, cockroachEnabled)
-		cockroachHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "cockroach"))(cockroachHM)
-		cockroachHM = common.MakeValidationMiddleware(common.CockroachCheckNames)(cockroachHM)
-	}
-	var influxHM common.HealthChecker
-	{
-		influxHM = common.NewInfluxModule(influxMetrics, influxEnabled)
-		influxHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "influx"))(influxHM)
-		influxHM = common.MakeValidationMiddleware(common.InfluxCheckNames)(influxHM)
-	}
-	var jaegerHM common.HealthChecker
-	{
-		jaegerHM = common.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
-		jaegerHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "jaeger"))(jaegerHM)
-		jaegerHM = common.MakeValidationMiddleware(common.JaegerCheckNames)(jaegerHM)
-
-	}
-	var redisHM common.HealthChecker
-	{
-		redisHM = common.NewRedisModule(redisClient, redisEnabled)
-		redisHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "redis"))(redisHM)
-		redisHM = common.MakeValidationMiddleware(common.JaegerCheckNames)(redisHM)
-	}
-	var sentryHM common.HealthChecker
-	{
-		sentryHM = common.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
-		sentryHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "sentry"))(sentryHM)
-		sentryHM = common.MakeValidationMiddleware(common.JaegerCheckNames)(sentryHM)
-	}
-
-	var healthCheckers = map[string]health.HealthChecker{
-		"cockroach": cockroachHM,
-		"influx":    influxHM,
-		"jaeger":    jaegerHM,
-		"redis":     redisHM,
-		"sentry":    sentryHM,
-	}
-
-	var healthComponent health.HealthCheckers
-	{
-		healthComponent = health.NewComponent(healthCheckers, healthChecksValidity, healthStorage)
-		healthComponent = health.MakeComponentLoggingMW(log.With(healthLogger, "mw", "component"))(healthComponent)
-		healthComponent = health.MakeValidationMiddleware(validModules)(healthComponent)
-	}
-
-	var healthChecksEndpoint endpoint.Endpoint
-	{
-		healthChecksEndpoint = health.MakeHealthChecksEndpoint(healthComponent)
-		healthChecksEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "HealthChecks"))(healthChecksEndpoint)
-		healthChecksEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(healthChecksEndpoint)
-	}
-
-	var healthEndpoints = health.Endpoints{
-		HealthCheckEndpoint: healthChecksEndpoint,
-	}
-
-	// Jobs
-	{
-		var ctrl = controller.NewController(ComponentName, ComponentID, &idGenerator{flakiGen}, &job_lock.NoopLocker{}, controller.EnableStatusStorage(job_status.New(cockroachConn)))
-
-		var influxJob *job.Job
-		{
-			var err error
-			influxJob, err = health_job.MakeHealthJob(influxHM, "influx", healthChecksValidity["influx"], healthStorage, logger)
-			if err != nil {
-				logger.Log("msg", "could not create influx health job", "error", err)
-				return
-			}
-			ctrl.Register(influxJob)
-			ctrl.Schedule("@minutely", influxJob.Name())
+		type HealthCheckStorage interface {
+			Read(ctx context.Context, module, healthcheck string) (json.RawMessage, error)
+			Update(ctx context.Context, module string, jsonReports json.RawMessage, validity time.Duration) error
+			Clean() error
 		}
 
-		var jaegerJob *job.Job
+		var healthStorage HealthCheckStorage
 		{
-			var err error
-			jaegerJob, err = health_job.MakeHealthJob(jaegerHM, "jaeger", healthChecksValidity["jaeger"], healthStorage, logger)
-			if err != nil {
-				logger.Log("msg", "could not create jaeger health job", "error", err)
-				return
-			}
-			ctrl.Register(jaegerJob)
-			ctrl.Schedule("@minutely", jaegerJob.Name())
+			healthStorage = health.NewStorageModule(ComponentName, ComponentID, cockroachConn)
 		}
 
-		var redisJob *job.Job
+		var cockroachHM common.HealthChecker
 		{
-			var err error
-			redisJob, err = health_job.MakeHealthJob(redisHM, "redis", healthChecksValidity["redis"], healthStorage, logger)
-			if err != nil {
-				logger.Log("msg", "could not create redis health job", "error", err)
-				return
-			}
-			ctrl.Register(redisJob)
-			ctrl.Schedule("@minutely", redisJob.Name())
+			cockroachHM = common.NewCockroachModule(cockroachConn, cockroachEnabled)
+			cockroachHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "cockroach"))(cockroachHM)
+			cockroachHM = common.MakeValidationMiddleware(common.CockroachCheckNames)(cockroachHM)
 		}
-
-		var sentryJob *job.Job
+		var influxHM common.HealthChecker
 		{
-			var err error
-			sentryJob, err = health_job.MakeHealthJob(sentryHM, "redis", healthChecksValidity["sentry"], healthStorage, logger)
-			if err != nil {
-				logger.Log("msg", "could not create sentry health job", "error", err)
-				return
-			}
-			ctrl.Register(sentryJob)
-			ctrl.Schedule("@minutely", sentryJob.Name())
+			influxHM = common.NewInfluxModule(influxMetrics, influxEnabled)
+			influxHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "influx"))(influxHM)
+			influxHM = common.MakeValidationMiddleware(common.InfluxCheckNames)(influxHM)
 		}
-
-		var cleanJob *job.Job
+		var jaegerHM common.HealthChecker
 		{
-			var err error
-			cleanJob, err = health_job.MakeStorageCleaningJob(healthStorage, log.With(logger, "job", "clean health checks"))
-			if err != nil {
-				logger.Log("msg", "could not create clean job", "error", err)
-				return
-			}
-			ctrl.Register(cleanJob)
-			ctrl.Schedule(fmt.Sprintf("@every %s", cockroachCleanInterval), cleanJob.Name())
+			jaegerHM = common.NewJaegerModule(systemDConn, http.DefaultClient, jaegerCollectorHealthcheckURL, jaegerEnabled)
+			jaegerHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "jaeger"))(jaegerHM)
+			jaegerHM = common.MakeValidationMiddleware(common.JaegerCheckNames)(jaegerHM)
 
 		}
-		ctrl.Start()
+		var redisHM common.HealthChecker
+		{
+			redisHM = common.NewRedisModule(redisClient, redisEnabled)
+			redisHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "redis"))(redisHM)
+			redisHM = common.MakeValidationMiddleware(common.RedisCheckNames)(redisHM)
+		}
+		var sentryHM common.HealthChecker
+		{
+			sentryHM = common.NewSentryModule(sentryClient, http.DefaultClient, sentryEnabled)
+			sentryHM = common.MakeHealthCheckerLoggingMW(log.With(healthLogger, "module", "sentry"))(sentryHM)
+			sentryHM = common.MakeValidationMiddleware(common.SentryCheckNames)(sentryHM)
+		}
+
+		var healthCheckers = map[string]health.HealthChecker{
+			"cockroach": cockroachHM,
+			"influx":    influxHM,
+			"jaeger":    jaegerHM,
+			"redis":     redisHM,
+			"sentry":    sentryHM,
+		}
+
+		var healthComponent health.HealthCheckers
+		{
+			healthComponent = health.NewComponent(healthCheckers, healthChecksValidity, healthStorage)
+			healthComponent = health.MakeComponentLoggingMW(log.With(healthLogger, "mw", "component"))(healthComponent)
+			healthComponent = health.MakeValidationMiddleware(validModules)(healthComponent)
+		}
+
+		var healthChecksEndpoint endpoint.Endpoint
+		{
+			healthChecksEndpoint = health.MakeHealthChecksEndpoint(healthComponent)
+			healthChecksEndpoint = health.MakeEndpointLoggingMW(log.With(healthLogger, "mw", "endpoint", "unit", "HealthChecks"))(healthChecksEndpoint)
+			healthChecksEndpoint = health.MakeEndpointCorrelationIDMW(flakiModule)(healthChecksEndpoint)
+		}
+
+		healthEndpoints = health.Endpoints{
+			HealthCheckEndpoint: healthChecksEndpoint,
+		}
+
+		// Health check Jobs
+		{
+			var ctrl = controller.NewController(ComponentName, ComponentID, &idGenerator{flakiGen}, &job_lock.NoopLocker{}, controller.EnableStatusStorage(job_status.New(cockroachConn)))
+
+			var influxJob *job.Job
+			{
+				var err error
+				influxJob, err = health_job.MakeHealthJob(influxHM, "influx", healthChecksValidity["influx"], healthStorage, logger)
+				if err != nil {
+					logger.Log("msg", "could not create influx health job", "error", err)
+					return
+				}
+				ctrl.Register(influxJob)
+				ctrl.Schedule("@minutely", influxJob.Name())
+			}
+
+			var jaegerJob *job.Job
+			{
+				var err error
+				jaegerJob, err = health_job.MakeHealthJob(jaegerHM, "jaeger", healthChecksValidity["jaeger"], healthStorage, logger)
+				if err != nil {
+					logger.Log("msg", "could not create jaeger health job", "error", err)
+					return
+				}
+				ctrl.Register(jaegerJob)
+				ctrl.Schedule("@minutely", jaegerJob.Name())
+			}
+
+			var redisJob *job.Job
+			{
+				var err error
+				redisJob, err = health_job.MakeHealthJob(redisHM, "redis", healthChecksValidity["redis"], healthStorage, logger)
+				if err != nil {
+					logger.Log("msg", "could not create redis health job", "error", err)
+					return
+				}
+				ctrl.Register(redisJob)
+				ctrl.Schedule("@minutely", redisJob.Name())
+			}
+
+			var sentryJob *job.Job
+			{
+				var err error
+				sentryJob, err = health_job.MakeHealthJob(sentryHM, "redis", healthChecksValidity["sentry"], healthStorage, logger)
+				if err != nil {
+					logger.Log("msg", "could not create sentry health job", "error", err)
+					return
+				}
+				ctrl.Register(sentryJob)
+				ctrl.Schedule("@minutely", sentryJob.Name())
+			}
+
+			var cleanJob *job.Job
+			{
+				var err error
+				cleanJob, err = health_job.MakeStorageCleaningJob(healthStorage, log.With(logger, "job", "clean health checks"))
+				if err != nil {
+					logger.Log("msg", "could not create clean job", "error", err)
+					return
+				}
+				ctrl.Register(cleanJob)
+				ctrl.Schedule(fmt.Sprintf("@every %s", cockroachCleanInterval), cleanJob.Name())
+
+			}
+			ctrl.Start()
+		}
 	}
 
 	// GRPC server.

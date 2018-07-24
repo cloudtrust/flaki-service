@@ -134,5 +134,5 @@ func TestRead(t *testing.T) {
 
 	mockStorage.EXPECT().Query(selectOneHealthStmt, componentName, componentID, module, healthcheck).Return(nil, nil).Times(1)
 	var _, err = m.Read(ctx, module, healthcheck)
-	assert.Nil(t, err)
+	assert.Equal(t, ErrNotFound, err)
 }

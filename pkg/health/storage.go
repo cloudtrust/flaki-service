@@ -151,7 +151,7 @@ func (sm *StorageModule) Read(ctx context.Context, module, healthcheck string) (
 		}
 		// If there is no results, return an empty array
 		if rows == nil {
-			return json.RawMessage(`[]`), nil
+			return nil, ErrNotFound
 		}
 	}
 	defer rows.Close()

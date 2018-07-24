@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	. "github.com/cloudtrust/flaki-service/pkg/health"
 	"github.com/cloudtrust/flaki-service/pkg/health/mock"
@@ -52,7 +54,6 @@ func TestHealthChecksWithCache(t *testing.T) {
 		cockroachReport = reportIndent(json.RawMessage(`[{"name": "ping cockroach","status": "OK","duration": "1ms"}]`))
 		influxReport    = reportIndent(json.RawMessage(`[{"name": "ping influx","status": "OK","duration": "1ms"}]`))
 		jaegerReport    = reportIndent(json.RawMessage(`[{"name": "ping jaeger agent","status": "OK","duration": "1ms"},{"name": "ping jaeger collector","status": "OK","duration": "1ms"}]`))
-		allReports      = reportIndent(json.RawMessage(`[{"name": "ping cockroach","status": "OK","duration": "1ms"},{"name": "ping influx","status": "OK","duration": "1ms"},{"name": "ping jaeger agent","status": "OK","duration": "1ms"},{"name": "ping jaeger collector","status": "OK","duration": "1ms"}]`))
 	)
 
 	var c = NewComponent(healthCheckModules, validity, mockStorage)
@@ -106,10 +107,36 @@ func TestHealthChecksWithCache(t *testing.T) {
 			"healthcheck": "",
 			// When there is no parameter 'nocache=1', the cache is used.
 		}
-		var report, err = c.HealthChecks(ctx, req)
-
+		var jsonReports, err = c.HealthChecks(ctx, req)
 		assert.Nil(t, err)
-		assert.Equal(t, allReports, report)
+
+		var reports = map[string]json.RawMessage{}
+		json.Unmarshal(jsonReports, &reports)
+
+		// Check report ignoring whitespaces (there is an issue when unmarshaling to map[string]json.RawMessage{}.
+		// The indentation is not striclty equal, which break the equality check.
+
+		// Cockroach
+		{
+			var expected = removeWhitspaces(string(cockroachReport))
+			var actual = removeWhitspaces(string(reports["cockroach"]))
+
+			assert.Equal(t, expected, actual)
+		}
+		// Influx
+		{
+			var expected = removeWhitspaces(string(influxReport))
+			var actual = removeWhitspaces(string(reports["influx"]))
+
+			assert.Equal(t, expected, actual)
+		}
+		// Jaeger
+		{
+			var expected = removeWhitspaces(string(jaegerReport))
+			var actual = removeWhitspaces(string(reports["jaeger"]))
+
+			assert.Equal(t, expected, actual)
+		}
 	}
 }
 
@@ -137,7 +164,6 @@ func TestHealthChecksWithoutCache(t *testing.T) {
 		cockroachReport = reportIndent(json.RawMessage(`[{"name": "ping cockroach","status": "OK","duration": "1ms"}]`))
 		influxReport    = reportIndent(json.RawMessage(`[{"name": "ping influx","status": "OK","duration": "1ms"}]`))
 		jaegerReport    = reportIndent(json.RawMessage(`[{"name": "ping jaeger agent","status": "OK","duration": "1ms"},{"name": "ping jaeger collector","status": "OK","duration": "1ms"}]`))
-		allReports      = reportIndent(json.RawMessage(`[{"name": "ping cockroach","status": "OK","duration": "1ms"},{"name": "ping influx","status": "OK","duration": "1ms"},{"name": "ping jaeger agent","status": "OK","duration": "1ms"},{"name": "ping jaeger collector","status": "OK","duration": "1ms"}]`))
 	)
 
 	var c = NewComponent(healthCheckModules, validity, mockStorage)
@@ -197,10 +223,36 @@ func TestHealthChecksWithoutCache(t *testing.T) {
 			"healthcheck": "",
 			"nocache":     "1",
 		}
-		var report, err = c.HealthChecks(ctx, req)
-
+		var jsonReports, err = c.HealthChecks(ctx, req)
 		assert.Nil(t, err)
-		assert.Equal(t, allReports, report)
+
+		var reports = map[string]json.RawMessage{}
+		json.Unmarshal(jsonReports, &reports)
+
+		// Check report ignoring whitespaces (there is an issue when unmarshaling to map[string]json.RawMessage{}.
+		// The indentation is not striclty equal, which break the equality check.
+
+		// Cockroach
+		{
+			var expected = removeWhitspaces(string(cockroachReport))
+			var actual = removeWhitspaces(string(reports["cockroach"]))
+
+			assert.Equal(t, expected, actual)
+		}
+		// Influx
+		{
+			var expected = removeWhitspaces(string(influxReport))
+			var actual = removeWhitspaces(string(reports["influx"]))
+
+			assert.Equal(t, expected, actual)
+		}
+		// Jaeger
+		{
+			var expected = removeWhitspaces(string(jaegerReport))
+			var actual = removeWhitspaces(string(reports["jaeger"]))
+
+			assert.Equal(t, expected, actual)
+		}
 	}
 }
 
@@ -240,4 +292,13 @@ func TestHealthChecksReportInvalid(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, cockroachReport, report)
 	}
+}
+
+func removeWhitspaces(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, string(s))
 }
